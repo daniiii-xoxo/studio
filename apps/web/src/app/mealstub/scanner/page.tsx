@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
 import { Button } from "@studio/ui";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { useToast } from "@/hooks/use-toast";
-import { ScanLine, ArrowLeft, LoaderCircle, SwitchCamera, History, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { ScanLine, LoaderCircle, SwitchCamera, History, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@studio/ui";
 import { ScrollArea } from "@studio/ui";
 import { formatDistanceToNow, isToday, format } from "date-fns";
@@ -403,13 +402,6 @@ export default function QRScannerPage() {
             {/* Header */}
             <header className="flex items-center justify-between border-b px-4 sm:px-6 py-3.5 shrink-0 bg-card/60 backdrop-blur-md">
                 <div className="flex items-center gap-3">
-                    <Link href="/meals">
-                        <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground">
-                            <ArrowLeft className="h-3.5 w-3.5" />
-                            <span>Exit Scanner</span>
-                        </Button>
-                    </Link>
-                    <div className="h-4 w-[1px] bg-border hidden sm:block" />
                     <div>
                         <h1 className="text-lg sm:text-xl font-headline font-bold leading-tight">Meal Stub Scanner</h1>
                         <p className="text-xs text-muted-foreground">Scan QR codes to claim meal stubs in real time.</p>

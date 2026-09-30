@@ -102,8 +102,8 @@ export function LandingNav({ currentPath, subTabs }: LandingNavProps) {
         <nav
           className={`w-full rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] will-change-[max-width,padding,background-color,box-shadow] ${
             isShrunk
-              ? "max-w-3xl sm:max-w-4xl py-1.5 px-4 sm:px-6 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.16)] border border-white/60 dark:border-slate-800 scale-[0.985]"
-              : "max-w-5xl py-2.5 px-6 sm:px-8 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.08)] border border-white/50 dark:border-slate-800/80 scale-100"
+              ? "max-w-3xl sm:max-w-4xl py-1.5 px-4 sm:px-6 bg-black/20 dark:bg-black/30 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/20 dark:border-white/10 scale-[0.985]"
+              : "max-w-5xl py-2.5 px-6 sm:px-8 bg-black/10 dark:bg-black/20 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/20 dark:border-white/10 scale-100"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -140,8 +140,8 @@ export function LandingNav({ currentPath, subTabs }: LandingNavProps) {
                     href={link.href}
                     className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all duration-200 ${
                       isActive
-                        ? "text-primary font-semibold bg-primary/10 dark:bg-primary/20 shadow-xs"
-                        : "text-slate-700 hover:text-primary dark:text-slate-200 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60"
+                        ? "text-white font-semibold bg-white/20 shadow-xs"
+                        : "text-white/80 hover:text-white hover:bg-white/15"
                     }`}
                   >
                     {link.label}
@@ -168,7 +168,7 @@ export function LandingNav({ currentPath, subTabs }: LandingNavProps) {
               {/* Mobile Hamburger Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-1.5 sm:p-2 rounded-full text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="md:hidden p-1.5 sm:p-2 rounded-full text-white/80 hover:text-white hover:bg-white/15 transition-colors"
                 aria-label="Toggle Navigation Menu"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -178,7 +178,7 @@ export function LandingNav({ currentPath, subTabs }: LandingNavProps) {
 
           {/* Mobile Dropdown Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 flex flex-col gap-1 pb-2 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="md:hidden mt-3 pt-3 border-t border-white/20 flex flex-col gap-1 pb-2 animate-in fade-in slide-in-from-top-2 duration-200">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -186,8 +186,8 @@ export function LandingNav({ currentPath, subTabs }: LandingNavProps) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`text-left px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
                     activePath === link.href
-                      ? "bg-primary/10 text-primary font-semibold"
-                      : "text-slate-700 hover:bg-slate-100/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                      ? "bg-white/20 text-white font-semibold"
+                      : "text-white/80 hover:bg-white/15 hover:text-white"
                   }`}
                 >
                   {link.label}

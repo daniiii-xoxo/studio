@@ -475,14 +475,14 @@ export default function QRScannerPage() {
 
             <main className="grid flex-grow grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6 lg:p-8 overflow-hidden">
                 <Card className="flex flex-col">
-                    <CardHeader className="text-center pb-2">
-                        <div className="flex justify-center"><ScanLine className="h-10 w-10 text-primary" /></div>
-                        <CardTitle className="font-headline text-2xl">Live Scan</CardTitle>
+                    <CardHeader className="text-center pb-2 shrink-0">
+                        <div className="flex justify-center"><ScanLine className="h-7 w-7 text-primary" /></div>
+                        <CardTitle className="font-headline text-xl">Live Scan</CardTitle>
                         <CardDescription>
                             Position the QR code in the frame. System automatically records Time In / Time Out.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-grow items-center justify-center">
+                    <CardContent className="flex flex-grow items-start justify-center pt-2">
                         {scanResult ? (
                             <div className="flex flex-col items-center justify-center p-6 text-center w-full max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-200">
                                 {/* Avatar & Badge Icon */}
@@ -572,8 +572,8 @@ export default function QRScannerPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="w-full max-w-md">
-                                <div className="relative w-full aspect-square bg-slate-900 rounded-lg overflow-hidden">
+                            <div className="w-full">
+                                <div className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden">
                                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                                     {/* Hidden canvas for jsQR frame capture */}
                                     <canvas ref={canvasRef} className="hidden" />
