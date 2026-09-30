@@ -118,7 +118,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {isManager ? <AdminDashboard /> : <WorkerDashboard />}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {isManager ? <AdminDashboard /> : <WorkerDashboard />}
+        </div>
       </div>
     </AppLayout>
   );

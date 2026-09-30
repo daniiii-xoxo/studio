@@ -357,7 +357,7 @@ export default function ScheduleDetailPage() {
             )}
 
             {/* Tabs */}
-            <Tabs defaultValue="assignments" className="mt-6">
+            <Tabs defaultValue="assignments" className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <TabsList>
                     <TabsTrigger value="assignments">Assignments</TabsTrigger>
                     {(canConfirmSchedule || schedule.status === "Published") && (

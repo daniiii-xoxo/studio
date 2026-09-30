@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardHeader, CardTitle, CardDescription } from "@studio/ui";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Input, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@studio/ui";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useQuery } from "@tanstack/react-query";
 import { getTransactionLogs } from "@/actions/db";
@@ -11,7 +12,7 @@ import { format, formatDistanceToNow, isToday } from "date-fns";
 import {
   LoaderCircle, Search, ShieldAlert, Clock, History,
   ChevronDown, ChevronUp, Pencil, AlertCircle, RefreshCw,
-  Plus, ArrowLeft, LogIn,
+  Plus, ArrowLeft, LogIn, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,18 @@ export default function TransactionLogsPage() {
   const updateCount = useMemo(() => (logs || []).filter(l => (l.action || "").toLowerCase().includes("updat")).length, [logs]);
   const loginCount = useMemo(() => (logs || []).filter(l => (l.action || "").toLowerCase().includes("sign") || (l.action || "").toLowerCase().includes("login")).length, [logs]);
 
+  const moduleCounts = useMemo(() => {
+    const allLogs = logs || [];
+    const counts: Record<string, number> = {
+      All: allLogs.length,
+    };
+    MODULE_FILTERS.forEach(f => {
+      if (f === "All") return;
+      counts[f] = allLogs.filter(l => (l.module || "").toLowerCase().includes(f.toLowerCase())).length;
+    });
+    return counts;
+  }, [logs]);
+
   const filtered = useMemo(() => {
     let result = logs || [];
     if (search) {
@@ -141,25 +154,28 @@ export default function TransactionLogsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-7 pb-12 w-full">
+      <div className="space-y-6 pb-12 w-full">
 
         {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-primary/10 shrink-0 mt-0.5">
-            <History className="h-4 w-4 text-primary" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              Transaction Logs
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Full audit trail of activity across every module.
+            </p>
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold font-headline tracking-tight text-foreground leading-none">Transaction Logs</h1>
-            <div className="flex items-center justify-between gap-4 -mt-1">
-              <p className="text-sm text-muted-foreground leading-none">Full audit trail of activity across every module.</p>
-              <Link href="/settings" className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors shrink-0">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </Link>
-            </div>
-          </div>
+          <Link
+            href="/settings"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shrink-0 shadow-2xs self-start sm:self-auto"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </Link>
         </div>
 
-        {/* Stat Cards */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Today's Logs" value={todayCount} icon={() => <svg viewBox="0 0 24 24" className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} iconBg="bg-blue-50 dark:bg-blue-950/40" accentColor="bg-blue-500" />
           <StatCard label="Errors" value={errorCount} icon={() => <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>} iconBg="bg-emerald-50 dark:bg-emerald-950/40" accentColor="bg-emerald-500" />
@@ -167,77 +183,129 @@ export default function TransactionLogsPage() {
           <StatCard label="Logins" value={loginCount} sub="Mon · Fri" icon={() => <svg viewBox="0 0 24 24" className="h-5 w-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>} iconBg="bg-amber-50 dark:bg-amber-950/40" accentColor="bg-amber-400" />
         </div>
 
-        {/* Search + Module filter */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative w-56">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" placeholder="Search by user or action..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 h-9 rounded-xl border border-border/60 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        {/* Main Content Container Card (Connect2Souls Style) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+          {/* Top Controls Row */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Search bar */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search by user or action..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 pr-8 h-10 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-2xl bg-background dark:bg-muted/30 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Module Filter Dropdown */}
+            <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <SelectTrigger className="h-10 w-[175px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                <SelectValue placeholder="All Modules" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
+                {MODULE_FILTERS.map(f => (
+                  <SelectItem key={f} value={f} className="text-xs font-medium cursor-pointer">
+                    {f === "All" ? "All Modules" : f} ({moduleCounts[f] ?? 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 flex-wrap">
-            {MODULE_FILTERS.map(f => (
-              <button key={f} onClick={() => setModuleFilter(f)}
-                className={cn("px-3 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap",
-                  moduleFilter === f ? "bg-card shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                {f}
-              </button>
-            ))}
+
+          {/* Table Container */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card mt-1">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[42%]">ACTIVITY</TableHead>
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[20%]">USER</TableHead>
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[15%]">MODULE</TableHead>
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[15%]">TIME</TableHead>
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[8%]">DETAILS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLogsLoading ? (
+                    <TableRow><TableCell colSpan={5} className="py-14 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></TableCell></TableRow>
+                  ) : filtered.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="py-14 text-center text-sm text-muted-foreground">No logs found.</TableCell></TableRow>
+                  ) : (
+                    filtered.map(log => {
+                      const isExpanded = expandedIds.has(log.id);
+                      const style = getModuleStyle(log.module || "System");
+                      const timeAgo = log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : "Unknown";
+
+                      return (
+                        <React.Fragment key={log.id}>
+                          <TableRow className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                            <TableCell className="px-6 py-3.5 align-middle">
+                              <div className="flex items-center gap-3">
+                                <ActionIcon action={log.action || ""} module={log.module || ""} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground">{log.action || "Action"}</p>
+                                  {log.details && !isExpanded && (
+                                    <p className="text-[11px] text-muted-foreground truncate max-w-md mt-0.5">{log.details}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 align-middle">
+                              <div className="flex items-center gap-2">
+                                <UserInitials name={log.userName} />
+                                <span className="text-xs font-semibold text-foreground">{log.userName || "System"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-center align-middle">
+                              <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border", style.pill)}>
+                                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", style.dot)} />
+                                {style.label}
+                              </span>
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-xs text-muted-foreground font-medium text-center align-middle">
+                              {timeAgo}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-center align-middle">
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(log.id)}
+                                title={isExpanded ? "Collapse Details" : "View Details"}
+                                className="p-1.5 rounded-lg hover:bg-muted text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors cursor-pointer"
+                              >
+                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && log.details && (
+                            <TableRow className="bg-muted/15 border-b border-border/30">
+                              <TableCell colSpan={5} className="px-6 py-3">
+                                <div className="rounded-xl border border-border/60 bg-background/80 dark:bg-muted/30 p-3.5 text-xs text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Details: </span>
+                                  {log.details}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
-
-        {/* Activity list */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden">
-          <div className="px-6 py-3 border-b border-border/40">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Activity</p>
-          </div>
-
-          {isLogsLoading ? (
-            <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">No logs found.</div>
-          ) : (
-            <div className="divide-y divide-border/30">
-              {filtered.map(log => {
-                const isExpanded = expandedIds.has(log.id);
-                const style = getModuleStyle(log.module || "System");
-                const timeAgo = log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : "Unknown";
-
-                return (
-                  <div key={log.id}>
-                    <div className="px-6 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
-                      <ActionIcon action={log.action || ""} module={log.module || ""} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground">{log.action || "Action"}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <UserInitials name={log.userName} />
-                          <span className="text-[11px] text-muted-foreground">{log.userName || "System"}</span>
-                          <span className="text-muted-foreground/40 text-[10px]">·</span>
-                          <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border", style.pill)}>
-                          <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", style.dot)} />
-                          {style.label}
-                        </span>
-                        <button onClick={() => toggleExpand(log.id)} className="p-1 rounded-lg hover:bg-muted/40 text-muted-foreground transition-colors">
-                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {isExpanded && log.details && (
-                      <div className="px-6 pb-4">
-                        <div className="ml-13 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
-                          <p className="text-xs text-muted-foreground">{log.details}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </AppLayout>

@@ -386,7 +386,7 @@ export default function NewReservationPage() {
     return (
       <AppLayout>
         <div className="w-full max-w-2xl mx-auto py-12">
-          <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-8 text-center shadow-xs space-y-6">
+          <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-8 text-center shadow-card-dark space-y-6">
             <div className="flex justify-center">
               <CheckCircle2 className="h-16 w-16 text-emerald-500" />
             </div>
@@ -437,7 +437,7 @@ export default function NewReservationPage() {
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-6 sm:p-8 shadow-xs w-full">
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-6 sm:p-8 shadow-card-dark w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Card Title & Notice */}
           <div className="mb-6 space-y-0.5">
             <h2 className="text-xl font-bold font-headline text-gray-900 dark:text-white">

@@ -157,7 +157,7 @@ export default function SlotRolesPage() {
             </div>
 
             {/* Body — two columns */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
 
                 {/* Left — Roles panel */}
                 <div className="w-72 border-r flex flex-col shrink-0 bg-card">

@@ -67,12 +67,13 @@ export default function ProfilePage() {
       <div className="max-w-3xl mx-auto space-y-8 pb-10">
 
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold font-headline">My Profile</h1>
-          <p className="text-muted-foreground mt-1">Your personal information and account settings.</p>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">My Profile</h1>
+          <p className="text-sm text-muted-foreground">Your personal information and account settings.</p>
         </div>
 
-        {/* Profile Hero Card */}
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Profile Hero Card */}
         <Card className="overflow-hidden">
           <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent" />
           <CardContent className="pt-0 pb-8 px-8">
@@ -150,6 +151,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
+        </div>
         </div>
       </div>
     </AppLayout>

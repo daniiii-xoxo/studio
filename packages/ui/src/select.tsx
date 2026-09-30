@@ -193,7 +193,7 @@ const SelectTrigger = React.forwardRef<
         {...props}
       >
         {children}
-        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
       </button>
     </PopoverPrimitive.Trigger>
   )
@@ -244,7 +244,7 @@ const SelectContent = React.forwardRef<
         avoidCollisions={avoidCollisions}
         className={cn(
           "relative z-[100] max-h-60 min-w-[8rem] overflow-y-auto rounded-xl border bg-popover text-popover-foreground shadow-md outline-none pointer-events-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 p-1",
-          position === "popper" && "w-[var(--radix-popover-trigger-width)]",
+          position === "popper" && "min-w-[var(--radix-popover-trigger-width)] w-auto max-w-[min(calc(100vw-32px),360px)]",
           className
         )}
         {...props}

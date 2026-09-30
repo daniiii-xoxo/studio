@@ -108,7 +108,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1.5 p-1 sm:px-2 mr-5 sm:mr-8 lg:mr-12 rounded-lg hover:bg-muted/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none"
+          className="flex items-center gap-1.5 p-1 sm:px-2 mr-1 sm:mr-2 rounded-lg hover:bg-muted/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer select-none"
         >
           {/* Avatar circle */}
           <div className="h-8 w-8 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0 ring-2 ring-indigo-300/50">

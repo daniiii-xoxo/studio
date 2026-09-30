@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@stud
 import { Button } from "@studio/ui";
 import {
   LoaderCircle, GanttChartSquare, CheckCircle2, XCircle, Clock,
-  Search, MoreHorizontal,
+  Search, MoreHorizontal, Eye,
   LayoutList, LayoutGrid, KanbanSquare,
 } from "lucide-react";
-import { Input } from "@studio/ui";
+import { Input, Checkbox } from "@studio/ui";
 import { cn } from "@/lib/utils";
 import type { ApprovalRequest, Worker, Ministry } from "@studio/types";
 import { useApprovals } from "@/hooks/use-approvals";
@@ -27,6 +27,7 @@ import {
 } from "@studio/ui";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@studio/ui";
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -299,27 +300,18 @@ export default function ApprovalsPage() {
   return (
     <AppLayout>
       <div className="space-y-7 pb-12">
-        {/* Search row */}
+        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Approvals</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               Review and act on incoming requests across ministries, facilities, and operations.
             </p>
           </div>
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search requests, requestors, IDs..."
-              className="pl-9 pr-4 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
         </div>
 
-        {/* Stat Cards */}
+        <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Total Requests" value={stats.total} icon={GanttChartSquare} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
           <StatCard label="Pending" value={stats.pending} icon={Clock} accentColor="bg-amber-500" iconClass="text-amber-600" iconBgClass="bg-amber-50 dark:bg-amber-950/40" />
@@ -348,86 +340,42 @@ export default function ApprovalsPage() {
           </div>
         )}
 
-        {/* Table / Cards / Kanban container */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden">
-          {/* Toolbar */}
-          <div className="flex items-center justify-center px-2 md:px-5 py-3 border-b border-border/40" style={{ backgroundColor: '#1e3a8a' }}>
-            {/* Status filter tabs */}
-            <div className="flex items-center gap-1 md:gap-2 w-full justify-center">
-              {(["all", "pending", "approved", "rejected"] as const).map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatusFilter(s)}
-                  className={cn(
-                    "flex items-center gap-1 md:gap-1.5 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-semibold transition-colors whitespace-nowrap",
-                    statusFilter === s
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-white/80 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                  <span className={cn(
-                    "inline-flex items-center justify-center min-w-[16px] md:min-w-[18px] h-[16px] md:h-[18px] px-1 rounded-full text-[9px] md:text-[10px] font-bold",
-                    statusFilter === s ? "bg-blue-500 text-white" : "bg-white/20 text-white"
-                  )}>
-                    {statusCounts[s]}
-                  </span>
-                </button>
-              ))}
+        {/* Main Content Card Container (Connect2Souls Style) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+          {/* Top Controls Row (Search Left, Filter Right) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Search bar (Left side) */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search requests, requestors, IDs..."
+                className="pl-9 pr-4 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
             </div>
+
+            {/* Status filter dropdown (Right side) */}
+            <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+              <SelectTrigger className="h-10 w-[165px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover">
+                {(["all", "pending", "approved", "rejected"] as const).map(s => (
+                  <SelectItem key={s} value={s} className="text-xs font-medium cursor-pointer">
+                    {s === "all" ? "All Statuses" : s.charAt(0).toUpperCase() + s.slice(1)} ({statusCounts[s]})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Table View */}
-          {viewMode === "table" && (
+          {/* Table / Cards / Kanban container */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
+            {/* Table View */}
+            {viewMode === "table" && (
             <>
-              {/* Mobile list view */}
-              <div className="md:hidden divide-y divide-border/30">
-                {filteredRequests.length === 0 ? (
-                  <div className="py-20 text-center text-sm text-muted-foreground">
-                    No requests found.
-                  </div>
-                ) : (
-                  filteredRequests.map(req => {
-                    const worker = workers?.find(w => w.id === req.workerId);
-                    const ministry = worker ? ministries?.find(m => m.id === worker.majorMinistryId) : null;
-                    const reqId = req.id || "";
-                    const reqDate = req.date ? new Date(req.date as any) : null;
-
-                    return (
-                      <div
-                        key={reqId || Math.random().toString()}
-                        className="p-4 flex items-center justify-between gap-3"
-                      >
-                        {/* Left: Basic info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2.5 mb-1.5">
-                            <Initials name={req.requester} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-foreground leading-tight truncate">{req.requester}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"}</p>
-                            </div>
-                          </div>
-                          <p className="text-[10px] font-mono text-muted-foreground mb-1">REQ-{reqId.slice(-4).toUpperCase()}</p>
-                          <p className="text-xs text-muted-foreground truncate">{req.details}</p>
-                        </div>
-
-                        {/* Right: Status + Details button */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <StatusBadge status={req.status} />
-                          <button
-                            onClick={() => setSelectedRequest(req)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
-                          >
-                            Details
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
               {/* Mobile list view */}
               <div className="md:hidden divide-y divide-border/30">
                 {filteredRequests.length === 0 ? (
@@ -478,24 +426,25 @@ export default function ApprovalsPage() {
               {/* Desktop table view */}
               <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
-                <thead>
-                  <tr className="bg-muted/40 border-b border-border/40">
-                    <th className="w-10 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        className="rounded border-border"
-                        checked={selectedIds.size === filteredRequests.length && filteredRequests.length > 0}
-                        onChange={toggleSelectAll}
-                      />
+                <thead className="bg-sidebar">
+                  <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                    <th className="w-10 px-4 py-3.5 text-center">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer shadow-xs transition-colors"
+                          checked={selectedIds.size === filteredRequests.length && filteredRequests.length > 0}
+                          onCheckedChange={() => toggleSelectAll()}
+                        />
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Request ID</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Request</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Requestor</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ministry</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Type</th>
-                    <th className="w-10 px-4 py-3" />
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Request ID</th>
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Request</th>
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Requestor</th>
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
+                    <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -527,12 +476,13 @@ export default function ApprovalsPage() {
                           onClick={() => setSelectedRequest(req)}
                         >
                           <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelect(reqId); }}>
-                            <input
-                              type="checkbox"
-                              className="rounded border-border accent-sidebar cursor-pointer"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(reqId)}
-                            />
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelect(reqId)}
+                              />
+                            </div>
                           </td>
                           <td className="px-5 py-3.5 text-xs font-mono text-muted-foreground whitespace-nowrap font-medium">
                             REQ-{reqId.slice(-4).toUpperCase()}
@@ -567,23 +517,24 @@ export default function ApprovalsPage() {
                                     <MoreHorizontal className="h-4 w-4" />
                                   </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-md">
-                                  <DropdownMenuItem onClick={() => setSelectedRequest(req)} className="text-xs font-medium cursor-pointer">
+                                <DropdownMenuContent align="end" className="w-40 p-1 rounded-xl shadow-lg border-border/80">
+                                  <DropdownMenuItem onClick={() => setSelectedRequest(req)} className="text-xs font-medium cursor-pointer gap-2 py-2 rounded-lg">
+                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                     View Details
                                   </DropdownMenuItem>
                                   {canManage && isPending && (
                                     <>
                                       <DropdownMenuItem
-                                        className="text-emerald-600 text-xs font-medium cursor-pointer"
+                                        className="text-emerald-600 dark:text-emerald-400 text-xs font-medium cursor-pointer gap-2 py-2 rounded-lg"
                                         onClick={() => handleUpdateRequestStatus(req, "Approved")}
                                       >
-                                        <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Approve
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Approve
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
-                                        className="text-red-600 text-xs font-medium cursor-pointer"
+                                        className="text-rose-600 dark:text-rose-400 text-xs font-medium cursor-pointer gap-2 py-2 rounded-lg"
                                         onClick={() => handleUpdateRequestStatus(req, "Rejected")}
                                       >
-                                        <XCircle className="h-3.5 w-3.5 mr-2" /> Reject
+                                        <XCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" /> Reject
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -776,6 +727,8 @@ export default function ApprovalsPage() {
             </div>
           )}
         </div>
+      </div>
+      </div>
       </div>
 
       {/* Bulk confirm dialog */}

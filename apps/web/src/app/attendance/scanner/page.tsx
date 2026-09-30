@@ -276,8 +276,8 @@ export default function QRScannerPage() {
                     setTimeout(resetScanner, 3000);
                     return;
                 }
-                if (tokenOrTs && !isNaN(parseInt(tokenOrTs)) && tokenOrTs.length > 10) {
-                    const diffMins = (Date.now() - parseInt(tokenOrTs)) / 1000 / 60;
+                if (tokenOrTs && typeof tokenOrTs === 'string' && /^\d{13}$/.test(tokenOrTs)) {
+                    const diffMins = (Date.now() - parseInt(tokenOrTs, 10)) / 1000 / 60;
                     if (diffMins > 5) {
                         playBeep('warning');
                         toast({ variant: 'destructive', title: 'QR Code Expired', description: 'Please refresh your meal stub QR code and try again.' });

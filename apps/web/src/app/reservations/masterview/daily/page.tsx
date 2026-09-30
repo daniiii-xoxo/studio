@@ -228,7 +228,8 @@ export default function ScheduleCalendarPage() {
           </p>
         </div>
 
-        {/* Navigation & View Mode Card */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Navigation & View Mode Card */}
         <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Date Navigator */}
           <div className="flex items-center gap-1">
@@ -328,7 +329,7 @@ export default function ScheduleCalendarPage() {
         )}
 
         {/* Main Content Card */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-5 sm:p-6 shadow-xs overflow-hidden min-h-[520px]">
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-5 sm:p-6 shadow-card-dark overflow-hidden min-h-[520px]">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-3">
               <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
@@ -379,8 +380,8 @@ export default function ScheduleCalendarPage() {
                           ? isDayToday
                             ? "bg-white dark:bg-card border-sidebar/50 dark:border-blue-500/60 ring-2 ring-sidebar/15 shadow-sm"
                             : isWeekend
-                            ? "bg-slate-50/60 dark:bg-muted/20 border-slate-200/80 dark:border-border/70 hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
-                            : "bg-white dark:bg-card border-slate-200/80 dark:border-border/70 hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
+                            ? "bg-slate-50/60 dark:bg-muted/20 border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
+                            : "bg-white dark:bg-card border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
                           : "bg-slate-50/30 dark:bg-muted/10 border-slate-100 dark:border-border/30 text-slate-400 dark:text-slate-600 opacity-60"
                       )}
                     >
@@ -861,6 +862,7 @@ export default function ScheduleCalendarPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Edit Reservation Dialog Form */}

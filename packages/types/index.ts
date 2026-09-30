@@ -202,10 +202,12 @@ export type C2SDevotionRecord = {
     scripture?: string | null;
     devotionDate: TimestampLike;
     groupId?: string | null;
-    clusterName: string;
+    clusterName?: string | null;
     mentorId: string;
     mentorName?: string | null;
     mentorRole?: string | null;
+    mentorEmail?: string | null;
+    userId?: string | null;
     attendeeNames: string[];
     attendeeCount: number;
     reflectionNotes: string;

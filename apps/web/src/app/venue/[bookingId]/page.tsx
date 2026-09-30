@@ -154,8 +154,9 @@ export default function BookingDetailPage() {
                 </Badge>
             </div>
 
-            {/* Booking details */}
-            <Card className="mb-6">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Booking details */}
+                <Card>
                 <CardContent className="pt-4 space-y-3">
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
@@ -257,6 +258,7 @@ export default function BookingDetailPage() {
                     </AlertDialog>
                 </div>
             )}
+            </div>
         </AppLayout>
     );
 }

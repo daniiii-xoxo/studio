@@ -13,6 +13,14 @@ vi.mock("@studio/ui", () => ({
   AvatarImage: ({ src }: any) => <img src={src} alt="" />,
   AvatarFallback: ({ children }: any) => <span>{children}</span>,
   Badge: ({ children, className }: any) => <span className={className}>{children}</span>,
+  AlertDialog: ({ children, open }: any) => (open ? <div>{children}</div> : null),
+  AlertDialogContent: ({ children }: any) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: any) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: any) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: any) => <div>{children}</div>,
+  AlertDialogFooter: ({ children }: any) => <div>{children}</div>,
+  AlertDialogCancel: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+  AlertDialogAction: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
 }));
 
 vi.mock("lucide-react", () => ({

@@ -158,18 +158,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="pb-1 px-3 pt-2.5 sticky top-0 z-10 bg-sidebar">
+        <SidebarHeader className="pb-1.5 px-3 pt-2.5 sticky top-0 z-10 bg-sidebar">
           <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:hidden">
               <Image
                 src="/church-logo.png"
                 alt="COG Logo"
-                width={62}
-                height={62}
-                className="w-[62px] h-[62px] object-contain shrink-0"
+                width={50}
+                height={50}
+                className="w-12 h-12 object-contain shrink-0"
                 priority
               />
-              <span className="text-[26px] font-extrabold font-headline tracking-tight text-white translate-y-0.5 leading-none">
+              <span className="text-2xl font-extrabold font-headline tracking-tight text-white translate-y-0.5 leading-none">
                 COG APP
               </span>
             </div>
@@ -177,7 +177,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="h-[1px] bg-white/15 mx-1.5 mt-2.5 mb-1 group-data-[collapsible=icon]:hidden" />
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <Nav pathname={currentPathname} />
         </SidebarContent>
       </Sidebar>

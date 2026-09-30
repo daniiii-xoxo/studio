@@ -96,14 +96,18 @@ export default function SchedulersPage() {
 
     return (
         <AppLayout>
-            <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={() => router.push("/schedule")}>
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-headline font-bold">Ministry Schedulers</h1>
-                    <p className="text-sm text-muted-foreground">Assign a Ministry Scheduler to each ministry.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        Ministry Schedulers
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Assign a Ministry Scheduler to each ministry.
+                    </p>
                 </div>
+                <Button variant="outline" onClick={() => router.push("/schedule")} className="self-start sm:self-auto">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Schedules
+                </Button>
             </div>
 
             {isLoading ? (
@@ -111,7 +115,7 @@ export default function SchedulersPage() {
                     <LoaderCircle className="h-8 w-8 animate-spin" />
                 </div>
             ) : (
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {visibleMinistries.map((ministry: any) => {
                         const scheduler = getScheduler(ministry.id);
                         return (

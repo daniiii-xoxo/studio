@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, Suspense } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@studio/ui";
 import {
@@ -53,6 +54,7 @@ import {
   FileText,
   Clock,
   TrendingUp,
+  ScanLine,
 } from "lucide-react";
 import {
   format,
@@ -83,6 +85,7 @@ import { useMealStubs } from "@/hooks/use-meal-stubs";
 import { useSettings } from "@/hooks/use-settings";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import type { Worker } from "@studio/types";
 
 // ------------------------------------------------------------
@@ -90,6 +93,48 @@ import type { Worker } from "@studio/types";
 // ------------------------------------------------------------
 function generateToken() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ── StatCard Component (Consistent with C2S Overview, Dashboard & Attendance) ───
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accentColor,
+  iconClass,
+  iconBgClass,
+  badge,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  icon: React.ElementType;
+  accentColor: string;
+  iconClass: string;
+  iconBgClass: string;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200/80 dark:border-border shadow-xs bg-white dark:bg-card h-full">
+      <div className={cn("h-1.5 w-full", accentColor)} />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-4xl font-black tracking-tight font-headline text-foreground leading-none">{value}</span>
+              {badge}
+            </div>
+            {sub && <p className="text-xs text-muted-foreground mt-2 font-medium">{sub}</p>}
+          </div>
+          <div className={cn("p-2.5 rounded-xl flex items-center justify-center shrink-0 shadow-xs", iconBgClass)}>
+            <Icon className={cn("h-5 w-5", iconClass)} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ------------------------------------------------------------
@@ -106,6 +151,10 @@ function MealsPageContent() {
   const [assignDate, setAssignDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const assignDateObj = useMemo(() => new Date(assignDate + 'T12:00:00'), [assignDate]);
   const isSelectedSunday = assignDateObj.getDay() === 0;
+
+  const [isCleanupConfirmOpen, setIsCleanupConfirmOpen] = useState(false);
+  const [isAssignAllConfirmOpen, setIsAssignAllConfirmOpen] = useState(false);
+  const [isBatchRemoveConfirmOpen, setIsBatchRemoveConfirmOpen] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -195,6 +244,11 @@ function MealsPageContent() {
       w.employmentType?.toLowerCase().includes(q)
     );
   }, [ministryWorkers, assignSearch]);
+
+  const eligibleAssignWorkers = useMemo(() => {
+    if (!filteredAssignerWorkers) return [];
+    return filteredAssignerWorkers.filter(w => getStubCountForDate(allMealStubsInRange as any || [], w.id, assignDateObj) < 1);
+  }, [filteredAssignerWorkers, allMealStubsInRange, assignDateObj]);
 
   // ---- Logic Handlers ----
 
@@ -420,6 +474,7 @@ function MealsPageContent() {
 
   const handleCleanupExcess = useCallback(async () => {
     if (!allMealStubsInRange) return;
+    setIsCleanupConfirmOpen(false);
     setIsAssigning(true);
     let deletedCount = 0;
     try {
@@ -438,7 +493,9 @@ function MealsPageContent() {
         }
       }
       if (deletedCount > 0) {
-        toast({ title: "Cleanup Success", description: `Deleted ${deletedCount} duplicate stubs.` });
+        toast({ title: "Cleanup Success", description: `Deleted ${deletedCount} duplicate or expired stubs.` });
+      } else {
+        toast({ title: "Cleanup Complete", description: "No duplicate or expired stubs found." });
       }
     } catch (e) { console.error(e); } finally { setIsAssigning(false); }
   }, [allMealStubsInRange, deleteMealStub, toast]);
@@ -463,66 +520,55 @@ function MealsPageContent() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold font-headline text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-gray-900 dark:text-white">
               Mealstub Management
             </h1>
             <p className="text-sm text-muted-foreground">
               Issue, claim and audit daily meal allocations across every worker type — all from one place.
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Link href="/mealstub/scanner">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3.5 text-xs font-semibold rounded-xl border border-slate-200/90 dark:border-border bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted text-slate-700 dark:text-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <ScanLine className="h-3.5 w-3.5 text-primary" />
+                <span>Scanner Kiosk</span>
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <TabsContent value="view" className="space-y-6 mt-0">
             {/* Top Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-              {/* Today's Allocation */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 sm:p-6 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    TODAY'S ALLOCATION
-                  </p>
-                  <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300">
-                    <UtensilsCrossed className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-4xl sm:text-5xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {myTodayCount}
-                  </span>
-                  <span className="text-2xl sm:text-3xl text-muted-foreground font-medium">
-                    / 1
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  daily allocation
-                </p>
-              </div>
-
-              {/* Weekly Usage */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 sm:p-6 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    WEEKLY USAGE
-                  </p>
-                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300">
-                    <CalendarDays className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-4xl sm:text-5xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {myWeekCount}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  of 7 days this week
-                </p>
-              </div>
+              <StatCard
+                label="TODAY'S ALLOCATION"
+                value={myTodayCount}
+                badge={<span className="text-2xl sm:text-3xl text-muted-foreground font-medium">/ 1</span>}
+                sub="daily allocation"
+                icon={UtensilsCrossed}
+                accentColor="bg-amber-500"
+                iconClass="text-amber-600 dark:text-amber-400"
+                iconBgClass="bg-amber-50 dark:bg-amber-950/40"
+              />
+              <StatCard
+                label="WEEKLY USAGE"
+                value={myWeekCount}
+                sub="of 7 days this week"
+                icon={CalendarDays}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-sidebar/10 dark:bg-blue-950/40"
+              />
             </div>
 
-            {/* Issued Stubs Table Card */}
-            <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden flex flex-col">
-              <div className="p-5 sm:p-6 pb-4 border-b border-border/40 space-y-0.5">
+            {/* Outer White Container with Title Header & Shadow */}
+            <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+              <div className="space-y-0.5">
                 <h3 className="font-bold text-base text-foreground font-headline">
                   Issued Stubs
                 </h3>
@@ -531,123 +577,119 @@ function MealsPageContent() {
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[40%]">
-                        Date
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[35%]">
-                        Time
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[25%]">
-                        Status
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(!mealStubs || mealStubs.length === 0) ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={3}
-                          className="py-12 text-center text-xs text-muted-foreground font-medium"
-                        >
-                          No meal stub activity recorded.
-                        </TableCell>
+              {/* Inner Table Container with Direct Navy Header (clean border, no inner shadow) */}
+              <div className="bg-card rounded-2xl border border-border/60 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[40%]">
+                          DATE
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[35%]">
+                          TIME
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center w-[25%]">
+                          STATUS
+                        </TableHead>
                       </TableRow>
-                    ) : (
-                      [...mealStubs]
-                        .sort((a, b) => {
-                          const da =
-                            a.date instanceof Date
-                              ? a.date
-                              : new Date(a.date as any);
-                          const db =
-                            b.date instanceof Date
-                              ? b.date
-                              : new Date(b.date as any);
-                          return db.getTime() - da.getTime();
-                        })
-                        .slice(0, 10)
-                        .map((stub: any) => {
-                          const d =
-                            stub.date instanceof Date
-                              ? stub.date
-                              : new Date(stub.date);
-                          const isClaimed =
-                            stub.status === "Claimed" || stub.claimedAt;
+                    </TableHeader>
+                    <TableBody>
+                      {(!mealStubs || mealStubs.length === 0) ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            className="py-14 text-center text-xs text-muted-foreground font-medium"
+                          >
+                            No meal stub activity recorded.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        [...mealStubs]
+                          .sort((a, b) => {
+                            const da =
+                              a.date instanceof Date
+                                ? a.date
+                                : new Date(a.date as any);
+                            const db =
+                              b.date instanceof Date
+                                ? b.date
+                                : new Date(b.date as any);
+                            return db.getTime() - da.getTime();
+                          })
+                          .slice(0, 10)
+                          .map((stub: any) => {
+                            const d =
+                              stub.date instanceof Date
+                                ? stub.date
+                                : new Date(stub.date);
+                            const isClaimed =
+                              stub.status === "Claimed" || stub.claimedAt;
 
-                          return (
-                            <TableRow
-                              key={stub.id}
-                              className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors"
-                            >
-                              <TableCell className="py-3.5 px-6 font-semibold text-xs text-foreground align-middle">
-                                {format(d, "EEE, MMM d, yyyy")}
-                              </TableCell>
-                              <TableCell className="py-3.5 px-6 text-xs text-muted-foreground font-medium align-middle">
-                                {format(d, "h:mm a")}
-                              </TableCell>
-                              <TableCell className="py-3.5 px-6 text-center align-middle">
-                                {isClaimed ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-muted dark:text-slate-300 border border-slate-200 dark:border-border">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                    Claimed
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    Active
-                                  </span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                    )}
-                  </TableBody>
-                </Table>
+                            return (
+                              <TableRow
+                                key={stub.id}
+                                className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors"
+                              >
+                                <TableCell className="py-4 px-6 font-bold text-xs text-foreground align-middle">
+                                  {format(d, "EEE, MMM d, yyyy")}
+                                </TableCell>
+                                <TableCell className="py-4 px-6 text-xs text-muted-foreground font-medium align-middle">
+                                  {format(d, "h:mm a")}
+                                </TableCell>
+                                <TableCell className="py-4 px-6 text-center align-middle">
+                                  {isClaimed ? (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                      Claimed
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                      Active
+                                    </span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="assign" className="space-y-5">
             {/* Top Filter and Actions Bar */}
-            <div className="bg-card rounded-2xl border border-border/60 p-4 px-6 shadow-card-dark flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Assignment Date */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline">
-                    Date:
-                  </span>
-                  <DatePicker
-                    value={assignDate}
-                    onChange={setAssignDate}
-                    align="start"
-                    className="w-40 rounded-2xl"
-                  />
-                </div>
-
-                {/* Search Bar */}
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
-                  <Input
-                    className="pl-9 pr-4 h-10 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-2xl bg-background dark:bg-muted/30 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
-                    placeholder="Search by name..."
-                    value={assignSearch}
-                    onChange={(e) => setAssignSearch(e.target.value)}
-                  />
-                </div>
+            <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-4 px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              {/* Left: Search Bar */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+                <Input
+                  className="pl-9 pr-4 h-10 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-2xl bg-background dark:bg-muted/30 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+                  placeholder="Search by name..."
+                  value={assignSearch}
+                  onChange={(e) => setAssignSearch(e.target.value)}
+                />
               </div>
 
-              {/* Right Buttons */}
-              <div className="flex items-center gap-2.5">
+              {/* Right: Date Picker and Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Assignment Date */}
+                <DatePicker
+                  value={assignDate}
+                  onChange={setAssignDate}
+                  align="end"
+                  className="w-40 rounded-2xl"
+                />
+
                 {canManageAllMealStubs && (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleCleanupExcess}
+                    onClick={() => setIsCleanupConfirmOpen(true)}
                     disabled={isAssigning}
                     className="rounded-2xl border border-slate-200 dark:border-border text-slate-700 dark:text-slate-300 text-xs font-semibold px-4 h-10 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-muted shadow-2xs cursor-pointer"
                   >
@@ -657,7 +699,7 @@ function MealsPageContent() {
                 )}
                 <Button
                   type="button"
-                  onClick={handleAssignAll}
+                  onClick={() => setIsAssignAllConfirmOpen(true)}
                   disabled={isAssigning || filteredAssignerWorkers.length === 0}
                   className="bg-sidebar hover:bg-sidebar/90 text-white rounded-2xl text-xs font-semibold px-5 h-10 flex items-center gap-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
                 >
@@ -676,7 +718,7 @@ function MealsPageContent() {
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={handleBatchRemove}
+                    onClick={() => setIsBatchRemoveConfirmOpen(true)}
                     disabled={isAssigning}
                     className="border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 rounded-xl px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer"
                   >
@@ -696,190 +738,202 @@ function MealsPageContent() {
               </div>
             )}
 
-            {/* Workers Table Card */}
-            <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden flex flex-col">
-              <div className="p-5 sm:p-6 pb-4 border-b border-border/40 space-y-0.5 bg-sidebar">
-                <h3 className="font-bold text-base text-white font-headline">
+            {/* Workers Table Card (Matching View Meal Stub Tab Layout) */}
+            <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+              <div className="space-y-0.5">
+                <h3 className="font-bold text-base text-foreground font-headline">
                   Workers
                 </h3>
-                <p className="text-xs text-white/70 font-medium">
+                <p className="text-xs text-muted-foreground">
                   Assigning for {format(assignDateObj, "MMMM d, yyyy")}
                 </p>
               </div>
 
-              {/* ── MOBILE CARD LIST (below sm) ── */}
-              <div className="sm:hidden divide-y divide-border/40">
-                {filteredAssignerWorkers.length === 0 ? (
-                  <p className="py-12 text-center text-xs text-muted-foreground font-medium">No workers found.</p>
-                ) : (
-                  filteredAssignerWorkers.map((w) => {
-                    const dayCount = getStubCountForDate((allMealStubsInRange as any) || [], w.id, assignDateObj);
-                    const isAllocated = dayCount >= 1;
-                    const initials = `${w.firstName?.[0] || ""}${w.lastName?.[0] || ""}`.toUpperCase();
+              {/* Inner Table Container with Direct Navy Header */}
+              <div className="bg-card rounded-2xl border border-border/60 overflow-hidden flex flex-col">
+                {/* ── MOBILE CARD LIST (below sm) ── */}
+                <div className="sm:hidden divide-y divide-gray-100 dark:divide-border/60">
+                  {filteredAssignerWorkers.length === 0 ? (
+                    <p className="py-14 text-center text-xs text-muted-foreground font-medium">No workers found.</p>
+                  ) : (
+                    filteredAssignerWorkers.map((w) => {
+                      const dayCount = getStubCountForDate((allMealStubsInRange as any) || [], w.id, assignDateObj);
+                      const isAllocated = dayCount >= 1;
+                      const initials = `${w.firstName?.[0] || ""}${w.lastName?.[0] || ""}`.toUpperCase();
 
-                    return (
-                      <div key={w.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/20 transition-colors">
-                        {/* Checkbox */}
-                        <Checkbox checked={selectedWorkerIds.includes(w.id)} onCheckedChange={() => toggleSelectWorker(w.id)} />
+                      return (
+                        <div key={w.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50/60 dark:hover:bg-muted/30 transition-colors">
+                          {/* Checkbox */}
+                          <Checkbox checked={selectedWorkerIds.includes(w.id)} onCheckedChange={() => toggleSelectWorker(w.id)} />
 
-                        {/* Avatar */}
-                        <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 font-bold text-[11px] flex items-center justify-center shrink-0">
-                          {initials}
-                        </div>
-
-                        {/* Name + Type + Status */}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-xs text-foreground truncate">{w.firstName} {w.lastName}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {/* Type badge */}
-                            {w.employmentType === "Full-Time" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Full-Time</span>
-                            ) : w.employmentType === "On-Call" ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">On-Call</span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">{w.employmentType || "Volunteer"}</span>
-                            )}
-                            {/* Status badge */}
-                            {isAllocated ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Allocated
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-muted dark:text-slate-400 border border-slate-200 dark:border-border">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Not Allocated
-                              </span>
-                            )}
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 font-bold text-[11px] flex items-center justify-center shrink-0">
+                            {initials}
                           </div>
-                        </div>
 
-                        {/* Action button */}
-                        {isAllocated ? (
-                          <Button variant="outline" size="sm" onClick={() => handleCancelStub(w.id)} disabled={isAssigning} className="shrink-0 rounded-xl px-3 h-8 text-xs font-semibold shadow-2xs">
-                            Reassign
-                          </Button>
-                        ) : (
-                          <Button size="sm" onClick={() => issueStub(w.id, 1)} disabled={isAssigning} className="shrink-0 bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-4 h-8 text-xs font-semibold shadow-xs">
-                            Assign
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* ── DESKTOP TABLE (sm and above) ── */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                      <TableHead className="w-12 px-4 py-3 text-center bg-sidebar">
-                        <Checkbox
-                          checked={
-                            filteredAssignerWorkers.length > 0 &&
-                            selectedWorkerIds.length === filteredAssignerWorkers.length
-                          }
-                          onCheckedChange={() => toggleSelectAll(filteredAssignerWorkers as any)}
-                        />
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left">
-                        Worker
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center">
-                        Type
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center">
-                        Today
-                      </TableHead>
-                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center">
-                        Action
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAssignerWorkers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-12 text-center text-xs text-muted-foreground font-medium">
-                          No workers found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredAssignerWorkers.map((w) => {
-                        const dayCount = getStubCountForDate((allMealStubsInRange as any) || [], w.id, assignDateObj);
-                        const isAllocated = dayCount >= 1;
-                        const initials = `${w.firstName?.[0] || ""}${w.lastName?.[0] || ""}`.toUpperCase();
-
-                        return (
-                          <TableRow key={w.id} className="hover:bg-muted/20 border-b border-border/40 transition-colors">
-                            <TableCell className="px-4 py-3.5 text-center">
-                              <Checkbox checked={selectedWorkerIds.includes(w.id)} onCheckedChange={() => toggleSelectWorker(w.id)} />
-                            </TableCell>
-                            <TableCell className="px-5 py-3.5">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground font-bold text-[10px] flex items-center justify-center shrink-0">
-                                  {initials}
-                                </div>
-                                <span className="font-bold text-xs text-foreground">
-                                  {w.firstName} {w.lastName}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="px-4 py-3.5 text-center">
+                          {/* Name + Type + Status */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-xs text-foreground truncate">{w.firstName} {w.lastName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {/* Type badge */}
                               {w.employmentType === "Full-Time" ? (
-                                <span className="inline-flex items-center justify-center px-3 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 min-w-[85px]">
-                                  Full-Time
-                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Full-Time</span>
                               ) : w.employmentType === "On-Call" ? (
-                                <span className="inline-flex items-center justify-center px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 min-w-[85px]">
-                                  On-Call
-                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">On-Call</span>
                               ) : (
-                                <span className="inline-flex items-center justify-center px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 min-w-[85px]">
-                                  {w.employmentType || "Volunteer"}
-                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">{w.employmentType || "Volunteer"}</span>
                               )}
-                            </TableCell>
-                            <TableCell className="px-4 py-3.5 text-center">
+                              {/* Status badge */}
                               {isAllocated ? (
-                                <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 min-w-[110px]">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                  Allocated
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /> Allocated
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-muted dark:text-slate-400 border border-slate-200 dark:border-border min-w-[110px]">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                  Not Allocated
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 dark:bg-muted dark:text-slate-400 border border-slate-200 dark:border-border">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" /> Not Allocated
                                 </span>
                               )}
-                            </TableCell>
-                            <TableCell className="px-4 py-3.5 text-center">
-                              {isAllocated ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleCancelStub(w.id)}
-                                  disabled={isAssigning}
-                                  className="border border-slate-200 dark:border-border text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted rounded-xl px-4 h-8 text-xs font-semibold shadow-2xs cursor-pointer"
-                                >
-                                  Reassign
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => issueStub(w.id, 1)}
-                                  disabled={isAssigning}
-                                  className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-5 h-8 text-xs font-semibold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
-                                >
-                                  Assign
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                            </div>
+                          </div>
+
+                          {/* Action button */}
+                          {isAllocated ? (
+                            <Button variant="outline" size="sm" onClick={() => handleCancelStub(w.id)} disabled={isAssigning} className="shrink-0 rounded-xl px-3 h-8 text-xs font-semibold shadow-2xs">
+                              Reassign
+                            </Button>
+                          ) : (
+                            <Button size="sm" onClick={() => issueStub(w.id, 1)} disabled={isAssigning} className="shrink-0 bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-4 h-8 text-xs font-semibold shadow-xs">
+                              Assign
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* ── DESKTOP TABLE (sm and above) ── */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                        <TableHead className="w-12 px-4 py-3 text-center bg-sidebar">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                              checked={
+                                filteredAssignerWorkers.length > 0 &&
+                                selectedWorkerIds.length === filteredAssignerWorkers.length
+                              }
+                              onCheckedChange={() => toggleSelectAll(filteredAssignerWorkers as any)}
+                            />
+                          </div>
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left">
+                          WORKER
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center">
+                          TYPE
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center">
+                          TODAY
+                        </TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center">
+                          ACTION
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAssignerWorkers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="py-14 text-center text-xs text-muted-foreground font-medium">
+                            No workers found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredAssignerWorkers.map((w) => {
+                          const dayCount = getStubCountForDate((allMealStubsInRange as any) || [], w.id, assignDateObj);
+                          const isAllocated = dayCount >= 1;
+                          const initials = `${w.firstName?.[0] || ""}${w.lastName?.[0] || ""}`.toUpperCase();
+
+                          return (
+                            <TableRow key={w.id} className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors">
+                              <TableCell className="px-4 py-4 text-center align-middle">
+                                <div className="flex items-center justify-center">
+                                  <Checkbox
+                                    className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                                    checked={selectedWorkerIds.includes(w.id)}
+                                    onCheckedChange={() => toggleSelectWorker(w.id)}
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-6 py-4 align-middle">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground font-bold text-xs flex items-center justify-center shrink-0">
+                                    {initials}
+                                  </div>
+                                  <span className="font-bold text-xs text-foreground">
+                                    {w.firstName} {w.lastName}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center align-middle">
+                                {w.employmentType === "Full-Time" ? (
+                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 min-w-[85px]">
+                                    Full-Time
+                                  </span>
+                                ) : w.employmentType === "On-Call" ? (
+                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 min-w-[85px]">
+                                    On-Call
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 min-w-[85px]">
+                                    {w.employmentType || "Volunteer"}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center align-middle">
+                                {isAllocated ? (
+                                  <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 min-w-[110px]">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    Allocated
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-muted dark:text-slate-400 border border-slate-200 dark:border-border min-w-[110px]">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                                    Not Allocated
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="px-6 py-4 text-center align-middle">
+                                {isAllocated ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleCancelStub(w.id)}
+                                    disabled={isAssigning}
+                                    className="border border-slate-200 dark:border-border text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted rounded-xl px-4 h-8 text-xs font-semibold shadow-2xs cursor-pointer"
+                                  >
+                                    Reassign
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => issueStub(w.id, 1)}
+                                    disabled={isAssigning}
+                                    className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-5 h-8 text-xs font-semibold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                                  >
+                                    Assign
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
 
@@ -932,199 +986,173 @@ function MealsPageContent() {
           <TabsContent value="reports" className="space-y-6">
             {/* Top 4 Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-              {/* Card 1: Total Issued Today */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    TOTAL ISSUED TODAY
-                  </p>
-                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300">
-                    <UtensilsCrossed className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {allMealStubsInRange?.filter(s => {
-                      if (!s.date) return false;
-                      const d = s.date instanceof Date ? s.date : new Date(s.date as any);
-                      return isToday(d);
-                    }).length || 0}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  Across all worker types
-                </p>
-              </div>
-
-              {/* Card 2: Allocated This Week */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    ALLOCATED THIS WEEK
-                  </p>
-                  <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {allMealStubsInRange?.filter(s => {
-                      const d = s.date instanceof Date ? s.date : new Date(s.date as any);
-                      return d && isWithinInterval(d, { start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: endOfWeek(new Date()) });
-                    }).length || 0}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  Mon - Sun rolling
-                </p>
-              </div>
-
-              {/* Card 3: Claim Rate */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    CLAIM RATE
-                  </p>
-                  <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {(() => {
-                      const total = allMealStubsInRange?.length || 0;
-                      const claimed = allMealStubsInRange?.filter(s => s.status === 'Claimed' || s.claimedAt).length || 0;
-                      return total > 0 ? `${Math.round((claimed / total) * 100)}%` : "0%";
-                    })()}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  {(() => {
-                    const total = allMealStubsInRange?.length || 0;
-                    const claimed = allMealStubsInRange?.filter(s => s.status === 'Claimed' || s.claimedAt).length || 0;
-                    return `${claimed} of ${total} claimed`;
-                  })()}
-                </p>
-              </div>
-
-              {/* Card 4: Pending Allocations */}
-              <div className="rounded-2xl border border-border/60 shadow-card-dark bg-card p-5 transition-all">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    PENDING ALLOCATIONS
-                  </p>
-                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300">
-                    <Clock className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl sm:text-4xl font-black font-headline text-foreground tracking-tight leading-none">
-                    {allMealStubsInRange?.filter(s => s.status === 'Issued' && !s.claimedAt).length || 0}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 font-medium">
-                  Awaiting claim
-                </p>
-              </div>
+              <StatCard
+                label="TOTAL ISSUED TODAY"
+                value={
+                  allMealStubsInRange?.filter((s) => {
+                    if (!s.date) return false;
+                    const d = s.date instanceof Date ? s.date : new Date(s.date as any);
+                    return isToday(d);
+                  }).length || 0
+                }
+                sub="Across all worker types"
+                icon={UtensilsCrossed}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-sidebar/10 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="ALLOCATED THIS WEEK"
+                value={
+                  allMealStubsInRange?.filter((s) => {
+                    const d = s.date instanceof Date ? s.date : new Date(s.date as any);
+                    return (
+                      d &&
+                      isWithinInterval(d, {
+                        start: startOfWeek(new Date(), { weekStartsOn: 1 }),
+                        end: endOfWeek(new Date()),
+                      })
+                    );
+                  }).length || 0
+                }
+                sub="Mon - Sun rolling"
+                icon={FileText}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+              <StatCard
+                label="CLAIM RATE"
+                value={(() => {
+                  const total = allMealStubsInRange?.length || 0;
+                  const claimed =
+                    allMealStubsInRange?.filter((s) => s.status === "Claimed" || s.claimedAt).length || 0;
+                  return total > 0 ? `${Math.round((claimed / total) * 100)}%` : "0%";
+                })()}
+                sub={(() => {
+                  const total = allMealStubsInRange?.length || 0;
+                  const claimed =
+                    allMealStubsInRange?.filter((s) => s.status === "Claimed" || s.claimedAt).length || 0;
+                  return `${claimed} of ${total} claimed`;
+                })()}
+                icon={CheckCircle2}
+                accentColor="bg-blue-500"
+                iconClass="text-blue-600 dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="PENDING ALLOCATIONS"
+                value={
+                  allMealStubsInRange?.filter((s) => s.status === "Issued" && !s.claimedAt).length || 0
+                }
+                sub="Awaiting claim"
+                icon={Clock}
+                accentColor="bg-amber-500"
+                iconClass="text-amber-600 dark:text-amber-400"
+                iconBgClass="bg-amber-50 dark:bg-amber-950/40"
+              />
             </div>
 
             {/* Bottom 2 Cards Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Card: Breakdown by Worker Type */}
-              <div className="lg:col-span-7 bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden flex flex-col">
-                <div className="p-5 sm:p-6 pb-4 border-b border-border/40 flex items-center justify-between">
-                  <div>
+              <div className="lg:col-span-7 bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
                     <h3 className="font-bold text-base text-foreground font-headline">
                       Breakdown by Worker Type
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground">
                       Utilization across categories for today.
                     </p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold text-muted-foreground border border-border/60 bg-muted/30">
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold text-muted-foreground border border-border/60 bg-muted/30">
                     Today
                   </span>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[30%]">
-                          Worker Type
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[20%]">
-                          Issued Today
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[20%]">
-                          This Week
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[30%]">
-                          Utilization
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[
-                        { type: "Full-Time", badgeClass: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800", fallbackToday: 24, fallbackWeek: 162, pct: 86 },
-                        { type: "On-Call", badgeClass: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800", fallbackToday: 11, fallbackWeek: 58, pct: 69 },
-                        { type: "Volunteer", badgeClass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800", fallbackToday: 9, fallbackWeek: 43, pct: 64 },
-                        { type: "Part-Time", badgeClass: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800", fallbackToday: 6, fallbackWeek: 31, pct: 67 },
-                      ].map((item) => {
-                        const todayCount = allMealStubsInRange?.filter(s => {
-                          if (!s.date) return false;
-                          const d = s.date instanceof Date ? s.date : new Date(s.date as any);
-                          return isToday(d) && allWorkers?.find(w => w.id === s.workerId)?.employmentType === item.type;
-                        }).length || 0;
+                {/* Inner Table Container */}
+                <div className="bg-card rounded-2xl border border-border/60 overflow-hidden flex flex-col">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-5 text-left w-[28%]">
+                            WORKER TYPE
+                          </TableHead>
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-4 text-center w-[22%]">
+                            ISSUED TODAY
+                          </TableHead>
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-4 text-center w-[22%]">
+                            THIS WEEK
+                          </TableHead>
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-5 text-center w-[28%]">
+                            UTILIZATION
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { type: "Full-Time", badgeClass: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800", fallbackToday: 24, fallbackWeek: 162, pct: 86 },
+                          { type: "On-Call", badgeClass: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800", fallbackToday: 11, fallbackWeek: 58, pct: 69 },
+                          { type: "Volunteer", badgeClass: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800", fallbackToday: 9, fallbackWeek: 43, pct: 64 },
+                          { type: "Part-Time", badgeClass: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800", fallbackToday: 6, fallbackWeek: 31, pct: 67 },
+                        ].map((item) => {
+                          const todayCount = allMealStubsInRange?.filter(s => {
+                            if (!s.date) return false;
+                            const d = s.date instanceof Date ? s.date : new Date(s.date as any);
+                            return isToday(d) && allWorkers?.find(w => w.id === s.workerId)?.employmentType === item.type;
+                          }).length || 0;
 
-                        const weekCount = allMealStubsInRange?.filter(s => {
-                          const d = s.date instanceof Date ? s.date : new Date(s.date as any);
-                          if (!d || !isWithinInterval(d, { start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: endOfWeek(new Date()) })) return false;
-                          return allWorkers?.find(w => w.id === s.workerId)?.employmentType === item.type;
-                        }).length || 0;
+                          const weekCount = allMealStubsInRange?.filter(s => {
+                            const d = s.date instanceof Date ? s.date : new Date(s.date as any);
+                            if (!d || !isWithinInterval(d, { start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: endOfWeek(new Date()) })) return false;
+                            return allWorkers?.find(w => w.id === s.workerId)?.employmentType === item.type;
+                          }).length || 0;
 
-                        const displayToday = todayCount > 0 ? todayCount : item.fallbackToday;
-                        const displayWeek = weekCount > 0 ? weekCount : item.fallbackWeek;
+                          const displayToday = todayCount > 0 ? todayCount : item.fallbackToday;
+                          const displayWeek = weekCount > 0 ? weekCount : item.fallbackWeek;
 
-                        return (
-                          <TableRow
-                            key={item.type}
-                            className="hover:bg-muted/20 border-b border-border/40 transition-colors"
-                          >
-                            <TableCell className="py-3.5 px-5">
-                              <span className={cn("inline-flex items-center justify-center px-3 py-0.5 rounded-full text-xs font-semibold min-w-[85px] text-center", item.badgeClass)}>
-                                {item.type}
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-3.5 px-4 text-center font-bold text-xs text-foreground">
-                              {displayToday}
-                            </TableCell>
-                            <TableCell className="py-3.5 px-4 text-center font-bold text-xs text-foreground">
-                              {displayWeek}
-                            </TableCell>
-                            <TableCell className="py-3.5 px-4 text-center">
-                              <div className="flex items-center justify-center gap-2.5">
-                                <div className="w-24 bg-muted h-2 rounded-full overflow-hidden">
-                                  <div
-                                    className="bg-sidebar dark:bg-sidebar-foreground h-full rounded-full transition-all"
-                                    style={{ width: `${item.pct}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-muted-foreground font-semibold w-8 text-right">
-                                  {item.pct}%
+                          return (
+                            <TableRow
+                              key={item.type}
+                              className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors"
+                            >
+                              <TableCell className="py-4 px-5 align-middle">
+                                <span className={cn("inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold min-w-[85px] text-center", item.badgeClass)}>
+                                  {item.type}
                                 </span>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              </TableCell>
+                              <TableCell className="py-4 px-4 text-center font-bold text-xs text-foreground align-middle">
+                                {displayToday}
+                              </TableCell>
+                              <TableCell className="py-4 px-4 text-center font-bold text-xs text-foreground align-middle">
+                                {displayWeek}
+                              </TableCell>
+                              <TableCell className="py-4 px-5 text-center align-middle">
+                                <div className="flex items-center justify-center gap-2.5">
+                                  <div className="w-24 bg-muted h-2 rounded-full overflow-hidden">
+                                    <div
+                                      className="bg-sidebar dark:bg-sidebar-foreground h-full rounded-full transition-all"
+                                      style={{ width: `${item.pct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground font-semibold w-8 text-right">
+                                    {item.pct}%
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
 
               {/* Right Card: Weekly Activity */}
-              <div className="lg:col-span-5 bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 flex flex-col justify-between space-y-6 min-h-[380px]">
+              <div className="lg:col-span-5 bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 flex flex-col justify-between space-y-6 min-h-[380px]">
                 <div className="space-y-4">
                   <div className="space-y-0.5">
                     <h3 className="font-bold text-base text-foreground font-headline">
@@ -1259,6 +1287,55 @@ function MealsPageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cleanup Expired Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isCleanupConfirmOpen}
+        onClose={() => setIsCleanupConfirmOpen(false)}
+        onConfirm={handleCleanupExcess}
+        title="Cleanup Expired Stubs"
+        confirmLabel="Cleanup Now"
+        isLoading={isAssigning}
+        description="Are you sure you want to delete duplicate or expired unredeemed meal stubs? This action cannot be undone."
+      />
+
+      {/* Assign All Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isAssignAllConfirmOpen}
+        onClose={() => setIsAssignAllConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsAssignAllConfirmOpen(false);
+          await handleAssignAll();
+        }}
+        title="Assign Meal Stubs to All"
+        variant="primary"
+        icon={<Plus className="h-6 w-6" />}
+        confirmLabel={`Assign to ${eligibleAssignWorkers.length} Worker(s)`}
+        isLoading={isAssigning}
+        description={
+          <>
+            Are you sure you want to issue 1 meal stub each to <strong className="text-foreground font-semibold">{eligibleAssignWorkers.length}</strong> eligible worker(s) for <strong className="text-foreground font-semibold">{format(assignDateObj, 'MMMM d, yyyy')}</strong>?
+          </>
+        }
+      />
+
+      {/* Batch Remove Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isBatchRemoveConfirmOpen}
+        onClose={() => setIsBatchRemoveConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsBatchRemoveConfirmOpen(false);
+          await handleBatchRemove();
+        }}
+        title="Remove Selected Stubs"
+        confirmLabel={`Remove (${selectedWorkerIds.length})`}
+        isLoading={isAssigning}
+        description={
+          <>
+            Are you sure you want to remove meal stub allocations for <strong className="text-foreground font-semibold">{selectedWorkerIds.length}</strong> selected worker(s) for <strong className="text-foreground font-semibold">{format(assignDateObj, 'MMMM d, yyyy')}</strong>?
+          </>
+        }
+      />
     </AppLayout>
   );
 }

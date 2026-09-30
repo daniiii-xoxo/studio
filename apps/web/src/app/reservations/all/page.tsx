@@ -32,6 +32,14 @@ import {
   SheetHeader,
   SheetTitle,
   Separator,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@studio/ui";
 import {
   Search,
@@ -73,6 +81,8 @@ import {
 } from "@/actions/db";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { ReservationDetailsSheet } from "@/components/reservations/reservation-details-sheet";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import type { Booking, Room, Area, VenueElement, Ministry, Worker } from "@studio/types";
 
 const ITEMS_PER_PAGE = 10;
@@ -91,6 +101,8 @@ export default function AllReservationsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
+  const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
 
   // Queries
   const { data: allBookings, isLoading: bookingsLoading } = useQuery({
@@ -312,10 +324,16 @@ export default function AllReservationsPage() {
     }
   };
 
-  // Single Delete
-  const handleDeleteBooking = async (bookingId: string) => {
-    if (!confirm("Are you sure you want to delete this reservation?")) return;
+  // Single Delete Trigger (Opens Dialog)
+  const handleDeleteBooking = (bookingId: string) => {
+    setDeleteBookingId(bookingId);
+  };
 
+  // Confirmed Single Delete
+  const handleConfirmDeleteSingle = async () => {
+    if (!deleteBookingId) return;
+    const bookingId = deleteBookingId;
+    setDeleteBookingId(null);
     setIsProcessing(true);
     try {
       await deleteBooking(bookingId);
@@ -387,16 +405,16 @@ export default function AllReservationsPage() {
     }
   };
 
-  // Batch Delete
-  const handleBatchDelete = async () => {
+  // Batch Delete Trigger (Opens Dialog)
+  const handleBatchDelete = () => {
     if (selectedIds.length === 0) return;
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete ${selectedIds.length} selected reservation(s)?`
-      )
-    )
-      return;
+    setIsBatchDeleteOpen(true);
+  };
 
+  // Confirmed Batch Delete
+  const handleConfirmBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBatchDeleteOpen(false);
     setIsProcessing(true);
     try {
       await Promise.all(selectedIds.map((id) => deleteBooking(id)));
@@ -463,7 +481,7 @@ export default function AllReservationsPage() {
         </div>
 
         {/* Main Card Container */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col min-h-[520px]">
+        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col min-h-[520px] animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Top Controls Row - Single Row Layout */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-1">
             {/* Left: Search input (reduced width to fit in single line) */}
@@ -704,7 +722,7 @@ export default function AllReservationsPage() {
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={(c) => handleSelectRow(booking.id, !!c)}
-                              className="border-white/50 data-[state=checked]:bg-white data-[state=checked]:text-sidebar"
+                              className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
                             />
                             <span className="text-xs font-mono font-bold text-white">
                               {reqId}
@@ -859,10 +877,13 @@ export default function AllReservationsPage() {
                     <TableHeader>
                       <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
                         <TableHead className="w-12 px-4 py-3 text-center bg-sidebar">
-                          <Checkbox
-                            checked={isAllCurrentPageSelected}
-                            onCheckedChange={(c) => handleSelectAll(!!c)}
-                          />
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={isAllCurrentPageSelected}
+                              onCheckedChange={(c) => handleSelectAll(!!c)}
+                              className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                            />
+                          </div>
                         </TableHead>
                         <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[11%]">
                           ID
@@ -926,12 +947,15 @@ export default function AllReservationsPage() {
                           >
                             {/* Checkbox */}
                             <TableCell className="px-4 py-3.5 text-center align-middle">
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={(c) =>
-                                  handleSelectRow(booking.id, !!c)
-                                }
-                              />
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(c) =>
+                                    handleSelectRow(booking.id, !!c)
+                                  }
+                                  className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                                />
+                              </div>
                             </TableCell>
 
                             {/* ID */}
@@ -1139,7 +1163,7 @@ export default function AllReservationsPage() {
       </div>
 
       {/* Booking Details Sheet */}
-      <BookingDetailsSheet
+      <ReservationDetailsSheet
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         booking={selectedBooking}
@@ -1168,250 +1192,43 @@ export default function AllReservationsPage() {
           setIsDetailsOpen(false);
         }}
         onDelete={async (id) => {
-          await handleDeleteBooking(id);
           setIsDetailsOpen(false);
+          handleDeleteBooking(id);
         }}
+      />
+
+      {/* Single Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={!!deleteBookingId}
+        onClose={() => setDeleteBookingId(null)}
+        onConfirm={handleConfirmDeleteSingle}
+        title="Delete Reservation"
+        itemName={allBookings?.find((b: any) => b.id === deleteBookingId)?.title || "this reservation"}
+        confirmLabel="Delete Reservation"
+        isLoading={isProcessing}
+        description={
+          allBookings?.find((b: any) => b.id === deleteBookingId)?.title ? (
+            <>
+              Are you sure you want to delete <strong className="text-foreground font-semibold">{allBookings?.find((b: any) => b.id === deleteBookingId)?.title}</strong>? All associated details will be permanently removed.
+            </>
+          ) : undefined
+        }
+      />
+
+      {/* Batch Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isBatchDeleteOpen}
+        onClose={() => setIsBatchDeleteOpen(false)}
+        onConfirm={handleConfirmBatchDelete}
+        title="Delete Selected Reservations"
+        confirmLabel={`Delete All (${selectedIds.length})`}
+        isLoading={isProcessing}
+        description={
+          <>
+            Are you sure you want to permanently delete <strong className="text-foreground font-semibold">{selectedIds.length}</strong> selected reservation(s)? This action cannot be undone.
+          </>
+        }
       />
     </AppLayout>
   );
 }
-
-const BookingDetailsSheet = ({
-  isOpen,
-  onClose,
-  booking,
-  roomName,
-  areaName,
-  requesterName,
-  venueElements,
-  ministries,
-  onApprove,
-  onReject,
-  onDelete,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  booking: any | null;
-  roomName: string;
-  areaName: string;
-  requesterName: string;
-  venueElements: any[];
-  ministries: any[];
-  onApprove: (id: string) => Promise<void>;
-  onReject: (id: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-}) => {
-  if (!booking) return null;
-
-  const startTime = toJsDate(booking.start);
-  const endTime = toJsDate(booking.end);
-  const ministry = ministries?.find((m) => m.id === booking.ministryId);
-  const isPending = booking.status?.toLowerCase().startsWith("pending");
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-5 border-b text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge
-              className={cn(
-                "px-2.5 py-0.5 text-xs font-semibold",
-                booking.status === "Approved"
-                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
-                  : isPending
-                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                  : "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300"
-              )}
-            >
-              {booking.status}
-            </Badge>
-            <span className="text-xs font-mono font-bold text-muted-foreground ml-auto">
-              {booking.requestId || `REQ-${booking.id?.slice(0, 4)}`}
-            </span>
-          </div>
-          <SheetTitle className="text-2xl font-headline font-bold text-foreground">
-            {booking.title}
-          </SheetTitle>
-          <SheetDescription>
-            Reservation detail summary, requester info, and equipment requirements
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <DetailRow label="Location" value={`${roomName} (${areaName})`} />
-            <DetailRow label="Date" value={format(startTime, "PPPP")} />
-            <DetailRow
-              label="Schedule"
-              value={`${format(startTime, "h:mm a")} – ${format(endTime, "h:mm a")}`}
-            />
-            <DetailRow label="Requested By" value={requesterName} />
-            {ministry && (
-              <DetailRow label="Ministry" value={ministry.name} />
-            )}
-            <DetailRow
-              label="Headcount (Pax)"
-              value={`${booking.pax || 0} pax`}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Purpose
-            </h4>
-            <p className="text-sm leading-relaxed text-foreground bg-muted/30 p-3 rounded-xl border border-border/40">
-              {booking.purpose ||
-                "No specific purpose provided for this reservation."}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-              Requested Elements & AV
-            </h4>
-            <div className="grid grid-cols-1 gap-2.5">
-              {booking.requestedElements &&
-              booking.requestedElements.length > 0 ? (
-                booking.requestedElements.map((elId: string) => {
-                  const el = venueElements.find((v) => v.id === elId);
-                  return (
-                    <div
-                      key={elId}
-                      className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-card shadow-xs">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold block">
-                            {el?.name || elId}
-                          </span>
-                          {el?.category && (
-                            <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                              {el.category}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  );
-                })
-              ) : booking.equipment_TV ||
-                booking.equipment_Mic ||
-                booking.equipment_Speakers ? (
-                <>
-                  {booking.equipment_TV && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-blue-50/50 border-blue-100 text-blue-900 dark:bg-blue-950/20 dark:border-blue-900/40 dark:text-blue-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-card shadow-xs">
-                          <Tv className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Television / Presentation
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Mic && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-card shadow-xs">
-                          <Mic className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Microphone & Audio
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Speakers && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-purple-50/50 border-purple-100 text-purple-900 dark:bg-purple-950/20 dark:border-purple-900/40 dark:text-purple-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-card shadow-xs">
-                          <Speaker className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Sound System / Speakers
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground italic bg-muted/20 p-3 rounded-xl text-center">
-                  No elements were requested.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-2 pt-2">
-            {isPending && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => onApprove(booking.id)}
-                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5"
-                >
-                  <Check className="h-4 w-4" />
-                  Approve
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onReject(booking.id)}
-                  className="w-full rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold gap-1.5"
-                >
-                  <X className="h-4 w-4" />
-                  Reject
-                </Button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="w-full rounded-xl text-xs"
-                onClick={onClose}
-              >
-                Close
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(booking.id)}
-                className="rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
-                title="Delete reservation"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
-
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-    <span className="text-sm font-semibold text-foreground">{value}</span>
-  </div>
-);

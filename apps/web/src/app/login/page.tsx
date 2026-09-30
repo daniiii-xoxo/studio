@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@studio/store";
 import { supabase } from "@studio/database";
 import { getWorkerEmail } from "@/actions/legacy-auth";
+import { LandingNav } from "@/components/landing/landing-nav";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"email" | "worker">("email");
@@ -167,7 +168,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center p-4">
+    <div className="relative flex min-h-screen items-center justify-center p-4 pt-20">
+      {/* Floating Capsule Header */}
+      <LandingNav currentPath="/login" />
+
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <Image

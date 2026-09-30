@@ -17,21 +17,33 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Button } from "@studio/ui";
 import { cn } from "@/lib/utils";
 
-// ── Stat card ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon: Icon, iconBg }: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ElementType; iconBg: string;
+// ── Stat card (Consistent with Connect2Souls & Dashboard) ──────────────────────
+function StatCard({ label, value, sub, icon: Icon, accentColor, iconClass, iconBgClass }: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: React.ElementType;
+  accentColor: string;
+  iconClass: string;
+  iconBgClass: string;
 }) {
   return (
-    <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-sm hover:shadow-md hover:border-sidebar/30 transition-all p-6 group cursor-default">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div className={cn("p-2.5 rounded-xl shrink-0 transition-all group-hover:scale-105", iconBg)}>
-          <Icon className="h-4 w-4" />
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200/80 dark:border-border shadow-xs bg-white dark:bg-card h-full">
+      <div className={cn("h-1.5 w-full", accentColor)} />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+            <div className="mt-3">
+              <span className="text-4xl font-black tracking-tight font-headline text-foreground leading-none">{value}</span>
+            </div>
+            {sub && <p className="text-xs text-muted-foreground mt-2 font-medium">{sub}</p>}
+          </div>
+          <div className={cn("p-2.5 rounded-xl flex items-center justify-center shrink-0 shadow-xs", iconBgClass)}>
+            <Icon className={cn("h-5 w-5", iconClass)} />
+          </div>
         </div>
       </div>
-      <p className="text-4xl font-black tracking-tight text-foreground leading-none mb-2">{value}</p>
-      {sub && <p className="text-xs font-medium text-muted-foreground">{sub}</p>}
     </div>
   );
 }
@@ -113,15 +125,22 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-7 pb-12 w-full">
+      <div className="flex flex-col space-y-6 pb-12 w-full">
 
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold font-headline tracking-tight text-gray-900 dark:text-white">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage every part of your COG App configuration from one place.</p>
+        {/* ── TOP HEADER ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              Configuration
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage every part of your COG App configuration from one place.
+            </p>
+          </div>
         </div>
 
-        {/* Seeding banner */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Seeding banner */}
         {needsSeeding && (
           <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
             <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30 shrink-0">
@@ -137,16 +156,44 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-          <StatCard label="Active Roles" value={roleCount} sub={`${systemRoles} system · ${customRoles} custom`}
-            icon={Shield} iconBg="bg-sidebar/10 text-sidebar" />
-          <StatCard label="Total Members" value={totalMembers.toLocaleString()} sub={`Across ${ministryCount} ministries`}
-            icon={Users} iconBg="bg-sidebar/10 text-sidebar" />
-          <StatCard label="Weekly Meal Pool" value={weeklyMealPool.toLocaleString()} sub={`${activeWorkers} allocated`}
-            icon={UtensilsCrossed} iconBg="bg-sidebar/10 text-sidebar" />
-          <StatCard label="Facilities" value={facilityCount} sub={`${deptCount} departments`}
-            icon={Building} iconBg="bg-sidebar/10 text-sidebar" />
+        {/* ── TOP KPI SUMMARY CARDS (CONNECT2SOULS STYLE) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="ACTIVE ROLES"
+            value={roleCount}
+            sub={`${systemRoles} system · ${customRoles} custom`}
+            icon={Shield}
+            accentColor="bg-sidebar"
+            iconClass="text-sidebar dark:text-blue-400"
+            iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+          />
+          <StatCard
+            label="TOTAL MEMBERS"
+            value={totalMembers.toLocaleString()}
+            sub={`Across ${ministryCount} ministries`}
+            icon={Users}
+            accentColor="bg-blue-500"
+            iconClass="text-blue-600 dark:text-blue-400"
+            iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+          />
+          <StatCard
+            label="WEEKLY MEAL POOL"
+            value={weeklyMealPool.toLocaleString()}
+            sub={`${activeWorkers} allocated`}
+            icon={UtensilsCrossed}
+            accentColor="bg-emerald-500"
+            iconClass="text-emerald-600 dark:text-emerald-400"
+            iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+          />
+          <StatCard
+            label="FACILITIES"
+            value={facilityCount}
+            sub={`${deptCount} departments`}
+            icon={Building}
+            accentColor="bg-purple-500"
+            iconClass="text-purple-600 dark:text-purple-400"
+            iconBgClass="bg-purple-50 dark:bg-purple-950/40"
+          />
         </div>
 
         {/* Modules */}
@@ -233,6 +280,7 @@ export default function SettingsPage() {
             )}
 
           </div>
+        </div>
         </div>
       </div>
     </AppLayout>

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, Suspense } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   LoaderCircle, ShieldAlert, Search, Download, Upload,
   RefreshCw, CheckCircle2, Clock, QrCode, SlidersHorizontal,
-  LogIn, LogOut, MoreHorizontal, Users, XCircle, AlertCircle, RotateCcw, X,
+  LogIn, LogOut, MoreHorizontal, Users, XCircle, AlertCircle, RotateCcw, X, ScanLine,
 } from "lucide-react";
 import { useAuthStore } from "@studio/store";
 import { format, differenceInMinutes, startOfWeek } from "date-fns";
@@ -109,9 +110,9 @@ function formatHours(mins: number | null) {
 }
 
 function StatusPill({ isLate, hasOut }: { isLate: boolean; hasOut: boolean }) {
-  if (!hasOut) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Active</span>;
-  if (isLate) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Late</span>;
-  return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Present</span>;
+  if (!hasOut) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" /> Active</span>;
+  if (isLate) return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Late</span>;
+  return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /> Present</span>;
 }
 
 function AttendanceStatusBadge({ status }: { status: "timed-in" | "timed-out" | "not-yet" }) {
@@ -120,8 +121,8 @@ function AttendanceStatusBadge({ status }: { status: "timed-in" | "timed-out" | 
   return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Not Yet Timed In</span>;
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-export default function AttendancePage() {
+// ── Main Content ──────────────────────────────────────────────────────────────
+function AttendanceContent() {
   const { user } = useAuthStore();
   const { canViewAttendance, workerProfile, isLoading: isRoleLoading, isMinistryHead, canManageWorkers, canOperateScanner } = useUserRole();
   const { toast } = useToast();
@@ -334,12 +335,17 @@ export default function AttendancePage() {
       <div className="space-y-7 pb-12 w-full">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Attendance</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Scan, monitor, and manage attendance across every ministry — in one workforce command center.</p>
+            <p className="text-sm text-muted-foreground">Scan, monitor, and manage attendance across every ministry — in one workforce command center.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0 sm:self-end">
+            <Link href="/attendance/scanner">
+              <button className="h-10 px-4 flex items-center gap-2 rounded-2xl border border-border/80 bg-white dark:bg-card hover:bg-muted/40 text-foreground text-xs font-bold shadow-xs transition-colors cursor-pointer">
+                <ScanLine className="h-4 w-4 text-primary" /> Scanner Kiosk
+              </button>
+            </Link>
             {(activeTab === "manual" || activeTab === "records") && (
               <button className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer">
                 <Download className="h-4 w-4 text-white" /> Export
@@ -348,7 +354,8 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* ── Personal Log ── */}
+        <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* ── Personal Log ── */}
         {activeTab === "personal" && (
           <div className="flex flex-col gap-6 w-full">
             {/* Stat Cards */}
@@ -374,34 +381,69 @@ export default function AttendancePage() {
             </div>
 
             {/* Attendance Table */}
-            <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs overflow-hidden">
-              <div className="px-6 pt-5 pb-4 border-b border-border/40">
-                <h2 className="text-base font-bold text-foreground font-headline">This week's personal log</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Recent attendance history.</p>
+            <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+              <div className="space-y-0.5">
+                <h3 className="text-base font-bold text-foreground font-headline">This week&apos;s personal log</h3>
+                <p className="text-xs text-muted-foreground">Recent attendance history.</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-sidebar">
-                    <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                      {["Date", "Time In", "Time Out", "Total Hours", "Status"].map(h => (
-                        <th key={h} className="px-6 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sessions.length === 0 ? (
-                      <tr><td colSpan={5} className="py-16 text-center text-xs font-medium text-muted-foreground">No records this week.</td></tr>
-                    ) : sessions.map((s, i) => (
-                      <tr key={i} className="border-b border-gray-100 dark:border-border/60 hover:bg-slate-50/70 dark:hover:bg-muted/30 transition-colors">
-                        <td className="py-3.5 px-6 font-semibold text-xs text-foreground whitespace-nowrap align-middle">{format(s.date, "EEE, MMM d, yyyy")}</td>
-                        <td className="py-3.5 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{format(s.timeIn, "h:mm a")}</td>
-                        <td className="py-3.5 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{s.timeOut ? format(s.timeOut, "h:mm a") : "—"}</td>
-                        <td className="py-3.5 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{formatHours(s.totalMinutes)}</td>
-                        <td className="py-3.5 px-6 align-middle"><StatusPill isLate={s.isLate} hasOut={s.timeOut !== null} /></td>
+
+              {/* Inner Table Container */}
+              <div className="bg-card rounded-2xl border border-border/60 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-sidebar">
+                      <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[25%]">
+                          DATE
+                        </th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">
+                          TIME IN
+                        </th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">
+                          TIME OUT
+                        </th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[18%]">
+                          TOTAL HOURS
+                        </th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center w-[17%]">
+                          STATUS
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {sessions.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-14 text-center text-xs font-medium text-muted-foreground">
+                            No records this week.
+                          </td>
+                        </tr>
+                      ) : (
+                        sessions.map((s, i) => (
+                          <tr
+                            key={i}
+                            className="border-b border-gray-100 dark:border-border/60 hover:bg-gray-50/60 dark:hover:bg-muted/30 transition-colors"
+                          >
+                            <td className="py-4 px-6 font-bold text-xs text-foreground whitespace-nowrap align-middle">
+                              {format(s.date, "EEE, MMM d, yyyy")}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
+                              {format(s.timeIn, "h:mm a")}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
+                              {s.timeOut ? format(s.timeOut, "h:mm a") : "—"}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
+                              {formatHours(s.totalMinutes)}
+                            </td>
+                            <td className="py-4 px-6 text-center align-middle whitespace-nowrap">
+                              <StatusPill isLate={s.isLate} hasOut={s.timeOut !== null} />
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -409,65 +451,32 @@ export default function AttendancePage() {
 
         {/* ── Manual Attendance ── */}
         {activeTab === "manual" && isAssigner && (
-          <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden">
+          <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
             {/* Top Controls Row */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Status Filter Tabs (Matching Room Reservations & Workers style) */}
-              <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center border border-slate-200/70 dark:border-border/50 shadow-2xs self-start overflow-x-auto max-w-full gap-1">
-                {[
-                  { id: "all", label: "All", count: manualStatusCounts.all },
-                  { id: "timed-in", label: "Timed In", count: manualStatusCounts["timed-in"] },
-                  { id: "timed-out", label: "Timed Out", count: manualStatusCounts["timed-out"] },
-                  { id: "not-yet", label: "Not Yet Timed In", count: manualStatusCounts["not-yet"] },
-                ].map(tab => (
+              {/* Left: Search Bar */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search ID, worker name..."
+                  value={assignSearch}
+                  onChange={e => setAssignSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 h-10 rounded-2xl border border-slate-200/90 dark:border-border bg-slate-50/50 dark:bg-muted/30 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs focus:outline-none focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all"
+                />
+                {assignSearch && (
                   <button
-                    key={tab.id}
                     type="button"
-                    onClick={() => setStatusFilter(tab.id)}
-                    className={cn(
-                      "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0",
-                      statusFilter === tab.id
-                        ? "bg-sidebar text-white shadow-xs"
-                        : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
-                    )}
+                    onClick={() => setAssignSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   >
-                    <span>{tab.label}</span>
-                    <span
-                      className={cn(
-                        "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold",
-                        statusFilter === tab.id
-                          ? "bg-white/20 text-white"
-                          : "bg-slate-200/80 dark:bg-muted/80 text-slate-700 dark:text-slate-300"
-                      )}
-                    >
-                      {tab.count}
-                    </span>
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                ))}
+                )}
               </div>
 
-              {/* Right Controls */}
-              <div className="flex items-center gap-2.5 self-start lg:self-auto flex-wrap sm:flex-nowrap">
-                <div className="relative w-full sm:w-60">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search ID, worker name..."
-                    value={assignSearch}
-                    onChange={e => setAssignSearch(e.target.value)}
-                    className="w-full pl-9 pr-8 h-10 rounded-2xl border border-slate-200/90 dark:border-border bg-slate-50/50 dark:bg-muted/30 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs focus:outline-none focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all"
-                  />
-                  {assignSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setAssignSearch("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-
+              {/* Right: Ministries, Roles, and Status Filter Tabs */}
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <Select value={ministryFilter} onValueChange={setMinistryFilter}>
                   <SelectTrigger className="h-10 w-[145px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
                     <SelectValue placeholder="All Ministries" />
@@ -491,11 +500,30 @@ export default function AttendancePage() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Status Filter Dropdown */}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-10 w-[165px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover">
+                    {[
+                      { id: "all", label: "All Statuses", count: manualStatusCounts.all },
+                      { id: "timed-in", label: "Timed In", count: manualStatusCounts["timed-in"] },
+                      { id: "timed-out", label: "Timed Out", count: manualStatusCounts["timed-out"] },
+                      { id: "not-yet", label: "Not Yet Timed In", count: manualStatusCounts["not-yet"] },
+                    ].map(tab => (
+                      <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
+                        {tab.label} ({tab.count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             {/* Table */}
-            <div className="border border-gray-200/80 dark:border-border rounded-2xl mt-5 overflow-hidden">
+            <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-sidebar">
@@ -536,7 +564,10 @@ export default function AttendancePage() {
                             <div className="flex items-center justify-center">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <button className="h-8 w-8 flex items-center justify-center rounded-xl border border-gray-200 dark:border-border text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors cursor-pointer">
+                                  <button
+                                    type="button"
+                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                  >
                                     <MoreHorizontal className="h-4 w-4" />
                                   </button>
                                 </DropdownMenuTrigger>
@@ -628,67 +659,32 @@ export default function AttendancePage() {
             </div>
 
             {/* Main Unified Table & Controls Container (Matching Room Reservations & Workers) */}
-            <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden">
+            <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
               {/* Top Controls Row */}
-              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                {/* Status Filter Tabs (Matching Room Reservations & Workers style with count pills) */}
-                <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center border border-slate-200/70 dark:border-border/50 shadow-2xs self-start overflow-x-auto max-w-full gap-1">
-                  {[
-                    { id: "all", label: "All", count: recordStats.total },
-                    { id: "present", label: "Present", count: recordStats.present },
-                    { id: "late", label: "Late", count: recordStats.late },
-                    { id: "absent", label: "Absent", count: recordStats.absent },
-                    { id: "incomplete", label: "Incomplete", count: recordStats.incomplete },
-                  ].map(tab => (
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                {/* Left: Search */}
+                <div className="relative w-full sm:w-60">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search ID, worker name..."
+                    value={recordsSearch}
+                    onChange={e => setRecordsSearch(e.target.value)}
+                    className="w-full pl-9 pr-8 h-10 rounded-2xl border border-slate-200/90 dark:border-border bg-slate-50/50 dark:bg-muted/30 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs focus:outline-none focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all"
+                  />
+                  {recordsSearch && (
                     <button
-                      key={tab.id}
                       type="button"
-                      onClick={() => setRecordsStatusFilter(tab.id)}
-                      className={cn(
-                        "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0",
-                        recordsStatusFilter === tab.id
-                          ? "bg-sidebar text-white shadow-xs"
-                          : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
-                      )}
+                      onClick={() => setRecordsSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
-                      <span>{tab.label}</span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold",
-                          recordsStatusFilter === tab.id
-                            ? "bg-white/20 text-white"
-                            : "bg-slate-200/80 dark:bg-muted/80 text-slate-700 dark:text-slate-300"
-                        )}
-                      >
-                        {tab.count}
-                      </span>
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  ))}
+                  )}
                 </div>
 
-                {/* Right Controls: Search + Ministry + Role + Range */}
-                <div className="flex items-center gap-2.5 self-start xl:self-auto flex-wrap sm:flex-nowrap">
-                  {/* Search */}
-                  <div className="relative w-full sm:w-56">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Search ID, worker name..."
-                      value={recordsSearch}
-                      onChange={e => setRecordsSearch(e.target.value)}
-                      className="w-full pl-9 pr-8 h-10 rounded-2xl border border-slate-200/90 dark:border-border bg-slate-50/50 dark:bg-muted/30 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs focus:outline-none focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all"
-                    />
-                    {recordsSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setRecordsSearch("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-
+                {/* Right Controls: Ministry + Role + Range + Status Dropdown */}
+                <div className="flex items-center gap-2.5 flex-wrap">
                   {/* Ministry */}
                   <Select value={recordsMinistryFilter} onValueChange={setRecordsMinistryFilter}>
                     <SelectTrigger className="h-10 w-[140px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
@@ -728,11 +724,31 @@ export default function AttendancePage() {
                       <SelectItem value="all-time" className="text-xs font-medium cursor-pointer">All time</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Status */}
+                  <Select value={recordsStatusFilter} onValueChange={setRecordsStatusFilter}>
+                    <SelectTrigger className="h-10 w-[165px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover">
+                      {[
+                        { id: "all", label: "All Statuses", count: recordStats.total },
+                        { id: "present", label: "Present", count: recordStats.present },
+                        { id: "late", label: "Late", count: recordStats.late },
+                        { id: "absent", label: "Absent", count: recordStats.absent },
+                        { id: "incomplete", label: "Incomplete", count: recordStats.incomplete },
+                      ].map(tab => (
+                        <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
+                          {tab.label} ({tab.count})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               {/* Table Container */}
-              <div className="border border-gray-200/80 dark:border-border rounded-2xl mt-5 overflow-hidden">
+              <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-sidebar">
@@ -776,7 +792,10 @@ export default function AttendancePage() {
                               <div className="flex items-center justify-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button className="h-8 w-8 flex items-center justify-center rounded-xl border border-gray-200 dark:border-border text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors cursor-pointer">
+                                    <button
+                                      type="button"
+                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                    >
                                       <MoreHorizontal className="h-4 w-4" />
                                     </button>
                                   </DropdownMenuTrigger>
@@ -820,7 +839,24 @@ export default function AttendancePage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout>
+          <div className="flex justify-center items-center py-24">
+            <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </AppLayout>
+      }
+    >
+      <AttendanceContent />
+    </Suspense>
   );
 }

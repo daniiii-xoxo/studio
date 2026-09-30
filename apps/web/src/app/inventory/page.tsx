@@ -3,39 +3,34 @@
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Package,
   ScanBarcode,
-  Layers,
   ArrowLeftRight,
-  History,
-  BarChart3,
-  Settings,
   AlertTriangle,
-  Clock,
-  CheckCircle2,
   Boxes,
   ShieldAlert,
   Loader2,
-  ChevronDown,
   Activity,
+  CheckCircle2,
+  History,
+  ArrowDownLeft,
+  ArrowUpRight,
   SlidersHorizontal,
+  FolderTree,
+  Package,
+  Tag,
+  TrendingUp,
+  FileCheck,
+  ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
 import {
   Tabs,
   TabsContent,
-  Card,
   Button,
   Badge,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
 } from '@studio/ui';
 import { useInventory } from '@/hooks/use-inventory';
 import { InventoryTable } from '@/components/inventory/inventory-table';
@@ -49,44 +44,55 @@ import { SettingsPanel } from '@/components/inventory/settings-panel';
 import { StockScanModal } from '@/components/inventory/stock-scan-modal';
 import { ScannerModal } from '@/components/inventory/scanner-modal';
 
-const INVENTORY_TABS = [
-  {
-    id: "items",
-    label: "Items & Catalog",
-    description: "Browse registered SKUs, check stock levels, and manage equipment barcodes",
-    icon: Boxes,
-  },
-  {
-    id: "borrowings",
-    label: "Borrowings",
-    description: "Track active checkouts, expected return dates, and worker assignments",
-    icon: ArrowLeftRight,
-  },
-  {
-    id: "logs",
-    label: "Stock Logs",
-    description: "Real-time audit trail of check-ins, adjustments, disposals, and restocking",
-    icon: History,
-  },
-  {
-    id: "categories",
-    label: "Categories",
-    description: "Organize items into departments, equipment classifications, and color tags",
-    icon: Layers,
-  },
-  {
-    id: "reports",
-    label: "Reports & Analytics",
-    description: "Equipment utilization, inventory valuation, and low-stock telemetry",
-    icon: BarChart3,
-  },
-  {
-    id: "settings",
-    label: "Settings & Checklists",
-    description: "Preventive maintenance (PMS) cycles, inspection checklists, and configurations",
-    icon: Settings,
-  },
-];
+// ── StatCard Component (Consistent with Connect2Souls & Dashboard) ───────────────
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accentColor,
+  iconClass,
+  iconBgClass,
+  badge,
+  onClick,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  icon: React.ElementType;
+  accentColor: string;
+  iconClass: string;
+  iconBgClass: string;
+  badge?: React.ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        "relative overflow-hidden rounded-2xl border border-gray-200/80 dark:border-border shadow-xs bg-white dark:bg-card h-full",
+        onClick && "cursor-pointer"
+      )}
+    >
+      <div className={cn("h-1.5 w-full", accentColor)} />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-4xl font-black tracking-tight font-headline text-foreground leading-none">{value}</span>
+              {badge}
+            </div>
+            {sub && <p className="text-xs text-muted-foreground mt-2 font-medium">{sub}</p>}
+          </div>
+          <div className={cn("p-2.5 rounded-xl flex items-center justify-center shrink-0 shadow-xs", iconBgClass)}>
+            <Icon className={cn("h-5 w-5", iconClass)} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function InventoryPageContent() {
   const searchParams = useSearchParams();
@@ -98,15 +104,57 @@ function InventoryPageContent() {
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [overdueAlerts, setOverdueAlerts] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [checklistCounts, setChecklistCounts] = useState({ checkout: 5, return: 4, total: 9 });
 
-  // Derive active tab metadata
-  const activeTabMeta = INVENTORY_TABS.find(tab => tab.id === activeTab) || INVENTORY_TABS[0];
-  const ActiveIcon = activeTabMeta.icon;
+  const { stats, fetchStats, fetchItems, fetchCategories, categories = [] } = useInventory();
 
-  const { stats, fetchStats } = useInventory();
+  const fetchChecklists = async () => {
+    try {
+      const res = await fetch('/api/checklist-templates');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const chk = data.find((t: any) => t.type === 'checkout')?.items?.length ?? 5;
+          const ret = data.find((t: any) => t.type === 'return')?.items?.length ?? 4;
+          setChecklistCounts({ checkout: chk, return: ret, total: chk + ret });
+        }
+      }
+    } catch {}
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchItems(),
+        fetchCategories(),
+        fetchChecklists(),
+        fetch('/api/inventory/borrowings?status=BORROWED')
+          .then((r) => r.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              const now = new Date();
+              const over = data.filter((b) => b.expectedReturnDate && new Date(b.expectedReturnDate) < now);
+              setOverdueAlerts(over);
+            } else if (data.borrowings) {
+              setOverdueAlerts(data.borrowings.filter((b: any) => b.isOverdue));
+            } else {
+              setOverdueAlerts(data);
+            }
+          })
+          .catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     fetchStats();
+    fetchCategories();
+    fetchChecklists();
     fetch('/api/inventory/borrowings?status=BORROWED')
       .then((r) => r.json())
       .then((data) => {
@@ -121,7 +169,7 @@ function InventoryPageContent() {
         }
       })
       .catch(() => {});
-  }, [fetchStats]);
+  }, [fetchStats, fetchCategories]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -132,6 +180,7 @@ function InventoryPageContent() {
 
   const handleTabChange = (val: string) => {
     setActiveTab(val);
+    setQuickStatusFilter('');
     router.push(`/inventory?tab=${val}`, { scroll: false });
   };
 
@@ -139,12 +188,12 @@ function InventoryPageContent() {
     <AppLayout>
       <div className="space-y-6">
         {/* ── TOP HEADER ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-headline font-bold text-foreground tracking-tight">
-              Inventory &amp; Assets
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-gray-900 dark:text-white">
+              Stock Monitoring &amp; Assets
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground">
               Centralized equipment tracking, barcode checkout system, and preventive maintenance.
             </p>
           </div>
@@ -154,23 +203,16 @@ function InventoryPageContent() {
               variant="outline"
               size="sm"
               onClick={() => setIsCameraScannerOpen(true)}
-              className="gap-2 rounded-xl border-border/80 shadow-2xs text-xs font-semibold hover:border-sidebar/40 hover:text-sidebar flex-1 sm:flex-initial cursor-pointer"
+              className="gap-2 rounded-xl border-border/80 shadow-2xs text-xs font-semibold hover:border-sidebar/40 hover:text-sidebar flex-1 sm:flex-initial cursor-pointer h-9 px-3.5"
             >
               <ScanBarcode className="h-4 w-4 text-sidebar dark:text-blue-400" />
               <span>Quick Scan (Camera)</span>
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setIsScanModalOpen(true)}
-              className="gap-2 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white shadow-xs text-xs font-bold flex-1 sm:flex-initial cursor-pointer"
-            >
-              <ScanBarcode className="h-4 w-4" />
-              <span>Scan Barcode (Handheld)</span>
-            </Button>
           </div>
         </div>
 
-        {/* ── OVERDUE BANNER ALERT ── */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* ── OVERDUE BANNER ALERT ── */}
         {overdueAlerts.length > 0 && (
           <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-between flex-wrap gap-3 animate-in fade-in">
             <div className="flex items-center gap-3">
@@ -197,245 +239,284 @@ function InventoryPageContent() {
           </div>
         )}
 
-        {/* ── MODERN KPI STAT CARDS (INTERACTIVE QUICK ACCESS) ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 1. Total Catalog */}
-          <Card
-            onClick={() => {
-              handleTabChange('items');
-              setQuickStatusFilter('');
-            }}
-            className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-purple-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-purple-500/40 cursor-pointer transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                Total Catalog
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20 group-hover:scale-105 transition-transform">
-                <Boxes className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <p className="text-3xl font-headline font-black text-foreground">
-                {stats?.totalItems ?? '—'}
-              </p>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  All registered SKUs
-                </p>
-                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  View catalog →
-                </span>
-              </div>
-            </div>
-          </Card>
+        {/* ── TOP KPI SUMMARY CARDS (DYNAMIC PER TAB) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* TAB: ITEMS & CATALOG */}
+          {activeTab === 'items' && (
+            <>
+              <StatCard
+                label="TOTAL CATALOG"
+                value={stats?.totalItems ?? 0}
+                sub="All registered SKUs"
+                icon={Boxes}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+                onClick={() => setQuickStatusFilter('')}
+              />
+              <StatCard
+                label="ACTIVE BORROWED"
+                value={stats?.borrowedCount ?? 0}
+                sub="In worker possession"
+                icon={ArrowLeftRight}
+                accentColor="bg-sky-500"
+                iconClass="text-sky-600 dark:text-sky-400"
+                iconBgClass="bg-sky-50 dark:bg-sky-950/40"
+                badge={
+                  stats?.overdueCount ? (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold rounded-full animate-pulse">
+                      {stats.overdueCount} overdue
+                    </Badge>
+                  ) : null
+                }
+                onClick={() => handleTabChange('borrowings')}
+              />
+              <StatCard
+                label="LOW STOCK"
+                value={stats?.lowStockAlerts ?? 0}
+                sub="Below safety reorder point"
+                icon={AlertTriangle}
+                accentColor="bg-amber-500"
+                iconClass="text-amber-600 dark:text-amber-400"
+                iconBgClass="bg-amber-50 dark:bg-amber-950/40"
+                badge={
+                  (stats?.lowStockAlerts ?? 0) > 0 ? (
+                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-transparent text-[10px] px-1.5 py-0 font-bold rounded-full">
+                      Needs restock
+                    </Badge>
+                  ) : null
+                }
+                onClick={() => setQuickStatusFilter('Low Stock')}
+              />
+              <StatCard
+                label="PMS ALERTS"
+                value={stats?.pmsAlerts ?? 0}
+                sub="Due maintenance within 30d"
+                icon={ShieldAlert}
+                accentColor="bg-indigo-500"
+                iconClass="text-indigo-600 dark:text-indigo-400"
+                iconBgClass="bg-indigo-50 dark:bg-indigo-950/40"
+                onClick={() => handleTabChange('settings')}
+              />
+            </>
+          )}
 
-          {/* 2. Active Borrowed */}
-          <Card
-            onClick={() => handleTabChange('borrowings')}
-            className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-sky-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-sky-500/40 cursor-pointer transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                Active Borrowed
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-500/20 group-hover:scale-105 transition-transform">
-                <ArrowLeftRight className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-headline font-black text-sky-600 dark:text-sky-400">
-                  {stats?.borrowedCount ?? '—'}
-                </p>
-                {stats?.overdueCount ? (
-                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold rounded-full animate-pulse">
-                    {stats.overdueCount} overdue
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  In worker possession
-                </p>
-                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  View records →
-                </span>
-              </div>
-            </div>
-          </Card>
+          {/* TAB: BORROWINGS */}
+          {activeTab === 'borrowings' && (
+            <>
+              <StatCard
+                label="ACTIVE BORROWED"
+                value={stats?.borrowedCount ?? 0}
+                sub="In worker possession"
+                icon={ArrowLeftRight}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="OVERDUE RETURNS"
+                value={stats?.overdueCount ?? overdueAlerts.length ?? 0}
+                sub="Exceeded due schedule"
+                icon={AlertTriangle}
+                accentColor="bg-rose-500"
+                iconClass="text-rose-600 dark:text-rose-400"
+                iconBgClass="bg-rose-50 dark:bg-rose-950/40"
+                badge={
+                  (stats?.overdueCount ?? overdueAlerts.length ?? 0) > 0 ? (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold rounded-full animate-pulse">
+                      Urgent
+                    </Badge>
+                  ) : null
+                }
+              />
+              <StatCard
+                label="TOTAL RETURNED"
+                value={stats?.returnedCount ?? 0}
+                sub="Completed return intake"
+                icon={CheckCircle2}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+              <StatCard
+                label="VERIFICATION REQUIRED"
+                value={stats?.borrowedCount ?? 0}
+                sub="Inspection on return"
+                icon={ClipboardCheck}
+                accentColor="bg-sky-500"
+                iconClass="text-sky-600 dark:text-sky-400"
+                iconBgClass="bg-sky-50 dark:bg-sky-950/40"
+              />
+            </>
+          )}
 
-          {/* 3. Low Stock Alert */}
-          <Card
-            onClick={() => {
-              handleTabChange('items');
-              setQuickStatusFilter('Low Stock');
-            }}
-            className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-amber-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-amber-500/40 cursor-pointer transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                Low Stock
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-2">
-                <p className={`text-3xl font-headline font-black ${(stats?.lowStockAlerts ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
-                  {stats?.lowStockAlerts ?? '—'}
-                </p>
-                {(stats?.lowStockAlerts ?? 0) > 0 && (
-                  <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-transparent text-[10px] px-1.5 py-0 font-bold rounded-full">
-                    Needs restock
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  Below safety reorder point
-                </p>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Filter low stock →
-                </span>
-              </div>
-            </div>
-          </Card>
+          {/* TAB: STOCK LOGS */}
+          {activeTab === 'logs' && (
+            <>
+              <StatCard
+                label="TOTAL AUDIT LOGS"
+                value={stats?.totalLogs ?? 0}
+                sub="Logged inventory transactions"
+                icon={History}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="STOCK IN (RESTOCKED)"
+                value={stats?.stockInCount ?? 0}
+                sub="Inbound inventory additions"
+                icon={ArrowDownLeft}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+              <StatCard
+                label="STOCK OUT (DISPATCHED)"
+                value={stats?.stockOutCount ?? 0}
+                sub="Dispatched & consumed items"
+                icon={ArrowUpRight}
+                accentColor="bg-amber-500"
+                iconClass="text-amber-600 dark:text-amber-400"
+                iconBgClass="bg-amber-50 dark:bg-amber-950/40"
+              />
+              <StatCard
+                label="MANUAL ADJUSTMENTS"
+                value={stats?.adjustmentsCount ?? 0}
+                sub="Audit corrections & syncs"
+                icon={SlidersHorizontal}
+                accentColor="bg-indigo-500"
+                iconClass="text-indigo-600 dark:text-indigo-400"
+                iconBgClass="bg-indigo-50 dark:bg-indigo-950/40"
+              />
+            </>
+          )}
 
-          {/* 4. PMS Alerts */}
-          <Card
-            onClick={() => handleTabChange('settings')}
-            className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-indigo-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-indigo-500/40 cursor-pointer transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                PMS Alerts
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 group-hover:scale-105 transition-transform">
-                <ShieldAlert className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <p className="text-3xl font-headline font-black text-indigo-600 dark:text-indigo-400">
-                {stats?.pmsAlerts ?? '—'}
-              </p>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  Due maintenance within 30d
-                </p>
-                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Manage PMS →
-                </span>
-              </div>
-            </div>
-          </Card>
-        </div>
+          {/* TAB: CATEGORIES */}
+          {activeTab === 'categories' && (
+            <>
+              <StatCard
+                label="TOTAL CATEGORIES"
+                value={categories.length || stats?.totalCategories || 0}
+                sub="Active classification groups"
+                icon={FolderTree}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="CATEGORIZED SKUS"
+                value={stats?.categorizedItemsCount ?? stats?.totalItems ?? 0}
+                sub="Assigned to classifications"
+                icon={Package}
+                accentColor="bg-sky-500"
+                iconClass="text-sky-600 dark:text-sky-400"
+                iconBgClass="bg-sky-50 dark:bg-sky-950/40"
+              />
+              <StatCard
+                label="EQUIPMENT CLASSES"
+                value={stats?.equipmentCount ?? 0}
+                sub="Gear & returnable assets"
+                icon={Boxes}
+                accentColor="bg-indigo-500"
+                iconClass="text-indigo-600 dark:text-indigo-400"
+                iconBgClass="bg-indigo-50 dark:bg-indigo-950/40"
+              />
+              <StatCard
+                label="CONSUMABLES CLASSES"
+                value={stats?.consumableCount ?? 0}
+                sub="Supplies & expendables"
+                icon={Tag}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+            </>
+          )}
 
-        {/* ── MOBILE-FRIENDLY HORIZONTAL TAB BAR ── */}
-        <div className="w-full">
-          <div className="flex p-1 bg-slate-100/90 dark:bg-muted rounded-xl border border-slate-200/70 dark:border-border/50 gap-0.5 shadow-2xs w-full">
-            {INVENTORY_TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isSelected = tab.id === activeTab;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-lg transition-all cursor-pointer flex-1 min-w-0",
-                    isSelected
-                      ? "bg-sidebar text-white shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0", isSelected ? "text-white" : "text-muted-foreground")} />
-                  <span className="text-[9px] font-bold leading-none truncate w-full text-center">
-                    {tab.label.split(" ")[0]}
-                  </span>
-                  {tab.id === "borrowings" && overdueAlerts.length > 0 && (
-                    <span className="px-1 rounded-full text-[8px] font-bold bg-destructive text-destructive-foreground">
-                      {overdueAlerts.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+          {/* TAB: REPORTS & ANALYTICS */}
+          {activeTab === 'reports' && (
+            <>
+              <StatCard
+                label="HEALTHY STOCKS"
+                value={Math.max(0, (stats?.totalItems ?? 0) - (stats?.lowStockAlerts ?? 0))}
+                sub="Above safety reorder level"
+                icon={CheckCircle2}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+              <StatCard
+                label="ACTIVE DEPLOYMENTS"
+                value={stats?.borrowedCount ?? 0}
+                sub="Currently borrowed in field"
+                icon={TrendingUp}
+                accentColor="bg-sky-500"
+                iconClass="text-sky-600 dark:text-sky-400"
+                iconBgClass="bg-sky-50 dark:bg-sky-950/40"
+              />
+              <StatCard
+                label="CRITICAL REORDERS"
+                value={stats?.lowStockAlerts ?? 0}
+                sub="Below safety threshold"
+                icon={AlertTriangle}
+                accentColor="bg-amber-500"
+                iconClass="text-amber-600 dark:text-amber-400"
+                iconBgClass="bg-amber-50 dark:bg-amber-950/40"
+              />
+              <StatCard
+                label="MAINTAINED ASSETS"
+                value={Math.max(0, (stats?.totalItems ?? 0) - (stats?.pmsAlerts ?? 0))}
+                sub="PMS schedule up-to-date"
+                icon={ShieldAlert}
+                accentColor="bg-indigo-500"
+                iconClass="text-indigo-600 dark:text-indigo-400"
+                iconBgClass="bg-indigo-50 dark:bg-indigo-950/40"
+              />
+            </>
+          )}
 
-        {/* ── SECTION HEADER & STREAMLINED VIEW SWITCHER ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border/70 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-              <ActiveIcon className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-foreground tracking-tight">
-                  {activeTabMeta.label}
-                </h2>
-                {activeTab === "borrowings" && overdueAlerts.length > 0 && (
-                  <Badge variant="destructive" className="h-4 px-1.5 text-[9px] font-bold rounded-full">
-                    {overdueAlerts.length} overdue
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {activeTabMeta.description}
-              </p>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-2 self-start md:self-auto">
-            {activeTab === "items" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsActivityFeedOpen(true)}
-                className="h-9 text-xs rounded-xl gap-1.5 border-border/80"
-              >
-                <Activity className="h-3.5 w-3.5 text-primary" />
-                <span>Activity Feed</span>
-              </Button>
-            )}
-
-            <Select value={activeTab} onValueChange={handleTabChange}>
-              <SelectTrigger className="h-9 w-[220px] text-xs font-bold rounded-xl bg-muted/40 border-border/80 shadow-2xs">
-                <div className="flex items-center gap-2 truncate">
-                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate">View: {activeTabMeta.label}</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent align="end" className="w-[240px] rounded-2xl">
-                {INVENTORY_TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  const isSelected = tab.id === activeTab;
-                  return (
-                    <SelectItem
-                      key={tab.id}
-                      value={tab.id}
-                      className="text-xs py-2.5 cursor-pointer rounded-xl font-medium"
-                    >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className="flex items-center gap-2">
-                          <Icon className={`h-3.5 w-3.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                          <span className={isSelected ? "font-bold text-primary" : "text-foreground"}>
-                            {tab.label}
-                          </span>
-                        </span>
-                        {tab.id === "borrowings" && overdueAlerts.length > 0 && (
-                          <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4 font-bold">
-                            {overdueAlerts.length}
-                          </Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* TAB: SETTINGS & CHECKLISTS */}
+          {activeTab === 'settings' && (
+            <>
+              <StatCard
+                label="CHECKOUT RULES"
+                value={checklistCounts.checkout}
+                sub="Handover inspection steps"
+                icon={FileCheck}
+                accentColor="bg-sidebar"
+                iconClass="text-sidebar dark:text-blue-400"
+                iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+              />
+              <StatCard
+                label="RETURN RULES"
+                value={checklistCounts.return}
+                sub="Intake damage criteria"
+                icon={ShieldCheck}
+                accentColor="bg-emerald-500"
+                iconClass="text-emerald-600 dark:text-emerald-400"
+                iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+              />
+              <StatCard
+                label="TOTAL VERIFICATIONS"
+                value={checklistCounts.total}
+                sub="Active quality controls"
+                icon={CheckCircle2}
+                accentColor="bg-sky-500"
+                iconClass="text-sky-600 dark:text-sky-400"
+                iconBgClass="bg-sky-50 dark:bg-sky-950/40"
+              />
+              <StatCard
+                label="PMS CYCLE (DAYS)"
+                value={30}
+                sub="Maintenance advance window"
+                icon={ShieldAlert}
+                accentColor="bg-indigo-500"
+                iconClass="text-indigo-600 dark:text-indigo-400"
+                iconBgClass="bg-indigo-50 dark:bg-indigo-950/40"
+              />
+            </>
+          )}
         </div>
 
         {/* ── TAB PANELS CONTENT ── */}
@@ -446,6 +527,7 @@ function InventoryPageContent() {
                 onScanClick={() => setIsScanModalOpen(true)}
                 statusFilterOverride={quickStatusFilter}
                 onClearStatusFilterOverride={() => setQuickStatusFilter('')}
+                onActivityFeedClick={() => setIsActivityFeedOpen(true)}
               />
             </div>
           </TabsContent>
@@ -466,140 +548,6 @@ function InventoryPageContent() {
 
           {/* Tab 5: Reports & Analytics */}
           <TabsContent value="reports" className="space-y-6 mt-0">
-            {/* ── MODERN KPI STAT CARDS (INTERACTIVE QUICK ACCESS) ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* 1. Total Catalog */}
-              <Card
-                onClick={() => {
-                  handleTabChange('items');
-                  setQuickStatusFilter('');
-                }}
-                className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-purple-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-purple-500/40 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                    Total Catalog
-                  </span>
-                  <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-500/20 group-hover:scale-105 transition-transform">
-                    <Boxes className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-3xl font-headline font-black text-foreground">
-                    {stats?.totalItems ?? '—'}
-                  </p>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      All registered SKUs
-                    </p>
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      View catalog →
-                    </span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* 2. Active Borrowed */}
-              <Card
-                onClick={() => handleTabChange('borrowings')}
-                className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-sky-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-sky-500/40 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                    Active Borrowed
-                  </span>
-                  <div className="h-9 w-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-500/20 group-hover:scale-105 transition-transform">
-                    <ArrowLeftRight className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-headline font-black text-sky-600 dark:text-sky-400">
-                      {stats?.borrowedCount ?? '—'}
-                    </p>
-                    {stats?.overdueCount ? (
-                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold rounded-full animate-pulse">
-                        {stats.overdueCount} overdue
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      In worker possession
-                    </p>
-                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      View records →
-                    </span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* 3. Low Stock Alert */}
-              <Card
-                onClick={() => {
-                  handleTabChange('items');
-                  setQuickStatusFilter('Low Stock');
-                }}
-                className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-amber-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-amber-500/40 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                    Low Stock
-                  </span>
-                  <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 group-hover:scale-105 transition-transform">
-                    <AlertTriangle className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-2">
-                    <p className={`text-3xl font-headline font-black ${(stats?.lowStockAlerts ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>
-                      {stats?.lowStockAlerts ?? '—'}
-                    </p>
-                    {(stats?.lowStockAlerts ?? 0) > 0 && (
-                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-transparent text-[10px] px-1.5 py-0 font-bold rounded-full">
-                        Needs restock
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      Below safety reorder point
-                    </p>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      Filter low stock →
-                    </span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* 4. PMS Alerts */}
-              <Card
-                onClick={() => handleTabChange('settings')}
-                className="rounded-2xl border border-border/70 p-5 bg-card bg-gradient-to-b from-indigo-500/[0.04] via-transparent to-transparent shadow-xs hover:shadow-md hover:border-indigo-500/40 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
-                    PMS Alerts
-                  </span>
-                  <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 group-hover:scale-105 transition-transform">
-                    <ShieldAlert className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-3xl font-headline font-black text-indigo-600 dark:text-indigo-400">
-                    {stats?.pmsAlerts ?? '—'}
-                  </p>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      Due maintenance within 30d
-                    </p>
-                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      Manage PMS →
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            </div>
             <ReportsPanel />
           </TabsContent>
 
@@ -611,19 +559,8 @@ function InventoryPageContent() {
 
         {/* ── ACTIVITY FEED SIDE SHEET (Unclutters the Table) ── */}
         <Sheet open={isActivityFeedOpen} onOpenChange={setIsActivityFeedOpen}>
-          <SheetContent className="sm:max-w-md w-full overflow-y-auto p-6">
-            <SheetHeader className="mb-4">
-              <SheetTitle className="text-lg font-bold flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Live Activity Feed
-              </SheetTitle>
-              <SheetDescription className="text-xs">
-                Real-time equipment checkouts, check-ins, and inventory audit logs.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-2">
-              <ActivityFeed />
-            </div>
+          <SheetContent className="sm:max-w-xl w-full p-0 flex flex-col bg-background border border-border/80 shadow-2xl overflow-hidden rounded-2xl">
+            <ActivityFeed onClose={() => setIsActivityFeedOpen(false)} />
           </SheetContent>
         </Sheet>
 
@@ -646,6 +583,7 @@ function InventoryPageContent() {
             }}
           />
         )}
+        </div>
       </div>
     </AppLayout>
   );

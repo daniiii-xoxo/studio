@@ -73,21 +73,24 @@ export default function MyVenuePage() {
 
     return (
         <AppLayout>
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-headline font-bold">My Bookings</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        My Bookings
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
                         Your venue bookings and their assistance statuses.
                     </p>
                 </div>
-                <Button asChild>
+                <Button asChild className="self-start sm:self-auto">
                     <Link href="/venue">
                         <PlusCircle className="mr-2 h-4 w-4" /> New Booking
                     </Link>
                 </Button>
             </div>
 
-            {bookings.length === 0 ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {bookings.length === 0 ? (
                 <Card>
                     <CardContent className="py-12 text-center">
                         <p className="text-muted-foreground mb-4">You have no bookings yet.</p>
@@ -159,6 +162,7 @@ export default function MyVenuePage() {
                     ))}
                 </div>
             )}
+            </div>
         </AppLayout>
     );
 }

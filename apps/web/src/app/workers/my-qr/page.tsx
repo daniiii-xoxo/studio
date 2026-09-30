@@ -131,7 +131,7 @@ export default function MyQRCodePage() {
 
   return (
     <AppLayout>
-      <div className="w-full space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="w-full space-y-6 pb-12">
         {/* Header Section (Room Reservations Style) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -166,8 +166,8 @@ export default function MyQRCodePage() {
           </div>
         </div>
 
-        {/* Main Card Container (Room Reservations Signature Style) */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 md:p-8 overflow-hidden">
+        {/* Main Card Container with Entrance Animation */}
+        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 md:p-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Main Grid: Digital Pass & Credential Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Digital Pass Badge Card */}

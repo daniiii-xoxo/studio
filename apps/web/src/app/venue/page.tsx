@@ -66,24 +66,28 @@ export default function VenuePage() {
 
     return (
         <AppLayout>
-            <div className="mb-6">
-                <h1 className="text-2xl font-headline font-bold">Book a Venue</h1>
-                <p className="text-muted-foreground text-sm mt-1">
+            <div className="space-y-1 mb-6">
+                <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                    Book a Venue
+                </h1>
+                <p className="text-sm text-muted-foreground">
                     Reserve a room and coordinate ministry assistance for your event.
                 </p>
             </div>
 
-            {workerProfile ? (
-                <BookingForm
-                    workerProfileId={workerProfile.id}
-                    onSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                />
-            ) : (
-                <p className="text-muted-foreground">
-                    You must have a worker profile to book a venue.
-                </p>
-            )}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {workerProfile ? (
+                    <BookingForm
+                        workerProfileId={workerProfile.id}
+                        onSubmit={handleSubmit}
+                        isSubmitting={isSubmitting}
+                    />
+                ) : (
+                    <p className="text-muted-foreground">
+                        You must have a worker profile to book a venue.
+                    </p>
+                )}
+            </div>
         </AppLayout>
     );
 }

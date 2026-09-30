@@ -52,6 +52,8 @@ import {
 import { ImportSheet } from "@/components/workers/import-sheet";
 import { BatchMinistrySheet } from "@/components/workers/batch-ministry-sheet";
 import { BatchMealStubSheet } from "@/components/workers/batch-meal-stub-sheet";
+import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -151,6 +153,7 @@ export default function WorkersPage() {
 
   const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive" | "heads" | "mentors" | "admins">("all");
   const [ministryFilter, setMinistryFilter] = useState<string>("all");
+  const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
 
   React.useEffect(() => {
     const timer = setTimeout(() => { setSearchQuery(searchInput); setCurrentPage(1); }, 400);
@@ -220,9 +223,10 @@ export default function WorkersPage() {
   const [isBatchMealStubSheetOpen, setIsBatchMealStubSheetOpen] = useState(false);
   const [isAssigningStubs, setIsAssigningStubs] = useState(false);
   const [selectedWorkerForDetails, setSelectedWorkerForDetails] = useState<Worker | null>(null);
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
 
   const handleAddNew = () => router.push("/workers/new");
-  const handleEdit = (worker: Worker) => router.push(`/workers/${worker.id}/edit`);
+  const handleEdit = (worker: Worker) => setEditingWorker(worker);
 
   const handleExportWorkers = () => {
     if (!allWorkers || allWorkers.length === 0) {
@@ -269,11 +273,17 @@ export default function WorkersPage() {
     startImpersonation(worker.id);
   };
 
-  const handleDelete = async (workerId: string) => {
-    const w = allWorkers?.find(w => w.id === workerId);
+  const handleDelete = (worker: Worker) => {
+    setWorkerToDelete(worker);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!workerToDelete) return;
+    const w = workerToDelete;
+    setWorkerToDelete(null);
     try {
-      await deleteWorkerSqlMut(workerId);
-      if (w) await logAction("Deleted Worker", "Workers", `Removed ${w.firstName} ${w.lastName}`, workerId, `${w.firstName} ${w.lastName}`);
+      await deleteWorkerSqlMut(w.id);
+      await logAction("Deleted Worker", "Workers", `Removed ${w.firstName} ${w.lastName}`, w.id, `${w.firstName} ${w.lastName}`);
       toast({ title: "Worker Deleted" });
     } catch { toast({ variant: "destructive", title: "Delete Failed" }); }
   };
@@ -483,55 +493,46 @@ export default function WorkersPage() {
       <div className="space-y-7 pb-12">
 
         {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Workers</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               Monitor workforce, assign roles and ministries, and register new workers.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search workers..."
-                className="pl-9 w-full h-9 text-sm bg-card border-border/60 rounded-xl"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setIsImportSheetOpen(true)}
-                className="h-9 px-3.5 flex items-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
-              >
-                <Upload className="h-4 w-4 text-muted-foreground" />
-                <span className="hidden sm:inline">Import</span>
-              </button>
-              <button
-                onClick={handleExportWorkers}
-                className="h-9 px-3.5 flex items-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
-              >
-                <Download className="h-4 w-4 text-muted-foreground" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
-              <button
-                onClick={handleAddNew}
-                className="h-9 px-3 sm:px-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
-              >
-                <PlusCircle className="h-4 w-4" /> Add Worker
-              </button>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setIsImportSheetOpen(true)}
+              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            <button
+              onClick={handleExportWorkers}
+              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
+              onClick={handleAddNew}
+              className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <PlusCircle className="h-4 w-4" /> Add Worker
+            </button>
           </div>
         </div>
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
-          <StatCard label="Mentors" value={mentorsCount} icon={GraduationCap} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
-          <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
-          <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
-        </div>
+        {/* Animated Content Section (Stats, Chart, & Table) */}
+        <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
+            <StatCard label="Mentors" value={mentorsCount} icon={GraduationCap} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
+            <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
+            <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
+          </div>
 
         {/* Ministry Distribution Chart */}
         {ministryChartData.length > 0 && (
@@ -562,57 +563,64 @@ export default function WorkersPage() {
           </div>
         )}
 
-        {/* Main Table & Tabs Container */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden">
-          {/* Top Controls Row */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Status & Role Filter Tabs (Matching Room Reservations style) */}
-            <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center border border-slate-200/70 dark:border-border/50 shadow-2xs self-start overflow-x-auto max-w-full gap-1">
-              {[
-                { id: "all", label: "All", count: tabCounts.all },
-                { id: "active", label: "Active", count: tabCounts.active },
-                { id: "inactive", label: "Inactive", count: tabCounts.inactive },
-                { id: "mentors", label: "Mentors", count: tabCounts.mentors },
-                { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
-                { id: "admins", label: "Admins", count: tabCounts.admins },
-              ].map(tab => (
+        {/* Main Content Card Container (Connect2Souls Style) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+          {/* Top Controls Row (Search Left, Dropdowns Right) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Search bar (Left side) */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search workers by name, ID, role..."
+                className="pl-9 pr-8 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
                 <button
-                  key={tab.id}
                   type="button"
-                  onClick={() => { setActiveTab(tab.id as any); setCurrentPage(1); }}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 shrink-0",
-                    activeTab === tab.id
-                      ? "bg-sidebar text-white shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
-                  )}
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 >
-                  <span>{tab.label}</span>
-                  <span
-                    className={cn(
-                      "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold",
-                      activeTab === tab.id
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-200/80 dark:bg-muted/80 text-slate-700 dark:text-slate-300"
-                    )}
-                  >
-                    {tab.count}
-                  </span>
+                  <X className="h-3.5 w-3.5" />
                 </button>
-              ))}
+              )}
             </div>
 
-            {/* Right Controls: Ministry Filter */}
-            <div className="flex items-center gap-2.5 self-start lg:self-auto">
+            {/* Filter Dropdowns (Right side) */}
+            <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+              {/* Ministry Filter */}
               <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
-                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3">
+                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
                   <SelectValue placeholder="All Ministries" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs font-medium">All Ministries</SelectItem>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
                   {ministries?.map(m => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs font-medium">
+                    <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
                       {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Status & Role Filter Dropdown */}
+              <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
+                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                  <SelectValue placeholder="All Workers" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {[
+                    { id: "all", label: "All Workers", count: tabCounts.all },
+                    { id: "active", label: "Active", count: tabCounts.active },
+                    { id: "inactive", label: "Inactive", count: tabCounts.inactive },
+                    { id: "mentors", label: "Mentors", count: tabCounts.mentors },
+                    { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
+                    { id: "admins", label: "Admins", count: tabCounts.admins },
+                  ].map(tab => (
+                    <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
+                      {tab.label} ({tab.count})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -620,8 +628,9 @@ export default function WorkersPage() {
             </div>
           </div>
 
-        {/* Main Table */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden">
+          {/* Main Table Container */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card shadow-card-dark">
+
           {/* Mobile list view */}
           <div className="md:hidden divide-y divide-border/30">
             {workersLoading ? (
@@ -666,31 +675,32 @@ export default function WorkersPage() {
           {/* Desktop table view */}
           <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
-              <thead>
-                <tr className="bg-muted/40 border-b border-border/40">
-                  <th className="w-10 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      className="rounded border-border"
-                      checked={displayedWorkers.length > 0 && displayedWorkers.every(w => selectedWorkerIds.includes(w.id))}
-                      onChange={() => toggleSelectAll(displayedWorkers)}
-                    />
+              <thead className="bg-sidebar">
+                <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                  <th className="w-10 px-4 py-3.5 text-center">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                        checked={displayedWorkers.length > 0 && displayedWorkers.every(w => selectedWorkerIds.includes(w.id))}
+                        onCheckedChange={() => toggleSelectAll(displayedWorkers)}
+                      />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("name")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
                     Worker {sortField === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("workerId")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
                     Worker ID {sortField === "workerId" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Role</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ministry</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Contact</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("status")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
                     Status {sortField === "status" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Registered</th>
-                  <th className="w-10 px-4 py-3" />
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -709,8 +719,14 @@ export default function WorkersPage() {
                       key={worker.id}
                       className={cn("border-b border-border/30 transition-colors", isSelected ? "bg-primary/5" : "hover:bg-muted/20")}
                     >
-                      <td className="px-4 py-3.5" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
-                        <input type="checkbox" className="rounded border-border" checked={isSelected} onChange={() => toggleSelectWorker(worker.id)} />
+                      <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelectWorker(worker.id)}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -749,18 +765,20 @@ export default function WorkersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)}>
-                              <Mail className="mr-2 h-4 w-4" /> Send Reset Link
+                          <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-lg border-border/80">
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                              <UserCog className="h-4 w-4 text-muted-foreground" /> Edit Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
                             </DropdownMenuItem>
                             {worker.id !== user?.uid && (
-                              <DropdownMenuItem onSelect={() => setTimeout(() => handleImpersonate(worker), 100)}>
-                                <LogIn className="mr-2 h-4 w-4" /> Impersonate
+                              <DropdownMenuItem onSelect={() => setTimeout(() => handleImpersonate(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                <LogIn className="h-4 w-4 text-muted-foreground" /> Impersonate
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker.id), 100)} className="text-destructive">
-                              Delete
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker), 100)} className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10">
+                              <Trash2 className="h-4 w-4 text-destructive" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -793,8 +811,9 @@ export default function WorkersPage() {
             </div>
           )}
         </div>
-        </div>
       </div>
+    </div>
+    </div>
 
       {/* Sheets & Dialogs */}
       <Sheet open={isImportSheetOpen} onOpenChange={setIsImportSheetOpen}>
@@ -920,6 +939,35 @@ export default function WorkersPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={!!workerToDelete}
+        onClose={() => setWorkerToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Worker Profile"
+        itemName={workerToDelete ? `${workerToDelete.firstName} ${workerToDelete.lastName}` : "this worker"}
+        confirmLabel="Delete Worker"
+      />
+
+      {/* Centered Edit Worker Dialog */}
+      <EditWorkerDialog
+        worker={editingWorker}
+        open={!!editingWorker}
+        onOpenChange={(open) => {
+          if (!open) setEditingWorker(null);
+        }}
+        roles={roles}
+        ministries={ministries}
+        canManage={canManageWorkers}
+        isSuperAdmin={isSuperAdmin}
+        currentWorkerProfile={workerProfile}
+        onSuccess={() => {
+          if (selectedWorkerForDetails && editingWorker && selectedWorkerForDetails.id === editingWorker.id) {
+            setSelectedWorkerForDetails(null);
+          }
+        }}
+      />
     </AppLayout>
   );
 }

@@ -7,6 +7,16 @@ import { Button } from "@studio/ui";
 import { Badge } from "@studio/ui";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@studio/ui";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@studio/ui";
 import { Input } from "@studio/ui";
 import { Label } from "@studio/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@studio/ui";
@@ -17,6 +27,7 @@ import { useMinistries } from "@/hooks/use-ministries";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 
 const DEPT_CODE_TO_NAME: Record<string, string> = {
     W: 'Worship',
@@ -59,6 +70,7 @@ export default function TemplatesPage() {
     const [isDefault, setIsDefault] = useState(false);
     const [roles, setRoles] = useState<RoleRow[]>([{ roleName: "", count: 1, notes: "" }]);
     const [isSaving, setIsSaving] = useState(false);
+    const [templateToDelete, setTemplateToDelete] = useState<any | null>(null);
 
     // Scope ministries to the scheduler's department
     const visibleMinistries = useMemo(() => {
@@ -101,7 +113,14 @@ export default function TemplatesPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = (t: any) => {
+        setTemplateToDelete(t);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!templateToDelete) return;
+        const id = templateToDelete.id;
+        setTemplateToDelete(null);
         try {
             await deleteTemplate(id);
             toast({ title: "Template deleted" });
@@ -135,23 +154,26 @@ export default function TemplatesPage() {
 
     return (
         <AppLayout>
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => router.push("/schedule")}>
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                    <h1 className="text-2xl font-headline font-bold">Service Templates</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        Service Templates
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Define reusable role templates per ministry. Apply them when building a Sunday service schedule.
+                    </p>
                 </div>
-                <Button onClick={() => setIsCreateOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> New Template
-                </Button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <Button variant="outline" onClick={() => router.push("/schedule")}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Schedules
+                    </Button>
+                    <Button onClick={() => setIsCreateOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> New Template
+                    </Button>
+                </div>
             </div>
 
-            <p className="mt-1 text-sm text-muted-foreground ml-11">
-                Define reusable role templates per ministry. Apply them when building a Sunday service schedule.
-            </p>
-
-            <div className="mt-6 space-y-8">
+            <div className="mt-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {isLoading ? (
                     <div className="flex justify-center py-10">
                         <LoaderCircle className="h-8 w-8 animate-spin" />
@@ -189,8 +211,8 @@ export default function TemplatesPage() {
                                                                 <CardTitle className="text-base">{t.name}</CardTitle>
                                                                 {t.isDefault && <Badge variant="secondary" className="mt-1 text-xs">Default</Badge>}
                                                             </div>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                                                                onClick={() => handleDelete(t.id)}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive cursor-pointer"
+                                                                onClick={() => handleDelete(t)}>
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </div>
@@ -283,6 +305,16 @@ export default function TemplatesPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmationDialog
+                isOpen={!!templateToDelete}
+                onClose={() => setTemplateToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Service Template"
+                itemName={templateToDelete?.name}
+                confirmLabel="Delete Template"
+            />
         </AppLayout>
     );
 }
