@@ -5,7 +5,6 @@ import {
   Search,
   Plus,
   QrCode,
-  ScanBarcode,
   Download,
   Upload,
   MoreHorizontal,
@@ -29,6 +28,7 @@ import {
   Tag,
   FileSpreadsheet,
   Check,
+  Activity,
 } from 'lucide-react';
 import {
   Table,
@@ -58,7 +58,13 @@ import {
   DialogDescription,
   DialogFooter,
   Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@studio/ui';
+import { cn } from '@/lib/utils';
 import { useInventory, type InventoryItem } from '@/hooks/use-inventory';
 import { useToast } from '@/hooks/use-toast';
 import { QRModal } from './qr-modal';
@@ -131,12 +137,14 @@ interface InventoryTableProps {
   onScanClick?: () => void;
   statusFilterOverride?: string;
   onClearStatusFilterOverride?: () => void;
+  onActivityFeedClick?: () => void;
 }
 
 export function InventoryTable({
   onScanClick,
   statusFilterOverride,
   onClearStatusFilterOverride,
+  onActivityFeedClick,
 }: InventoryTableProps) {
   const {
     items,
@@ -144,6 +152,8 @@ export function InventoryTable({
     loading,
     categories,
     locations,
+    stats,
+    fetchStats,
     fetchItems,
     fetchCategories,
     fetchLocations,
@@ -214,7 +224,13 @@ export function InventoryTable({
   useEffect(() => {
     fetchCategories();
     fetchLocations();
-  }, [fetchCategories, fetchLocations]);
+    fetchStats();
+  }, [fetchCategories, fetchLocations, fetchStats]);
+
+  const lowCount = stats?.lowStockAlerts ?? items.filter((i) => (i.quantity ?? i.stock ?? 0) <= (i.minQuantity ?? i.minStock ?? 5)).length;
+  const equipmentCount = stats?.equipmentCount ?? items.filter((i) => i.type === 'EQUIPMENT').length;
+  const consumableCount = stats?.consumableCount ?? items.filter((i) => i.type === 'CONSUMABLE').length;
+  const totalCount = totalItems || stats?.totalItems || items.length;
 
   // Debounced search reset page
   const handleSearchChange = (val: string) => {
@@ -459,206 +475,155 @@ export function InventoryTable({
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4">
         {/* ── UNIFIED TABLE TOOLBAR CONTAINER ── */}
-        <Card className="rounded-2xl border border-border/70 bg-card shadow-xs overflow-hidden">
-          {/* Top Quick Filters & Primary Actions */}
-          <div className="p-4 border-b border-border/60 bg-muted/[0.15] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Quick Segment Pills (1-Click Filters) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-              <Button
-                variant={!selectedStatus && !selectedType ? 'default' : 'ghost'}
-                size="sm"
-                className={`h-8 px-3 text-xs font-semibold rounded-xl gap-1.5 transition-all ${
-                  !selectedStatus && !selectedType ? 'shadow-2xs' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => {
-                  setSelectedStatus('');
-                  setSelectedType('');
-                  setSkip(0);
-                }}
-              >
-                <Boxes className="h-3.5 w-3.5" />
-                <span>All Catalog</span>
-                <span className="text-[10px] ml-0.5 opacity-70">({totalItems})</span>
-              </Button>
-
-              <Button
-                variant={selectedStatus === 'Low Stock' ? 'default' : 'ghost'}
-                size="sm"
-                className={`h-8 px-3 text-xs font-semibold rounded-xl gap-1.5 transition-all ${
-                  selectedStatus === 'Low Stock'
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-amber-500/10'
-                }`}
-                onClick={() => {
-                  setSelectedStatus(selectedStatus === 'Low Stock' ? '' : 'Low Stock');
-                  setSkip(0);
-                }}
-              >
-                <AlertTriangle className={`h-3.5 w-3.5 ${selectedStatus === 'Low Stock' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
-                <span>Low Stock</span>
-              </Button>
-
-              <Button
-                variant={selectedType === 'EQUIPMENT' ? 'default' : 'ghost'}
-                size="sm"
-                className={`h-8 px-3 text-xs font-semibold rounded-xl gap-1.5 transition-all ${
-                  selectedType === 'EQUIPMENT' ? 'shadow-2xs' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => {
-                  setSelectedType(selectedType === 'EQUIPMENT' ? '' : 'EQUIPMENT');
-                  setSkip(0);
-                }}
-              >
-                <Package className="h-3.5 w-3.5" />
-                <span>Equipment</span>
-              </Button>
-
-              <Button
-                variant={selectedType === 'CONSUMABLE' ? 'default' : 'ghost'}
-                size="sm"
-                className={`h-8 px-3 text-xs font-semibold rounded-xl gap-1.5 transition-all ${
-                  selectedType === 'CONSUMABLE' ? 'shadow-2xs' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => {
-                  setSelectedType(selectedType === 'CONSUMABLE' ? '' : 'CONSUMABLE');
-                  setSkip(0);
-                }}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Consumables</span>
-              </Button>
-            </div>
-
-            {/* Right Primary Action Group */}
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs hover:bg-primary/5 hover:text-primary flex-1 sm:flex-initial"
-                onClick={onScanClick || (() => setIsFastScanOpen(true))}
-              >
-                <ScanBarcode className="h-3.5 w-3.5 text-primary" />
-                <span>Scan Barcode</span>
-              </Button>
-
-              {/* Secondary More Actions Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs flex-1 sm:flex-initial"
-                  >
-                    <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>CSV</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                  <label className="cursor-pointer">
-                    <DropdownMenuItem className="cursor-pointer gap-2" onSelect={(e) => e.preventDefault()}>
-                      <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>Import CSV</span>
-                      <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
-                    </DropdownMenuItem>
-                  </label>
-                  <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleExportCSV}>
-                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Export CSV</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Primary + Add Item Button */}
-              <Button
-                size="sm"
-                className="h-8 text-xs font-bold rounded-xl gap-1.5 shadow-sm flex-1 sm:flex-initial"
-                onClick={() => {
-                  setModalItem(null);
-                  setIsItemModalOpen(true);
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Add Item</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Second Row: Search Bar & Smart Filter Selectors */}
-          <div className="p-3.5 bg-background flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* ── UNIFIED TABLE TOOLBAR CONTAINER (Connect2Souls Style) ── */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+          {/* First Row: Search Bar & Smart Filter Selectors */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Search Input with Clear Button */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search items by name, barcode, location..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 pr-8 h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                className="pl-9 pr-8 h-10 text-xs rounded-2xl bg-muted/30 border-slate-200/90 dark:border-border focus:bg-background transition-all shadow-2xs"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => handleSearchChange('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full text-muted-foreground hover:text-foreground flex items-center justify-center"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer"
                 >
                   <X className="h-3 w-3" />
                 </button>
               )}
             </div>
 
-            {/* Filter Dropdowns with Styled Select Controls */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Category Filter */}
-              <select
-                className="h-9 rounded-xl border border-border/80 bg-muted/20 hover:bg-muted/40 px-3 text-xs font-medium text-foreground shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-colors"
-                value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value);
-                  setSkip(0);
-                }}
-              >
-                <option value="">Category: All</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Status Filter */}
-              <select
-                className="h-9 rounded-xl border border-border/80 bg-muted/20 hover:bg-muted/40 px-3 text-xs font-medium text-foreground shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-colors"
-                value={selectedStatus}
-                onChange={(e) => {
-                  setSelectedStatus(e.target.value);
-                  setSkip(0);
-                }}
-              >
-                <option value="">Status: All</option>
-                <option value="Good Condition">Good Condition</option>
-                <option value="Low Stock">Low Stock</option>
-                <option value="Out of Stock">Out of Stock</option>
-                <option value="Under Maintenance">Under Maintenance</option>
-                <option value="Damaged">Damaged</option>
-                <option value="Borrowed">Borrowed</option>
-              </select>
-
-              {/* Location Filter */}
-              {locations.length > 0 && (
-                <select
-                  className="h-9 rounded-xl border border-border/80 bg-muted/20 hover:bg-muted/40 px-3 text-xs font-medium text-foreground shadow-2xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-colors"
-                  value={selectedLocation}
-                  onChange={(e) => {
-                    setSelectedLocation(e.target.value);
+            {/* Filter Dropdowns with Styled Select Controls in ONE ROW */}
+            <div className="flex items-center gap-2.5 flex-wrap xl:flex-nowrap shrink-0 overflow-x-auto pb-0.5">
+              {/* Quick Filter Dropdown */}
+              <div className="shrink-0">
+                <Select
+                  value={selectedStatus === 'Low Stock' ? 'low' : selectedType === 'EQUIPMENT' ? 'equipment' : selectedType === 'CONSUMABLE' ? 'consumables' : 'all'}
+                  onValueChange={(val) => {
+                    if (val === 'low') {
+                      setSelectedStatus('Low Stock');
+                      setSelectedType('');
+                    } else if (val === 'equipment') {
+                      setSelectedType('EQUIPMENT');
+                      setSelectedStatus('');
+                      onClearStatusFilterOverride?.();
+                    } else if (val === 'consumables') {
+                      setSelectedType('CONSUMABLE');
+                      setSelectedStatus('');
+                      onClearStatusFilterOverride?.();
+                    } else {
+                      setSelectedStatus('');
+                      setSelectedType('');
+                      onClearStatusFilterOverride?.();
+                    }
                     setSkip(0);
                   }}
                 >
-                  <option value="">Location: All</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.name}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 w-[165px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                    <SelectValue placeholder="All Items" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                      All Items ({totalCount})
+                    </SelectItem>
+                    <SelectItem value="low" className="text-xs font-medium cursor-pointer">
+                      Low Stock ({lowCount})
+                    </SelectItem>
+                    <SelectItem value="equipment" className="text-xs font-medium cursor-pointer">
+                      Equipment ({equipmentCount})
+                    </SelectItem>
+                    <SelectItem value="consumables" className="text-xs font-medium cursor-pointer">
+                      Consumables ({consumableCount})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Category Filter */}
+              <div className="shrink-0">
+                <Select
+                  value={selectedCategory || 'ALL'}
+                  onValueChange={(val) => {
+                    setSelectedCategory(val === 'ALL' ? '' : val);
+                    setSkip(0);
+                  }}
+                >
+                  <SelectTrigger className="h-10 w-[165px] text-xs font-medium rounded-2xl bg-white dark:bg-muted/30 border-slate-200/90 dark:border-border hover:bg-muted/50 transition-colors px-3 gap-2 shadow-2xs">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Category: All" className="truncate text-left" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent side="bottom" align="start" className="rounded-xl w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)]">
+                    <SelectItem value="ALL" className="text-xs">Category: All</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs truncate">
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="shrink-0">
+                <Select
+                  value={selectedStatus || 'ALL'}
+                  onValueChange={(val) => {
+                    setSelectedStatus(val === 'ALL' ? '' : val);
+                    setSkip(0);
+                  }}
+                >
+                  <SelectTrigger className="h-10 w-[155px] text-xs font-medium rounded-2xl bg-white dark:bg-muted/30 border-slate-200/90 dark:border-border hover:bg-muted/50 transition-colors px-3 gap-2 shadow-2xs">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Status: All" className="truncate text-left" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent side="bottom" align="start" className="rounded-xl w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)]">
+                    <SelectItem value="ALL" className="text-xs">Status: All</SelectItem>
+                    <SelectItem value="Good Condition" className="text-xs font-medium">Good Condition</SelectItem>
+                    <SelectItem value="Low Stock" className="text-xs font-medium">Low Stock</SelectItem>
+                    <SelectItem value="Out of Stock" className="text-xs font-medium">Out of Stock</SelectItem>
+                    <SelectItem value="Under Maintenance" className="text-xs font-medium">Under Maintenance</SelectItem>
+                    <SelectItem value="Damaged" className="text-xs font-medium">Damaged</SelectItem>
+                    <SelectItem value="Borrowed" className="text-xs font-medium">Borrowed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Location Filter */}
+              {locations.length > 0 && (
+                <div className="shrink-0">
+                  <Select
+                    value={selectedLocation || 'ALL'}
+                    onValueChange={(val) => {
+                      setSelectedLocation(val === 'ALL' ? '' : val);
+                      setSkip(0);
+                    }}
+                  >
+                    <SelectTrigger className="h-10 w-[160px] text-xs font-medium rounded-2xl bg-white dark:bg-muted/30 border-slate-200/90 dark:border-border hover:bg-muted/50 transition-colors px-3 gap-2 shadow-2xs">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <SelectValue placeholder="Location: All" className="truncate text-left" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent side="bottom" align="start" className="rounded-xl w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)]">
+                      <SelectItem value="ALL" className="text-xs">Location: All</SelectItem>
+                      {locations.map((l) => (
+                        <SelectItem key={l.id} value={l.name} className="text-xs truncate">
+                          {l.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
               {/* Reset Filters Button */}
@@ -666,7 +631,7 @@ export function InventoryTable({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground rounded-xl gap-1"
+                  className="h-10 px-3 text-xs text-muted-foreground hover:text-foreground rounded-xl gap-1 cursor-pointer shrink-0"
                   onClick={resetAllFilters}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -676,599 +641,621 @@ export function InventoryTable({
             </div>
           </div>
 
-          {/* ── BULK ACTIONS FLOATING STRIP ── */}
-          {selectedIds.size > 0 && (
-            <div className="p-3 bg-primary/10 border-y border-primary/20 flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-top-1">
-              <div className="text-xs font-semibold flex items-center gap-2">
-                <span className="bg-primary text-primary-foreground text-[11px] px-2 py-0.5 rounded-full font-bold">
-                  {selectedIds.size}
-                </span>
-                <span>item(s) selected</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7 rounded-lg" onClick={handleBatchQR}>
-                  <QrCode className="h-3 w-3" />
-                  Batch QR
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="outline" className="text-xs h-7 rounded-lg">
-                      Mark Status
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange('Good Condition')}>
-                      Mark Good Condition
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange('Under Maintenance')}>
-                      Mark Under Maintenance
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange('Damaged')}>
-                      Mark Damaged
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="gap-1.5 text-xs h-7 rounded-lg"
-                  onClick={() => setBulkDeleteConfirm(true)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete Selected
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* ── MOBILE CARD LIST VIEW (FOR SMARTPHONES) ── */}
-          <div className="block md:hidden divide-y divide-border/60">
-            {loading && items.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-muted-foreground">
-                <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-xs font-medium">Loading inventory items...</span>
-              </div>
-            ) : items.length === 0 ? (
-              <div className="py-12 px-4 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60 border border-border/60">
-                  <Package className="h-6 w-6" />
-                </div>
-                <span className="text-sm font-bold text-foreground">No inventory items found</span>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  {hasActiveFilters
-                    ? 'No items matched your search filters.'
-                    : 'Get started by clicking "+ Add Item" above.'}
-                </p>
-              </div>
-            ) : (
-              items.map((item) => {
-                const isSelected = selectedIds.has(item.id);
-                const statusMeta = getStatusMeta(item.status);
-                const categoryClass = getCategoryBadgeStyle(item.category?.name);
-                const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
-                const isOut = item.stock === 0;
-
-                return (
-                  <div
-                    key={`mob-${item.id}`}
-                    className={`p-3.5 space-y-2.5 transition-colors ${
-                      isSelected ? 'bg-primary/5' : 'bg-card'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelect(item.id)}
-                          className="mt-1"
-                        />
-                        <div
-                          onClick={() => {
-                            setModalItem(item);
-                            setIsItemModalOpen(true);
-                          }}
-                          className="w-12 h-12 rounded-xl bg-muted/40 border border-border/70 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
-                        >
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-muted-foreground/60" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h4
-                            onClick={() => {
-                              setModalItem(item);
-                              setIsItemModalOpen(true);
-                            }}
-                            className="text-xs font-bold text-foreground hover:text-primary cursor-pointer line-clamp-1"
-                          >
-                            {item.name}
-                          </h4>
-                          <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                            {item.inventoryCode || item.id.slice(0, 8).toUpperCase()}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${categoryClass}`}>
-                              {item.category?.name || 'Unassigned'}
-                            </span>
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusMeta.badge}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                              <span>{statusMeta.label}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Dropdown menu */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
-                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer"
-                            onClick={() => {
-                              setModalItem(item);
-                              setIsItemModalOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>Edit Item</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer"
-                            onClick={() => {
-                              setStockAdjustItem(item);
-                              setAdjustAction('Stock In');
-                              setAdjustQuantity(1);
-                              setAdjustNote('');
-                            }}
-                          >
-                            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>Adjust Stock...</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer"
-                            onClick={() => handleSingleQR(item)}
-                          >
-                            <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>Print QR Label</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                            onClick={() => {
-                              setDeleteConfirmId(item.id);
-                              setDeleteConfirmName(item.name);
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Delete Item</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 text-xs border-t border-border/40">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-[150px]">{item.location || 'No location'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-muted-foreground">Stock:</span>
-                        <span className={`font-mono font-bold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-foreground'}`}>
-                          {item.stock} {item.unit || 'pcs'}
-                        </span>
-                        <div className="flex items-center gap-0.5 ml-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 rounded-md"
-                            disabled={item.stock <= 0}
-                            onClick={() => handleQuickStock(item, 'Stock Out')}
-                            title="Quick -1"
-                          >
-                            <ArrowDown className="h-3 w-3 text-amber-600" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 rounded-md"
-                            onClick={() => handleQuickStock(item, 'Stock In')}
-                            title="Quick +1"
-                          >
-                            <ArrowUp className="h-3 w-3 text-emerald-600" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+          {/* Action Buttons Row */}
+          <div className="flex items-center justify-end gap-2 shrink-0">
+            {onActivityFeedClick && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onActivityFeedClick}
+                className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
+              >
+                <Activity className="h-3.5 w-3.5 text-primary" />
+                <span>Activity Feed</span>
+              </Button>
             )}
+
+            {/* Secondary More Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>CSV</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                <label className="cursor-pointer">
+                  <DropdownMenuItem className="cursor-pointer gap-2" onSelect={(e) => e.preventDefault()}>
+                    <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Import CSV</span>
+                    <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+                  </DropdownMenuItem>
+                </label>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleExportCSV}>
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Export CSV</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Primary + Add Item Button */}
+            <Button
+              size="sm"
+              className="h-9 px-4 text-xs font-bold rounded-xl gap-1.5 bg-sidebar hover:bg-sidebar/90 text-white shadow-xs cursor-pointer"
+              onClick={() => {
+                setModalItem(null);
+                setIsItemModalOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Item</span>
+            </Button>
           </div>
 
-          {/* ── THE MASTER TABLE (FOR DESKTOP & TABLETS) ── */}
-          <div className="hidden md:block overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/40 border-b border-border/70">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-10 pl-4">
-                    <Checkbox
-                      checked={items.length > 0 && selectedIds.size === items.length}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-12 text-xs font-bold text-muted-foreground uppercase tracking-wider">Item</TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider min-w-[200px]">
-                    Name & Code
-                  </TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Category</TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Type</TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-center">
-                    Stock & Health
-                  </TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Condition</TableHead>
-                  <TableHead className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-right pr-4">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+          {/* ── MASTER TABLE CONTAINER (Rounded Card inside White Container) ── */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card shadow-card-dark">
+            {/* ── BULK ACTIONS FLOATING STRIP ── */}
+            {selectedIds.size > 0 && (
+              <div className="p-3 bg-primary/10 border-b border-primary/20 flex items-center justify-between flex-wrap gap-3 animate-in fade-in slide-in-from-top-1">
+                <div className="text-xs font-semibold flex items-center gap-2">
+                  <span className="bg-primary text-primary-foreground text-[11px] px-2 py-0.5 rounded-full font-bold">
+                    {selectedIds.size}
+                  </span>
+                  <span>item(s) selected</span>
+                </div>
 
-              <TableBody>
-                {loading && items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2.5">
-                        <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                        <span className="text-xs font-medium">Loading inventory items...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60 border border-border/60">
-                          <Package className="h-6 w-6" />
-                        </div>
-                        <span className="text-sm font-bold text-foreground">No inventory items found</span>
-                        <p className="text-xs text-muted-foreground max-w-sm">
-                          {hasActiveFilters
-                            ? 'No items matched your search filters. Try clearing filters to see all catalog items.'
-                            : 'Get started by clicking "+ Add Item" or importing a CSV spreadsheet.'}
-                        </p>
-                        {hasActiveFilters ? (
-                          <Button variant="outline" size="sm" onClick={resetAllFilters} className="mt-2 text-xs rounded-xl">
-                            Clear all filters
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setModalItem(null);
-                              setIsItemModalOpen(true);
-                            }}
-                            className="mt-2 text-xs rounded-xl"
-                          >
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Add your first item
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => {
-                    const isSelected = selectedIds.has(item.id);
-                    const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
-                    const isOut = item.stock === 0;
-                    const statusMeta = getStatusMeta(item.status);
-                    const categoryClass = getCategoryBadgeStyle(item.category?.name);
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7 rounded-lg" onClick={handleBatchQR}>
+                    <QrCode className="h-3 w-3" />
+                    Batch QR
+                  </Button>
 
-                    return (
-                      <TableRow
-                        key={item.id}
-                        className={`group transition-colors border-b border-border/50 ${
-                          isSelected ? 'bg-primary/5' : 'hover:bg-muted/20'
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-xs h-7 rounded-lg">
+                        Mark Status
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                      <DropdownMenuItem onClick={() => handleBulkStatusChange('Good Condition')}>
+                        Mark Good Condition
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkStatusChange('Under Maintenance')}>
+                        Mark Under Maintenance
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkStatusChange('Damaged')}>
+                        Mark Damaged
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1.5 text-xs h-7 rounded-lg"
+                    onClick={() => setBulkDeleteConfirm(true)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete Selected
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── MOBILE CARD LIST VIEW (FOR SMARTPHONES) ── */}
+            <div className="block md:hidden divide-y divide-border/60">
+              {loading && items.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-muted-foreground">
+                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs font-medium">Loading inventory items...</span>
+                </div>
+              ) : items.length === 0 ? (
+                <div className="py-12 px-4 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
+                  <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60 border border-border/60">
+                    <Package className="h-6 w-6" />
+                  </div>
+                  <span className="text-sm font-bold text-foreground">No inventory items found</span>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    {hasActiveFilters
+                      ? 'No items matched your search filters.'
+                      : 'Get started by clicking "+ Add Item" above.'}
+                  </p>
+                </div>
+              ) : (
+                items.map((item) => {
+                  const isSelected = selectedIds.has(item.id);
+                  const statusMeta = getStatusMeta(item.status);
+                  const categoryClass = getCategoryBadgeStyle(item.category?.name);
+                  const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
+                  const isOut = item.stock === 0;
+
+                  return (
+                    <div
+                      key={`mob-${item.id}`}
+                      className={`p-3.5 space-y-2.5 transition-colors ${isSelected ? 'bg-primary/5' : 'bg-card'
                         }`}
-                      >
-                        {/* 1. Checkbox */}
-                        <TableCell className="pl-4 py-3">
-                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(item.id)} />
-                        </TableCell>
-
-                        {/* 2. Visual Thumbnail / Category Avatar */}
-                        <TableCell className="py-3">
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelect(item.id)}
+                            className="mt-1"
+                          />
                           <div
                             onClick={() => {
                               setModalItem(item);
                               setIsItemModalOpen(true);
                             }}
-                            className="w-10 h-10 rounded-xl bg-muted/40 border border-border/70 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer group-hover:border-primary/40 transition-colors shadow-2xs"
+                            className="w-12 h-12 rounded-xl bg-muted/40 border border-border/70 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
                           >
                             {item.imageUrl ? (
                               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                             ) : (
-                              <Package className="h-4 w-4 text-muted-foreground/60" />
+                              <Package className="h-5 w-5 text-muted-foreground/60" />
                             )}
                           </div>
-                        </TableCell>
+                          <div className="min-w-0">
+                            <h4
+                              onClick={() => {
+                                setModalItem(item);
+                                setIsItemModalOpen(true);
+                              }}
+                              className="text-xs font-bold text-foreground hover:text-primary cursor-pointer line-clamp-1"
+                            >
+                              {item.name}
+                            </h4>
+                            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                              {item.inventoryCode || item.id.slice(0, 8).toUpperCase()}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${categoryClass}`}>
+                                {item.category?.name || 'Unassigned'}
+                              </span>
+                              <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusMeta.badge}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+                                <span>{statusMeta.label}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                        {/* 3. Name & Code */}
-                        <TableCell className="py-3">
-                          <div>
-                            <div
-                              className="font-bold text-xs md:text-sm text-foreground leading-tight hover:text-primary cursor-pointer transition-colors"
+                        {/* Dropdown menu */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
                               onClick={() => {
                                 setModalItem(item);
                                 setIsItemModalOpen(true);
                               }}
                             >
-                              {item.name}
-                            </div>
-                            <div className="text-[11px] font-mono text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
-                              <span className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-[10px]">
-                                {item.inventoryCode || item.id.slice(0, 8).toUpperCase()}
-                              </span>
-                              {item.isKit && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[9px] px-1 py-0 bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
-                                >
-                                  Bundle
-                                </Badge>
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>Edit Item</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                              onClick={() => {
+                                setDeleteConfirmId(item.id);
+                                setDeleteConfirmName(item.name);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete Item</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 text-xs border-t border-border/40">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate max-w-[150px]">{item.location || 'No location'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-muted-foreground">Stock:</span>
+                          <span className={`font-mono font-bold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-foreground'}`}>
+                            {item.stock} {item.unit || 'pcs'}
+                          </span>
+                          <div className="flex items-center gap-0.5 ml-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0 rounded-md"
+                              disabled={item.stock <= 0}
+                              onClick={() => handleQuickStock(item, 'Stock Out')}
+                              title="Quick -1"
+                            >
+                              <ArrowDown className="h-3 w-3 text-amber-600" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0 rounded-md"
+                              onClick={() => handleQuickStock(item, 'Stock In')}
+                              title="Quick +1"
+                            >
+                              <ArrowUp className="h-3 w-3 text-emerald-600" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* ── THE MASTER TABLE (FOR DESKTOP & TABLETS) ── */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                    <TableHead className="w-10 pl-4 bg-sidebar">
+                      <div className="flex items-center">
+                        <Checkbox
+                          checked={items.length > 0 && selectedIds.size === items.length}
+                          onCheckedChange={handleSelectAll}
+                          className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                        />
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-12 text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Item</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider min-w-[200px] bg-sidebar">
+                      Name &amp; Code
+                    </TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Category</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Type</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-center bg-sidebar">
+                      Stock
+                    </TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Location</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-4 bg-sidebar">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {loading && items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center justify-center gap-2.5">
+                          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                          <span className="text-xs font-medium">Loading inventory items...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60 border border-border/60">
+                            <Package className="h-6 w-6" />
+                          </div>
+                          <span className="text-sm font-bold text-foreground">No inventory items found</span>
+                          <p className="text-xs text-muted-foreground max-w-sm">
+                            {hasActiveFilters
+                              ? 'No items matched your search filters. Try clearing filters to see all catalog items.'
+                              : 'Get started by clicking "+ Add Item" or importing a CSV spreadsheet.'}
+                          </p>
+                          {hasActiveFilters ? (
+                            <Button variant="outline" size="sm" onClick={resetAllFilters} className="mt-2 text-xs rounded-xl">
+                              Clear all filters
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setModalItem(null);
+                                setIsItemModalOpen(true);
+                              }}
+                              className="mt-2 text-xs rounded-xl"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add your first item
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    items.map((item) => {
+                      const isSelected = selectedIds.has(item.id);
+                      const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
+                      const isOut = item.stock === 0;
+                      const statusMeta = getStatusMeta(item.status);
+                      const categoryClass = getCategoryBadgeStyle(item.category?.name);
+
+                      return (
+                        <TableRow
+                          key={item.id}
+                          className={`group transition-colors border-b border-slate-100 dark:border-border/40 ${isSelected ? 'bg-sidebar/5' : 'hover:bg-slate-50/60 dark:hover:bg-muted/20'
+                            }`}
+                        >
+                          {/* 1. Checkbox */}
+                          <TableCell className="pl-4 py-3">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(item.id)}
+                              className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                            />
+                          </TableCell>
+
+                          {/* 2. Visual Thumbnail / Category Avatar */}
+                          <TableCell className="py-3">
+                            <div
+                              onClick={() => {
+                                setModalItem(item);
+                                setIsItemModalOpen(true);
+                              }}
+                              className="w-10 h-10 rounded-xl bg-muted/40 border border-border/70 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer group-hover:border-primary/40 transition-colors shadow-2xs"
+                            >
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Package className="h-4 w-4 text-muted-foreground/60" />
                               )}
                             </div>
-                          </div>
-                        </TableCell>
+                          </TableCell>
 
-                        {/* 4. Category */}
-                        <TableCell className="py-3">
-                          <span
-                            className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-lg border ${categoryClass}`}
-                          >
-                            {item.category?.name || 'General'}
-                          </span>
-                        </TableCell>
-
-                        {/* 5. Type */}
-                        <TableCell className="py-3">
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
-                            {item.type === 'CONSUMABLE' ? (
-                              <>
-                                <Layers className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                                <span>Consumable</span>
-                              </>
-                            ) : (
-                              <>
-                                <Package className="h-3 w-3 text-sky-600 dark:text-sky-400" />
-                                <span>Equipment</span>
-                              </>
-                            )}
-                          </span>
-                        </TableCell>
-
-                        {/* 6. Stock Level & Health Indicator */}
-                        <TableCell className="text-center py-3">
-                          <div className="inline-flex flex-col items-center gap-0.5">
-                            <div className="flex items-baseline gap-1">
-                              <span
-                                className={`font-black text-sm ${
-                                  isOut ? 'text-destructive' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
-                                }`}
+                          {/* 3. Name & Code */}
+                          <TableCell className="py-3">
+                            <div>
+                              <div
+                                className="font-bold text-xs md:text-sm text-foreground leading-tight hover:text-primary cursor-pointer transition-colors"
+                                onClick={() => {
+                                  setModalItem(item);
+                                  setIsItemModalOpen(true);
+                                }}
                               >
-                                {item.stock}
-                              </span>
-                              <span className="text-[10px] font-medium text-muted-foreground">
-                                {item.unit || 'pcs'}
-                              </span>
+                                {item.name}
+                              </div>
+                              <div className="text-[11px] font-mono text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs text-foreground font-mono">
+                                  {item.inventoryCode || item.id.slice(0, 8).toUpperCase()}
+                                </span>
+                                {item.isKit && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] px-1 py-0 bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20"
+                                  >
+                                    Bundle
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
+                          </TableCell>
 
-                            {/* Health Pill */}
-                            {isOut ? (
-                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                                Out of stock
-                              </span>
-                            ) : isLow ? (
-                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
-                                Low (Min: {item.minStock})
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-medium text-muted-foreground/80">
-                                Min: {item.minStock || 1}
-                              </span>
+                          {/* 4. Category */}
+                          <TableCell className="py-3">
+                            <span
+                              className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${categoryClass}`}
+                            >
+                              {item.category?.name || 'General'}
+                            </span>
+                          </TableCell>
+
+                          {/* 5. Type */}
+                          <TableCell className="py-3">
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                              {item.type === 'CONSUMABLE' ? (
+                                <>
+                                  <Layers className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Consumable</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Package className="h-3 w-3 text-sky-600 dark:text-sky-400" />
+                                  <span>Equipment</span>
+                                </>
+                              )}
+                            </span>
+                          </TableCell>
+
+                          {/* 6. Stock Level & Health Indicator */}
+                          <TableCell className="text-center py-3">
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <div className="flex items-baseline gap-1">
+                                <span
+                                  className={`font-black text-sm ${isOut ? 'text-destructive' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
+                                    }`}
+                                >
+                                  {item.stock}
+                                </span>
+                                <span className="text-[10px] font-medium text-muted-foreground">
+                                  {item.unit || 'pcs'}
+                                </span>
+                              </div>
+
+                              {/* Health Pill */}
+                              {isOut ? (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                  Out of stock
+                                </span>
+                              ) : isLow ? (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+                                  Low (Min: {item.minStock})
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium text-muted-foreground/80">
+                                  Min: {item.minStock || 1}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* 7. Location */}
+                          <TableCell className="py-3">
+                            <div className="text-xs text-foreground font-medium flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="truncate max-w-[130px]">{item.location || '—'}</span>
+                            </div>
+                            {(item.aisle || item.shelf || item.bin) && (
+                              <div className="text-[10px] font-mono text-muted-foreground mt-0.5 pl-4">
+                                {[item.aisle && `A:${item.aisle}`, item.shelf && `S:${item.shelf}`, item.bin && `B:${item.bin}`]
+                                  .filter(Boolean)
+                                  .join(' ')}
+                              </div>
                             )}
-                          </div>
-                        </TableCell>
+                          </TableCell>
 
-                        {/* 7. Location */}
-                        <TableCell className="py-3">
-                          <div className="text-xs text-foreground font-medium flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <span className="truncate max-w-[130px]">{item.location || '—'}</span>
-                          </div>
-                          {(item.aisle || item.shelf || item.bin) && (
-                            <div className="text-[10px] font-mono text-muted-foreground mt-0.5 pl-4">
-                              {[item.aisle && `A:${item.aisle}`, item.shelf && `S:${item.shelf}`, item.bin && `B:${item.bin}`]
-                                .filter(Boolean)
-                                .join(' ')}
+                          {/* 8. Status / Condition */}
+                          <TableCell className="py-3">
+                            <span
+                              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusMeta.badge}`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+                              <span>{statusMeta.label}</span>
+                            </span>
+                          </TableCell>
+
+                          {/* 9. Actions Column (Intuitive Quick Stock + QR + More) */}
+                          <TableCell className="text-right pr-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Stock Out (-1) */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                                    disabled={item.stock <= 0}
+                                    onClick={() => handleQuickStock(item, 'Stock Out')}
+                                  >
+                                    <ArrowDown className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">Quick Stock Out (-1)</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Stock In (+1) */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                    onClick={() => handleQuickStock(item, 'Stock In')}
+                                  >
+                                    <ArrowUp className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">Quick Stock In (+1)</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* Print QR */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                    onClick={() => handleSingleQR(item)}
+                                  >
+                                    <QrCode className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">View / Print QR Code</p>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {/* More Options Dropdown */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                                  >
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer"
+                                    onClick={() => {
+                                      setModalItem(item);
+                                      setIsItemModalOpen(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span>Edit Item</span>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuSeparator />
+
+                                  <DropdownMenuItem
+                                    className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                                    onClick={() => {
+                                      setDeleteConfirmId(item.id);
+                                      setDeleteConfirmName(item.name);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <span>Delete Item</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                          )}
-                        </TableCell>
-
-                        {/* 8. Status / Condition */}
-                        <TableCell className="py-3">
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-lg border ${statusMeta.badge}`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                            <span>{statusMeta.label}</span>
-                          </span>
-                        </TableCell>
-
-                        {/* 9. Actions Column (Intuitive Quick Stock + QR + More) */}
-                        <TableCell className="text-right pr-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Stock Out (-1) */}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                                  disabled={item.stock <= 0}
-                                  onClick={() => handleQuickStock(item, 'Stock Out')}
-                                >
-                                  <ArrowDown className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p className="text-xs">Quick Stock Out (-1)</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Stock In (+1) */}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                                  onClick={() => handleQuickStock(item, 'Stock In')}
-                                >
-                                  <ArrowUp className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p className="text-xs">Quick Stock In (+1)</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* Print QR */}
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                  onClick={() => handleSingleQR(item)}
-                                >
-                                  <QrCode className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p className="text-xs">View / Print QR Code</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            {/* More Options Dropdown */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-                                >
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer"
-                                  onClick={() => {
-                                    setModalItem(item);
-                                    setIsItemModalOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span>Edit Item</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer"
-                                  onClick={() => {
-                                    setStockAdjustItem(item);
-                                    setAdjustAction('Stock In');
-                                    setAdjustQuantity(1);
-                                    setAdjustNote('');
-                                  }}
-                                >
-                                  <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span>Adjust Stock...</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  className="gap-2 cursor-pointer"
-                                  onClick={() => handleSingleQR(item)}
-                                >
-                                  <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span>Print QR Label</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                <DropdownMenuItem
-                                  className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                                  onClick={() => {
-                                    setDeleteConfirmId(item.id);
-                                    setDeleteConfirmName(item.name);
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  <span>Delete Item</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* ── PAGINATION FOOTER ── */}
-          <div className="p-3.5 border-t border-border/60 bg-muted/[0.15] flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-            <div>
-              Showing <strong className="text-foreground">{totalItems === 0 ? 0 : skip + 1}</strong> –{' '}
-              <strong className="text-foreground">{Math.min(skip + take, totalItems)}</strong> of{' '}
-              <strong className="text-foreground">{totalItems}</strong> items
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2.5 rounded-xl border-border/80 shadow-2xs"
-                disabled={skip === 0}
-                onClick={() => setSkip((s) => Math.max(0, s - take))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="px-2 font-medium text-foreground">
-                Page {Math.floor(skip / take) + 1} of {Math.max(1, Math.ceil(totalItems / take))}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2.5 rounded-xl border-border/80 shadow-2xs"
-                disabled={skip + take >= totalItems}
-                onClick={() => setSkip((s) => s + take)}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+            {/* ── PAGINATION FOOTER ── */}
+            <div className="p-4 border-t border-border/60 bg-muted/[0.15] flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+              <div>
+                Showing <strong className="text-foreground">{totalItems === 0 ? 0 : skip + 1}</strong> –{' '}
+                <strong className="text-foreground">{Math.min(skip + take, totalItems)}</strong> of{' '}
+                <strong className="text-foreground">{totalItems}</strong> items
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2.5 rounded-xl border-border/80 shadow-2xs"
+                  disabled={skip === 0}
+                  onClick={() => setSkip((s) => Math.max(0, s - take))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="px-2 font-medium text-foreground">
+                  Page {Math.floor(skip / take) + 1} of {Math.max(1, Math.ceil(totalItems / take))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2.5 rounded-xl border-border/80 shadow-2xs"
+                  disabled={skip + take >= totalItems}
+                  onClick={() => setSkip((s) => s + take)}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* ── CUSTOM STOCK ADJUSTMENT DIALOG ── */}
         {stockAdjustItem && (
@@ -1294,9 +1281,8 @@ export function InventoryTable({
                   <Button
                     type="button"
                     variant={adjustAction === 'Stock In' ? 'default' : 'outline'}
-                    className={`rounded-xl text-xs h-9 gap-1.5 ${
-                      adjustAction === 'Stock In' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
-                    }`}
+                    className={`rounded-xl text-xs h-9 gap-1.5 ${adjustAction === 'Stock In' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
+                      }`}
                     onClick={() => setAdjustAction('Stock In')}
                   >
                     <ArrowUp className="h-3.5 w-3.5" />
@@ -1305,9 +1291,8 @@ export function InventoryTable({
                   <Button
                     type="button"
                     variant={adjustAction === 'Stock Out' ? 'default' : 'outline'}
-                    className={`rounded-xl text-xs h-9 gap-1.5 ${
-                      adjustAction === 'Stock Out' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''
-                    }`}
+                    className={`rounded-xl text-xs h-9 gap-1.5 ${adjustAction === 'Stock Out' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''
+                      }`}
                     onClick={() => setAdjustAction('Stock Out')}
                   >
                     <ArrowDown className="h-3.5 w-3.5" />

@@ -9,6 +9,16 @@ import { Badge } from "@studio/ui";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@studio/ui";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@studio/ui";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@studio/ui";
 import { Input } from "@studio/ui";
 import { Label } from "@studio/ui";
 import { Textarea } from "@studio/ui";
@@ -18,6 +28,7 @@ import { useMinistries } from "@/hooks/use-ministries";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { upsertAssignment } from "@/actions/schedule";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,6 +54,7 @@ export default function SchedulePage() {
     const [newTitle, setNewTitle] = useState("Sunday Service");
     const [newNotes, setNewNotes] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+    const [scheduleToDelete, setScheduleToDelete] = useState<any | null>(null);
 
     const handleCreate = async () => {
         if (!newDate) return;
@@ -85,8 +97,15 @@ export default function SchedulePage() {
         }
     };
 
-    const handleDelete = async (id: string, e: React.MouseEvent) => {
+    const handleDelete = (s: any, e: React.MouseEvent) => {
         e.stopPropagation();
+        setScheduleToDelete(s);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!scheduleToDelete) return;
+        const id = scheduleToDelete.id;
+        setScheduleToDelete(null);
         try {
             await deleteSchedule(id);
             toast({ title: "Schedule deleted" });
@@ -97,9 +116,16 @@ export default function SchedulePage() {
 
     return (
         <AppLayout>
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-headline font-bold">Sunday Service Schedule</h1>
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        Sunday Service Schedule
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        View and manage weekly Sunday service schedules and ministry role assignments.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
                     <Button variant="outline" onClick={() => router.push("/schedule/templates")}>
                         <LayoutTemplate className="mr-2 h-4 w-4" /> Templates
                     </Button>
@@ -109,7 +135,7 @@ export default function SchedulePage() {
                 </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {isLoading ? (
                     <div className="flex justify-center py-10">
                         <LoaderCircle className="h-8 w-8 animate-spin" />
@@ -164,8 +190,8 @@ export default function SchedulePage() {
                                             <div className="flex items-center gap-1">
                                                 <Button
                                                     variant="ghost" size="icon"
-                                                    onClick={(e) => handleDelete(s.id, e)}
-                                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                                    onClick={(e) => handleDelete(s, e)}
+                                                    className="h-8 w-8 text-destructive hover:text-destructive cursor-pointer"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -209,6 +235,22 @@ export default function SchedulePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmationDialog
+                isOpen={!!scheduleToDelete}
+                onClose={() => setScheduleToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Delete Schedule"
+                confirmLabel="Delete Schedule"
+                description={
+                    scheduleToDelete ? (
+                        <>
+                            Are you sure you want to delete <strong className="text-foreground font-semibold">{scheduleToDelete.title || "this schedule"}</strong> for {format(new Date(scheduleToDelete.date), "MMMM d, yyyy")}? This action cannot be undone.
+                        </>
+                    ) : undefined
+                }
+            />
         </AppLayout>
     );
 }

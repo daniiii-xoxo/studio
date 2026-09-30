@@ -201,7 +201,76 @@ export function BorrowingsPage() {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto', border: '1px solid #f3f4f6', borderRadius: '10px' }}>
+        <div style={{ border: '1px solid #f3f4f6', borderRadius: '10px', overflow: 'hidden' }}>
+
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {loading ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center' }}>
+                <ClipboardList size={32} style={{ opacity: 0.3, margin: '0 auto 0.5rem' }} />
+                <div style={{ fontWeight: 600, color: '#374151' }}>No borrowings found</div>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Click "New Checkout" to get started.</div>
+              </div>
+            ) : filtered.map(b => {
+              const st = getStatus(b);
+              const stConfig = STATUS_COLORS[st] || STATUS_COLORS.BORROWED;
+              const isOverdue = st === 'OVERDUE';
+              return (
+                <div key={b.id} style={{ padding: '0.875rem 1rem', backgroundColor: isOverdue ? '#fff9f9' : 'transparent' }}>
+                  {/* Top row: item + status */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.6rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                        {b.item.imageUrl ? <img src={b.item.imageUrl} alt={b.item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={14} color="#3b5bdb" />}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1a1a2e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.item.name}</div>
+                        <div style={{ fontSize: '0.68rem', color: '#9ca3af', fontFamily: 'monospace' }}>{b.item.inventoryCode || b.itemId.slice(0, 8).toUpperCase()} · Qty: {b.quantity || 1}</div>
+                      </div>
+                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: 600, backgroundColor: stConfig.bg, color: stConfig.color, flexShrink: 0 }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: stConfig.color }} />
+                      {stConfig.label}
+                    </span>
+                  </div>
+                  {/* Borrower */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                    <User size={12} color="#9ca3af" />
+                    <span style={{ fontSize: '0.8rem', color: '#374151', fontWeight: 500 }}>{b.borrowerName}</span>
+                    {b.borrowerEmail && <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>· {b.borrowerEmail}</span>}
+                  </div>
+                  {/* Dates row */}
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.625rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Calendar size={11} />
+                      <span>Borrowed: {new Date(b.borrowedAt).toLocaleDateString()}</span>
+                    </div>
+                    {b.dueDate && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: isOverdue ? '#dc2626' : '#6b7280', fontWeight: isOverdue ? 600 : 400 }}>
+                        {isOverdue && <AlertTriangle size={11} />}
+                        <span>Due: {new Date(b.dueDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {b.status === 'BORROWED' && (
+                      <button onClick={() => setReturnModalId(b.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #10b981', borderRadius: '6px', backgroundColor: '#f0fdf4', color: '#16a34a', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        <ArrowUpCircle size={12} /> Return
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div style={{ overflowX: 'auto' }} className="hidden md:block">
           <table style={{ minWidth: '750px', width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
@@ -332,6 +401,7 @@ export function BorrowingsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Pagination */}

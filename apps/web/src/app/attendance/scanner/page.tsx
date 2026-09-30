@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Button } from "@studio/ui";
+import { Button, Badge } from "@studio/ui";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { useToast } from "@/hooks/use-toast";
-import { ScanLine, ArrowLeft, LoaderCircle, User as UserIcon, SwitchCamera, History } from "lucide-react";
+import {
+    ScanLine, ArrowLeft, LoaderCircle, User as UserIcon, SwitchCamera, History,
+    CheckCircle2, AlertTriangle, LogIn, LogOut, RefreshCw, Zap
+} from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@studio/ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@studio/ui";
 import { ScrollArea } from "@studio/ui";
@@ -14,8 +17,18 @@ import { useWorkers } from "@/hooks/use-workers";
 import { useAttendance } from "@/hooks/use-attendance";
 import { useScanLogs } from "@/hooks/use-scan-logs";
 import { useMealStubs } from "@/hooks/use-meal-stubs";
-import { Tabs, TabsList, TabsTrigger } from "@studio/ui";
+import { useAttendanceSettings } from "@/hooks/use-attendance-settings";
 import jsQR from "jsqr";
+
+interface AutoAttendanceScanResult {
+    worker: any;
+    action: 'Clock In' | 'Clock Out' | 'Cooldown';
+    status?: string;
+    statusBadgeColor?: 'emerald' | 'amber' | 'blue' | 'rose' | 'muted';
+    message: string;
+    time: Date;
+    success: boolean;
+}
 
 export default function QRScannerPage() {
     const { toast } = useToast();
@@ -23,9 +36,13 @@ export default function QRScannerPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animFrameRef = useRef<number>(0);
     const streamRef = useRef<MediaStream | null>(null);
+    const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const [scannedWorker, setScannedWorker] = useState<any | null>(null);
+    const [scanResult, setScanResult] = useState<AutoAttendanceScanResult | null>(null);
+    const [countdown, setCountdown] = useState<number>(5);
     const [isProcessing, setIsProcessing] = useState(false);
     const [scanMode, setScanMode] = useState<'Attendance' | 'Meal Stub'>('Attendance');
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -35,8 +52,9 @@ export default function QRScannerPage() {
 
     const { workers: allWorkers, isLoading: workersLoading } = useWorkers();
     const { scanLogs, isLoading: logsLoading, createScanLog: createScanLogSql } = useScanLogs();
-    const { createAttendanceRecord: createAttendanceSql } = useAttendance();
+    const { createAttendanceRecord: createAttendanceSql, recordAutoAttendance: recordAutoAttendanceSql } = useAttendance();
     const { mealStubs: allMealStubs, updateMealStub: updateMealStubSql } = useMealStubs();
+    const { settings: shiftSettings } = useAttendanceSettings();
 
     // Get camera devices on auth
     useEffect(() => {
@@ -70,8 +88,66 @@ export default function QRScannerPage() {
         setSelectedDeviceId(devices[(idx + 1) % devices.length].deviceId);
     };
 
+    // Audio chime generator using Web Audio API
+    const playBeep = useCallback((type: 'success' | 'warning' | 'error') => {
+        try {
+            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            if (type === 'success') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                gain.gain.setValueAtTime(0.12, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.12);
+                gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.12);
+                osc2.start(ctx.currentTime + 0.12);
+                osc2.stop(ctx.currentTime + 0.26);
+            } else if (type === 'warning') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } else {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.25);
+            }
+        } catch {
+            // Audio context failed or blocked by browser policy, ignore safely
+        }
+    }, []);
+
     const resetScanner = useCallback(() => {
+        if (resetTimeoutRef.current) {
+            clearTimeout(resetTimeoutRef.current);
+            resetTimeoutRef.current = null;
+        }
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
         setScannedWorker(null);
+        setScanResult(null);
+        setCountdown(5);
         setIsProcessing(false);
     }, []);
 
@@ -92,44 +168,118 @@ export default function QRScannerPage() {
 
         if (scanMode === 'Attendance') {
             if (type !== 'ATTENDANCE' && type !== 'STATIC' && type !== 'COG_USER' && type !== 'MEAL_STUB') {
+                playBeep('error');
                 toast({ variant: 'destructive', title: 'Invalid QR Type', description: 'This QR code cannot be used for attendance.' });
                 setTimeout(resetScanner, 2000);
                 return;
             }
             if (!worker) {
+                playBeep('error');
                 toast({ variant: 'destructive', title: 'Worker Not Found', description: 'The scanned ID does not correspond to any worker.' });
                 setTimeout(resetScanner, 2000);
                 return;
             }
             if (worker.employmentType !== 'Full-Time' && worker.employmentType !== 'On-Call') {
+                playBeep('error');
                 toast({ variant: 'destructive', title: 'Attendance Restricted', description: 'Attendance clock-in is only available for Full-Time and On-Call personnel.' });
                 setTimeout(resetScanner, 3000);
                 return;
             }
             if (worker.qrToken && tokenOrTs && worker.qrToken !== tokenOrTs) {
+                playBeep('error');
                 toast({ variant: 'destructive', title: 'Invalid or Expired QR', description: 'This QR code has been regenerated. Please use your latest QR code.' });
                 setTimeout(resetScanner, 3000);
                 return;
             }
-            setScannedWorker(worker);
+
+            // --- AUTOMATIC HYBRID ATTENDANCE (Zero-click) ---
+            try {
+                const result = await recordAutoAttendanceSql(worker.id);
+
+                if (result.action === 'Cooldown') {
+                    playBeep('warning');
+                    toast({
+                        variant: 'destructive',
+                        title: 'Cooldown Active',
+                        description: result.message
+                    });
+                    setScanResult({
+                        worker,
+                        action: 'Cooldown',
+                        status: 'Cooldown',
+                        statusBadgeColor: 'amber',
+                        message: result.message,
+                        time: new Date(result.time),
+                        success: false
+                    });
+                } else {
+                    playBeep('success');
+                    const details = `${result.action === 'Clock In' ? 'Timed in' : 'Timed out'} ${worker.firstName} ${worker.lastName} (${result.status}).`;
+                    toast({
+                        title: `${result.action} Successful!`,
+                        description: details
+                    });
+                    logScanEvent({
+                        scanType: 'Attendance',
+                        details,
+                        targetUserId: worker.id,
+                        targetUserName: `${worker.firstName} ${worker.lastName}`
+                    });
+                    setScanResult({
+                        worker,
+                        action: result.action,
+                        status: result.status,
+                        statusBadgeColor: result.statusBadgeColor as any,
+                        message: result.message,
+                        time: new Date(result.time),
+                        success: true
+                    });
+                }
+            } catch (e: any) {
+                console.error("Auto attendance error:", e);
+                playBeep('error');
+                toast({ variant: 'destructive', title: 'Attendance Error', description: e?.message || 'Could not record attendance.' });
+                setTimeout(resetScanner, 2500);
+                return;
+            }
+
+            // Auto-reset back to live scan after 5 seconds with live countdown
+            setCountdown(5);
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+            resetTimeoutRef.current = setTimeout(() => {
+                resetScanner();
+            }, 5000);
             return;
         }
 
         if (scanMode === 'Meal Stub') {
             if (type !== 'MEAL_STUB' && type !== 'COG_USER') {
+                playBeep('error');
                 toast({ variant: 'destructive', title: 'Invalid QR Type', description: 'This QR code is not a Meal Stub.' });
                 setTimeout(resetScanner, 2000);
                 return;
             }
             try {
                 if (worker?.qrToken && tokenOrTs && worker.qrToken !== tokenOrTs) {
+                    playBeep('error');
                     toast({ variant: 'destructive', title: 'Invalid or Expired QR', description: 'This QR code has been regenerated. Please use your latest QR code.' });
                     setTimeout(resetScanner, 3000);
                     return;
                 }
-                if (tokenOrTs && !isNaN(parseInt(tokenOrTs)) && tokenOrTs.length > 10) {
-                    const diffMins = (Date.now() - parseInt(tokenOrTs)) / 1000 / 60;
+                if (tokenOrTs && typeof tokenOrTs === 'string' && /^\d{13}$/.test(tokenOrTs)) {
+                    const diffMins = (Date.now() - parseInt(tokenOrTs, 10)) / 1000 / 60;
                     if (diffMins > 5) {
+                        playBeep('warning');
                         toast({ variant: 'destructive', title: 'QR Code Expired', description: 'Please refresh your meal stub QR code and try again.' });
                         setTimeout(resetScanner, 2000);
                         return;
@@ -143,15 +293,18 @@ export default function QRScannerPage() {
                 });
                 if (todaysStub) {
                     await updateMealStubSql({ id: todaysStub.id, data: { status: 'Claimed', claimedAt: new Date() } });
+                    playBeep('success');
                     const details = `Claimed meal stub for ${todaysStub.workerName}.`;
                     toast({ title: "Meal Stub Claimed!", description: details });
                     logScanEvent({ scanType: 'Meal Stub', details, mealStubId: todaysStub.id, targetUserId: todaysStub.workerId, targetUserName: todaysStub.workerName });
                 } else {
+                    playBeep('error');
                     const workerName = worker ? `${worker.firstName} ${worker.lastName}` : 'this user';
                     toast({ variant: "destructive", title: "No Meal Stub Found", description: `No valid meal stub found for ${workerName} for today.` });
                 }
             } catch (e) {
                 console.error("Error processing meal stub:", e);
+                playBeep('error');
                 toast({ variant: "destructive", title: "Error", description: "Could not process meal stub scan." });
             } finally {
                 setTimeout(resetScanner, 3000);
@@ -161,7 +314,7 @@ export default function QRScannerPage() {
 
         toast({ variant: 'destructive', title: 'Unknown Scan', description: 'Invalid QR code format.' });
         setTimeout(resetScanner, 2000);
-    }, [isProcessing, scanMode, allWorkers, allMealStubs, updateMealStubSql, toast, resetScanner, logScanEvent]);
+    }, [isProcessing, scanMode, allWorkers, allMealStubs, updateMealStubSql, recordAutoAttendanceSql, toast, resetScanner, logScanEvent, playBeep]);
 
     const handleRecordAttendance = useCallback(async (type: 'Clock In' | 'Clock Out') => {
         if (!scannedWorker?.id) return;
@@ -189,7 +342,7 @@ export default function QRScannerPage() {
         if (!ctx) return;
 
         const scan = () => {
-            if (videoElement.readyState >= 2 && !isProcessing && !scannedWorker) {
+            if (videoElement.readyState >= 2 && !isProcessing && !scannedWorker && !scanResult) {
                 canvas.width = videoElement.videoWidth;
                 canvas.height = videoElement.videoHeight;
                 ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
@@ -212,7 +365,12 @@ export default function QRScannerPage() {
                 });
                 streamRef.current = stream;
                 videoElement.srcObject = stream;
-                videoElement.play().catch(console.error);
+                videoElement.play().catch((err) => {
+                    // Ignore AbortError when video is interrupted
+                    if (err.name !== 'AbortError') {
+                        console.error('Video play error:', err);
+                    }
+                });
                 animFrameRef.current = requestAnimationFrame(scan);
             } catch (err) {
                 console.error('Camera stream error:', err);
@@ -225,11 +383,11 @@ export default function QRScannerPage() {
             cancelAnimationFrame(animFrameRef.current);
             streamRef.current?.getTracks().forEach(t => t.stop());
         };
-    }, [selectedDeviceId, hasCameraPermission, isAuthenticated]);
+    }, [selectedDeviceId, hasCameraPermission, isAuthenticated, isProcessing, scannedWorker, scanResult, handleScan]);
 
     // Resume scanning after processing/worker dismissed
     useEffect(() => {
-        if (isProcessing || scannedWorker) return;
+        if (isProcessing || scannedWorker || scanResult) return;
         const videoElement = videoRef.current;
         const canvas = canvasRef.current;
         if (!videoElement || !canvas || !isAuthenticated || !hasCameraPermission) return;
@@ -255,7 +413,7 @@ export default function QRScannerPage() {
 
         animFrameRef.current = requestAnimationFrame(scan);
         return () => cancelAnimationFrame(animFrameRef.current);
-    }, [isProcessing, scannedWorker, isAuthenticated, hasCameraPermission, handleScan]);
+    }, [isProcessing, scannedWorker, scanResult, isAuthenticated, hasCameraPermission, handleScan]);
 
     if (!isAuthenticated) {
         return (
@@ -287,45 +445,131 @@ export default function QRScannerPage() {
             <header className="flex items-center justify-between border-b p-4 shrink-0">
                 <div>
                     <h1 className="text-2xl font-headline font-bold">Attendance Scanner</h1>
-                    <p className="text-sm text-muted-foreground">Scan QR codes for attendance.</p>
+                    <p className="text-sm text-muted-foreground">Scan QR codes for automatic attendance.</p>
                 </div>
-                <div className="flex items-center gap-4">
-                    <Tabs value={scanMode} onValueChange={(v: any) => setScanMode(v)} className="w-[300px]">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="Attendance">Attendance</TabsTrigger>
-                            <TabsTrigger value="Meal Stub">Meal Stub</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-semibold border border-emerald-500/20 shadow-sm">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span>
+                            Auto Scan ({(() => {
+                                const fmt = (t?: string) => {
+                                    if (!t) return "";
+                                    const [hStr, mStr] = t.split(":");
+                                    let h = parseInt(hStr, 10) || 0;
+                                    const m = mStr || "00";
+                                    const ampm = h >= 12 ? "PM" : "AM";
+                                    h = h % 12 || 12;
+                                    return `${h}:${m} ${ampm}`;
+                                };
+                                const start = fmt(shiftSettings?.shiftStartTime) || "9:00 AM";
+                                const end = fmt(shiftSettings?.shiftEndTime) || "5:00 PM";
+                                return `${start} – ${end}`;
+                            })()})
+                        </span>
+                    </div>
                 </div>
             </header>
 
             <main className="grid flex-grow grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6 lg:p-8 overflow-hidden">
                 <Card className="flex flex-col">
-                    <CardHeader className="text-center">
+                    <CardHeader className="text-center pb-2">
                         <div className="flex justify-center"><ScanLine className="h-10 w-10 text-primary" /></div>
                         <CardTitle className="font-headline text-2xl">Live Scan</CardTitle>
-                        <CardDescription>Position the QR code in the frame ({scanMode} Mode).</CardDescription>
+                        <CardDescription>
+                            Position the QR code in the frame. System automatically records Time In / Time Out.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-grow items-center justify-center">
-                        {scannedWorker ? (
-                            <div className="flex flex-col items-center gap-4">
-                                <Avatar className="h-24 w-24">
-                                    <AvatarImage src={scannedWorker.avatarUrl} alt={`${scannedWorker.firstName} ${scannedWorker.lastName}`} />
-                                    <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
-                                </Avatar>
-                                <div className="text-center">
-                                    <p className="text-lg font-semibold">{`${scannedWorker.firstName} ${scannedWorker.lastName}`}</p>
-                                    <p className="text-sm text-muted-foreground">{scannedWorker.roleId}</p>
-                                </div>
-                                <div className="w-full border-t pt-4 mt-2">
-                                    <p className="text-center text-sm font-medium mb-4">Select attendance action:</p>
-                                    <div className="flex justify-center gap-4">
-                                        <Button onClick={() => handleRecordAttendance('Clock In')} size="lg">Time In</Button>
-                                        <Button variant="destructive" onClick={() => handleRecordAttendance('Clock Out')} size="lg">Time Out</Button>
+                        {scanResult ? (
+                            <div className="flex flex-col items-center justify-center p-6 text-center w-full max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-200">
+                                {/* Avatar & Badge Icon */}
+                                <div className="relative mb-3">
+                                    <Avatar className="h-28 w-28 border-4 border-background shadow-xl ring-4 ring-offset-2 ring-primary/20">
+                                        <AvatarImage src={scanResult.worker.avatarUrl} alt={`${scanResult.worker.firstName} ${scanResult.worker.lastName}`} />
+                                        <AvatarFallback><UserIcon className="h-14 w-14" /></AvatarFallback>
+                                    </Avatar>
+                                    <div className={`absolute -bottom-1 -right-1 p-2 rounded-full shadow-lg text-white ${
+                                        scanResult.action === 'Clock In'
+                                            ? 'bg-emerald-600'
+                                            : scanResult.action === 'Clock Out'
+                                            ? 'bg-blue-600'
+                                            : 'bg-amber-600'
+                                    }`}>
+                                        {scanResult.action === 'Clock In' ? (
+                                            <LogIn className="h-5 w-5" />
+                                        ) : scanResult.action === 'Clock Out' ? (
+                                            <LogOut className="h-5 w-5" />
+                                        ) : (
+                                            <AlertTriangle className="h-5 w-5" />
+                                        )}
                                     </div>
                                 </div>
-                                <Button variant="link" onClick={resetScanner} className="mt-2">Scan another code</Button>
+
+                                {/* Worker Name & Role */}
+                                <h2 className="text-xl font-headline font-bold text-foreground">
+                                    {scanResult.worker.firstName} {scanResult.worker.lastName}
+                                </h2>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-3">
+                                    {scanResult.worker.roleId || scanResult.worker.employmentType || 'Personnel'}
+                                </p>
+
+                                {/* Action & Status Card */}
+                                <div className={`w-full rounded-xl p-4 border mb-4 flex flex-col items-center gap-1.5 shadow-sm ${
+                                    scanResult.action === 'Clock In'
+                                        ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                                        : scanResult.action === 'Clock Out'
+                                        ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800'
+                                        : 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                                }`}>
+                                    <span className={`text-xs font-bold uppercase tracking-wider px-3 py-0.5 rounded-full ${
+                                        scanResult.action === 'Clock In'
+                                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
+                                            : scanResult.action === 'Clock Out'
+                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200'
+                                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200'
+                                    }`}>
+                                        {scanResult.action === 'Clock In' ? '✓ TIMED IN' : scanResult.action === 'Clock Out' ? '✓ TIMED OUT' : '⚠ COOLDOWN ACTIVE'}
+                                    </span>
+
+                                    <span className="text-3xl font-extrabold font-mono tracking-tight text-foreground my-0.5">
+                                        {scanResult.time ? new Date(scanResult.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : ''}
+                                    </span>
+
+                                    <div className="flex items-center gap-1.5">
+                                        <Badge variant={
+                                            scanResult.status === 'On Time' || scanResult.status === 'Shift Completed'
+                                                ? 'success'
+                                                : scanResult.status === 'Late' || scanResult.status === 'Undertime'
+                                                ? 'warning'
+                                                : 'secondary'
+                                        }>
+                                            {scanResult.status || 'Recorded'}
+                                        </Badge>
+                                    </div>
+
+                                    <p className="text-xs text-muted-foreground mt-1 px-2 text-center leading-relaxed">
+                                        {scanResult.message}
+                                    </p>
+                                </div>
+
+                                {/* Auto-reset indicator */}
+                                <div className="w-full flex flex-col items-center gap-2">
+                                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                            className="bg-primary h-full transition-all duration-1000 ease-linear"
+                                            style={{ width: `${(countdown / 5) * 100}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" /> Auto-resetting for next scan in {countdown}s...
+                                    </p>
+                                    <Button variant="ghost" size="sm" onClick={resetScanner} className="text-xs text-primary hover:underline h-7 mt-1">
+                                        Scan next worker now →
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
                             <div className="w-full max-w-md">

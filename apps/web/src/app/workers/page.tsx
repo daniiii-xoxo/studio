@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@studio/ui";
-import { Sheet, SheetContent } from "@studio/ui";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@studio/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +17,7 @@ import {
   MoreHorizontal, PlusCircle, LoaderCircle, Upload, Download,
   LogIn, Users, UserCheck, UserX, Users2, Building2, Mail,
   Trash2, ArrowRightLeft, X, Ticket, Search, SlidersHorizontal,
-  ShieldCheck, UserCog,
+  ShieldCheck, UserCog, GraduationCap,
 } from "lucide-react";
 import { subDays, formatDistanceToNow } from "date-fns";
 import { getWeeklyWeekdayCount, getSundayCount } from "@studio/ui";
@@ -27,7 +27,7 @@ import {
   AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@studio/ui";
-import { Input } from "@studio/ui";
+import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@studio/ui";
 import type { Worker, Role, Ministry } from "@studio/types";
 import { useAuthStore } from "@studio/store";
 import { supabase } from "@studio/database";
@@ -52,6 +52,8 @@ import {
 import { ImportSheet } from "@/components/workers/import-sheet";
 import { BatchMinistrySheet } from "@/components/workers/batch-ministry-sheet";
 import { BatchMealStubSheet } from "@/components/workers/batch-meal-stub-sheet";
+import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { cn } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -106,7 +108,7 @@ function StatCard({ label, value, icon: Icon, accentColor, iconClass, iconBgClas
   iconClass: string; iconBgClass: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border-0 shadow-card-dark bg-card h-full">
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200/80 dark:border-border shadow-xs bg-white dark:bg-card h-full">
       <div className={cn("h-1.5 w-full", accentColor)} />
       <div className="p-5">
         <div className="flex items-start justify-between gap-2">
@@ -149,6 +151,10 @@ export default function WorkersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
 
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "inactive" | "heads" | "mentors" | "admins">("all");
+  const [ministryFilter, setMinistryFilter] = useState<string>("all");
+  const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
+
   React.useEffect(() => {
     const timer = setTimeout(() => { setSearchQuery(searchInput); setCurrentPage(1); }, 400);
     return () => clearTimeout(timer);
@@ -163,7 +169,15 @@ export default function WorkersPage() {
   const { workers: allWorkers, pagination, isLoading: workersLoading,
     updateWorker: updateWorkerSql, createWorker: createWorkerSql,
     deleteWorker: deleteWorkerSqlMut, deleteWorkers: deleteWorkersSqlMut,
-  } = useWorkers({ page: currentPage, limit: itemsPerPage, search: searchQuery, searchMode, sortField, sortDir });
+  } = useWorkers({ 
+    page: currentPage, 
+    limit: itemsPerPage, 
+    search: searchQuery, 
+    searchMode, 
+    ministryIds: ministryFilter !== "all" ? [ministryFilter] : undefined,
+    sortField, 
+    sortDir 
+  });
 
   const { ministries, isLoading: ministriesLoading } = useMinistries();
   const { roles, isLoading: rolesLoading } = useRoles();
@@ -202,17 +216,46 @@ export default function WorkersPage() {
         [workerProfile?.majorMinistryId, workerProfile?.minorMinistryId].filter(Boolean) as string[]
   );
 
-  const workers = allWorkers;
-
   const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
   const [isBatchMoveSheetOpen, setIsBatchMoveSheetOpen] = useState(false);
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false);
   const [isBatchMealStubSheetOpen, setIsBatchMealStubSheetOpen] = useState(false);
   const [isAssigningStubs, setIsAssigningStubs] = useState(false);
+  const [selectedWorkerForDetails, setSelectedWorkerForDetails] = useState<Worker | null>(null);
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
 
   const handleAddNew = () => router.push("/workers/new");
-  const handleEdit = (worker: Worker) => router.push(`/workers/${worker.id}/edit`);
+  const handleEdit = (worker: Worker) => setEditingWorker(worker);
+
+  const handleExportWorkers = () => {
+    if (!allWorkers || allWorkers.length === 0) {
+      toast({ variant: "destructive", title: "No data to export" });
+      return;
+    }
+    const exportData = allWorkers.map(w => ({
+      "Worker ID": formatWorkerId(w.workerId),
+      "First Name": w.firstName,
+      "Last Name": w.lastName,
+      "Email": w.email || "",
+      "Phone": w.phone || "",
+      "Role": getWorkerRoleLabel(w),
+      "Ministry": ministries.find(m => m.id === w.majorMinistryId)?.name || "",
+      "Employment Type": w.employmentType || "",
+      "Status": w.status,
+      "Registered": w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
+    }));
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `workers_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Workers Exported", description: `Exported ${exportData.length} records.` });
+  };
 
   const handlePasswordReset = async (worker: Worker) => {
     if (!worker.email) { toast({ variant: "destructive", title: "No email found" }); return; }
@@ -230,11 +273,17 @@ export default function WorkersPage() {
     startImpersonation(worker.id);
   };
 
-  const handleDelete = async (workerId: string) => {
-    const w = allWorkers?.find(w => w.id === workerId);
+  const handleDelete = (worker: Worker) => {
+    setWorkerToDelete(worker);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!workerToDelete) return;
+    const w = workerToDelete;
+    setWorkerToDelete(null);
     try {
-      await deleteWorkerSqlMut(workerId);
-      if (w) await logAction("Deleted Worker", "Workers", `Removed ${w.firstName} ${w.lastName}`, workerId, `${w.firstName} ${w.lastName}`);
+      await deleteWorkerSqlMut(w.id);
+      await logAction("Deleted Worker", "Workers", `Removed ${w.firstName} ${w.lastName}`, w.id, `${w.firstName} ${w.lastName}`);
       toast({ title: "Worker Deleted" });
     } catch { toast({ variant: "destructive", title: "Delete Failed" }); }
   };
@@ -376,10 +425,60 @@ export default function WorkersPage() {
     }).length;
   }, [allWorkers, ministries]);
 
+  // Mentors count (Workers that serve as mentors / non-admin non-head workers)
+  const mentorsCount = useMemo(() => {
+    return allWorkers.filter(w => {
+      const roleName = getWorkerRoleLabel(w).toLowerCase();
+      if (roleName.includes("mentor")) return true;
+      const isHead = roleName.includes("head") || roleName.includes("pastor") || ministries.some(m => m.headId === w.id);
+      const isAdmin = roleName.includes("admin");
+      return !isHead && !isAdmin;
+    }).length;
+  }, [allWorkers, ministries, roles]);
+
   // Admins count
   const adminsCount = useMemo(() => {
     return allWorkers.filter(w => getWorkerRoleLabel(w).toLowerCase().includes("admin")).length;
   }, [allWorkers]);
+
+  const displayedWorkers = useMemo(() => {
+    let list = allWorkers || [];
+
+    if (activeTab === "active") {
+      list = list.filter(w => w.status === "Active");
+    } else if (activeTab === "inactive") {
+      list = list.filter(w => w.status === "Inactive");
+    } else if (activeTab === "heads") {
+      list = list.filter(w => {
+        const roleLabel = getWorkerRoleLabel(w).toLowerCase();
+        return roleLabel.includes("head") || roleLabel.includes("pastor") || ministries.some(m => m.headId === w.id);
+      });
+    } else if (activeTab === "mentors") {
+      list = list.filter(w => {
+        const roleLabel = getWorkerRoleLabel(w).toLowerCase();
+        if (roleLabel.includes("mentor")) return true;
+        const isHead = roleLabel.includes("head") || roleLabel.includes("pastor") || ministries.some(m => m.headId === w.id);
+        const isAdmin = roleLabel.includes("admin");
+        return !isHead && !isAdmin;
+      });
+    } else if (activeTab === "admins") {
+      list = list.filter(w => getWorkerRoleLabel(w).toLowerCase().includes("admin"));
+    }
+
+    return list;
+  }, [allWorkers, activeTab, ministries, roles]);
+
+  const tabCounts = useMemo(() => {
+    const list = allWorkers || [];
+    return {
+      all: totalWorkers || list.length,
+      active: totalActive || list.filter(w => w.status === "Active").length,
+      inactive: totalInactive || list.filter(w => w.status === "Inactive").length,
+      heads: ministryHeadsCount,
+      mentors: mentorsCount,
+      admins: adminsCount,
+    };
+  }, [allWorkers, totalWorkers, totalActive, totalInactive, ministryHeadsCount, mentorsCount, adminsCount]);
 
   if (isLoading) {
     return <AppLayout><div className="flex justify-center py-10"><LoaderCircle className="h-8 w-8 animate-spin" /></div></AppLayout>;
@@ -394,54 +493,50 @@ export default function WorkersPage() {
       <div className="space-y-7 pb-12">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Workers</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               Monitor workforce, assign roles and ministries, and register new workers.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search requests, requestors, IDs..."
-                className="pl-9 w-64 h-9 text-sm bg-card border-border/60 rounded-xl"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-              />
-            </div>
             <button
               onClick={() => setIsImportSheetOpen(true)}
-              className="h-9 px-3.5 flex items-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
+              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
             >
-              <Upload className="h-4 w-4 text-muted-foreground" /> Import
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Import</span>
             </button>
             <button
-              className="h-9 px-3.5 flex items-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
+              onClick={handleExportWorkers}
+              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
             >
-              <Download className="h-4 w-4 text-muted-foreground" /> Export
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <span className="hidden sm:inline">Export</span>
             </button>
             <button
               onClick={handleAddNew}
-              className="h-9 px-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer whitespace-nowrap"
             >
               <PlusCircle className="h-4 w-4" /> Add Worker
             </button>
           </div>
         </div>
 
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
-          <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
-          <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
-          <StatCard label="New This Month" value={newThisMonth} icon={PlusCircle} accentColor="bg-amber-400" iconClass="text-amber-500" iconBgClass="bg-amber-50 dark:bg-amber-950/40" />
-        </div>
+        {/* Animated Content Section (Stats, Chart, & Table) */}
+        <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
+            <StatCard label="Mentors" value={mentorsCount} icon={GraduationCap} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
+            <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
+            <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
+          </div>
 
         {/* Ministry Distribution Chart */}
         {ministryChartData.length > 0 && (
-          <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-6">
+          <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-6">
             <h2 className="text-base font-bold text-foreground mb-0.5">Ministry Distribution</h2>
             <p className="text-xs text-muted-foreground mb-5">Workers per ministry.</p>
             <div className="h-[240px] w-full">
@@ -459,79 +554,161 @@ export default function WorkersPage() {
                   <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#9ca3af" }} />
                   <Tooltip
                     contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                    cursor={{ fill: "rgba(99,102,241,0.06)" }}
+                    cursor={{ fill: "rgba(17,46,126,0.06)" }}
                   />
-                  <Bar dataKey="count" name="Workers" fill="#818cf8" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="count" name="Workers" fill="#112e7e" radius={[6, 6, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
         )}
 
-        {/* Filters + Bulk Bar */}
-        <div className="flex items-center justify-end">
-          <button className="h-9 px-3.5 flex items-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors">
-            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" /> Filters
-          </button>
-        </div>
+        {/* Main Content Card Container (Connect2Souls Style) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+          {/* Top Controls Row (Search Left, Dropdowns Right) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Search bar (Left side) */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search workers by name, ID, role..."
+                className="pl-9 pr-8 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
 
-        {selectedWorkerIds.length > 0 && (
-          <div className="flex items-center justify-between bg-card border border-border/60 rounded-2xl px-5 py-3 shadow-card-dark">
-            <span className="text-sm font-semibold text-foreground">{selectedWorkerIds.length} selected</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsBatchMoveSheetOpen(true)} className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/5 transition-colors">
-                <UserCog className="h-3.5 w-3.5" /> Change Role
-              </button>
-              <button onClick={() => setIsBatchMoveSheetOpen(true)} className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
-                <Building2 className="h-3.5 w-3.5" /> Assign Ministry
-              </button>
-              <button onClick={() => setIsBatchDeleteDialogOpen(true)} className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
-                <UserX className="h-3.5 w-3.5" /> Deactivate
-              </button>
-              <button onClick={() => setSelectedWorkerIds([])} className="h-8 px-3 flex items-center gap-1.5 rounded-lg border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-muted/40 transition-colors">
-                <X className="h-3.5 w-3.5" /> Clear
-              </button>
+            {/* Filter Dropdowns (Right side) */}
+            <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+              {/* Ministry Filter */}
+              <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
+                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                  <SelectValue placeholder="All Ministries" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
+                  {ministries?.map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Status & Role Filter Dropdown */}
+              <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
+                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                  <SelectValue placeholder="All Workers" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {[
+                    { id: "all", label: "All Workers", count: tabCounts.all },
+                    { id: "active", label: "Active", count: tabCounts.active },
+                    { id: "inactive", label: "Inactive", count: tabCounts.inactive },
+                    { id: "mentors", label: "Mentors", count: tabCounts.mentors },
+                    { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
+                    { id: "admins", label: "Admins", count: tabCounts.admins },
+                  ].map(tab => (
+                    <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
+                      {tab.label} ({tab.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        )}
 
-        {/* Main Table */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Main Table Container */}
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card shadow-card-dark">
+
+          {/* Mobile list view */}
+          <div className="md:hidden divide-y divide-border/30">
+            {workersLoading ? (
+              <div className="py-16 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></div>
+            ) : displayedWorkers.length === 0 ? (
+              <div className="py-16 text-center text-sm text-muted-foreground">No workers found.</div>
+            ) : (
+              displayedWorkers.map(worker => {
+                const ministry = ministries.find(m => m.id === worker.majorMinistryId);
+                const roleLabel = getWorkerRoleLabel(worker);
+                return (
+                  <div key={worker.id} className="p-4 flex items-center justify-between gap-3">
+                    {/* Left: Basic info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-foreground leading-tight truncate">{worker.firstName} {worker.lastName}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-mono text-muted-foreground mb-1">{formatWorkerId(worker.workerId)}</p>
+                      <div className="flex items-center gap-2">
+                        <RoleBadge role={roleLabel} />
+                        <StatusBadge status={worker.status} />
+                      </div>
+                    </div>
+
+                    {/* Right: Details button */}
+                    <button
+                      onClick={() => setSelectedWorkerForDetails(worker)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap shrink-0"
+                    >
+                      Details
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
-              <thead>
-                <tr className="bg-muted/40 border-b border-border/40">
-                  <th className="w-10 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      className="rounded border-border"
-                      checked={workers.length > 0 && workers.every(w => selectedWorkerIds.includes(w.id))}
-                      onChange={() => toggleSelectAll(workers)}
-                    />
+              <thead className="bg-sidebar">
+                <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                  <th className="w-10 px-4 py-3.5 text-center">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                        checked={displayedWorkers.length > 0 && displayedWorkers.every(w => selectedWorkerIds.includes(w.id))}
+                        onCheckedChange={() => toggleSelectAll(displayedWorkers)}
+                      />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("name")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
                     Worker {sortField === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("workerId")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
                     Worker ID {sortField === "workerId" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Role</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ministry</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Contact</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none" onClick={() => handleSort("status")}>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
                     Status {sortField === "status" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Registered</th>
-                  <th className="w-10 px-4 py-3" />
+                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {workersLoading ? (
                   <tr><td colSpan={10} className="py-16 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></td></tr>
-                ) : workers.length === 0 ? (
+                ) : displayedWorkers.length === 0 ? (
                   <tr><td colSpan={10} className="py-16 text-center text-sm text-muted-foreground">No workers found.</td></tr>
-                ) : workers.map(worker => {
+                ) : displayedWorkers.map(worker => {
                   const ministry = ministries.find(m => m.id === worker.majorMinistryId);
                   const isSelected = selectedWorkerIds.includes(worker.id);
                   const roleLabel = getWorkerRoleLabel(worker);
@@ -542,8 +719,14 @@ export default function WorkersPage() {
                       key={worker.id}
                       className={cn("border-b border-border/30 transition-colors", isSelected ? "bg-primary/5" : "hover:bg-muted/20")}
                     >
-                      <td className="px-4 py-3.5" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
-                        <input type="checkbox" className="rounded border-border" checked={isSelected} onChange={() => toggleSelectWorker(worker.id)} />
+                      <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelectWorker(worker.id)}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -582,18 +765,20 @@ export default function WorkersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)}>
-                              <Mail className="mr-2 h-4 w-4" /> Send Reset Link
+                          <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-lg border-border/80">
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                              <UserCog className="h-4 w-4 text-muted-foreground" /> Edit Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
                             </DropdownMenuItem>
                             {worker.id !== user?.uid && (
-                              <DropdownMenuItem onSelect={() => setTimeout(() => handleImpersonate(worker), 100)}>
-                                <LogIn className="mr-2 h-4 w-4" /> Impersonate
+                              <DropdownMenuItem onSelect={() => setTimeout(() => handleImpersonate(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                <LogIn className="h-4 w-4 text-muted-foreground" /> Impersonate
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker.id), 100)} className="text-destructive">
-                              Delete
+                            <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker), 100)} className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10">
+                              <Trash2 className="h-4 w-4 text-destructive" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -613,34 +798,22 @@ export default function WorkersPage() {
               </p>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors">
+                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-2xs font-bold text-sm">
                   ‹
                 </button>
-                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                  let pageNum = i + 1;
-                  if (pagination.totalPages > 5 && currentPage > 3) {
-                    pageNum = currentPage - 3 + i;
-                    if (pageNum + (5 - i) > pagination.totalPages) pageNum = pagination.totalPages - 4 + i;
-                  }
-                  if (pageNum <= 0 || pageNum > pagination.totalPages) return null;
-                  return (
-                    <button key={pageNum} onClick={() => setCurrentPage(pageNum)}
-                      className={cn("h-8 w-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all",
-                        currentPage === pageNum ? "bg-primary text-primary-foreground shadow-xs" : "border border-border text-foreground hover:bg-muted"
-                      )}>
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                <button onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))} disabled={currentPage === pagination.totalPages || pagination.totalPages === 0}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors">
-                  ›
+                <button onClick={() => setIsBatchDeleteDialogOpen(true)} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer">
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+                <button onClick={() => setSelectedWorkerIds([])} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-muted/40 transition-colors cursor-pointer">
+                  <X className="h-3 w-3" /> Clear
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+    </div>
+    </div>
 
       {/* Sheets & Dialogs */}
       <Sheet open={isImportSheetOpen} onOpenChange={setIsImportSheetOpen}>
@@ -673,6 +846,128 @@ export default function WorkersPage() {
           <BatchMealStubSheet selectedCount={selectedWorkerIds.length} onSave={handleBatchMealStub} onClose={() => setIsBatchMealStubSheetOpen(false)} />
         </SheetContent>
       </Sheet>
+
+      {/* Worker Details Sheet */}
+      <Sheet open={!!selectedWorkerForDetails} onOpenChange={(open) => !open && setSelectedWorkerForDetails(null)}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          {selectedWorkerForDetails && (
+            <div className="space-y-6">
+              {/* Header */}
+              <SheetHeader>
+                <SheetTitle>Worker Details</SheetTitle>
+                <p className="text-sm text-muted-foreground">View worker information</p>
+              </SheetHeader>
+
+              {/* Worker Info */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
+                <WorkerInitials name={`${selectedWorkerForDetails.firstName} ${selectedWorkerForDetails.lastName}`} avatarUrl={selectedWorkerForDetails.avatarUrl} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-bold text-foreground leading-tight">{selectedWorkerForDetails.firstName} {selectedWorkerForDetails.lastName}</p>
+                  <p className="text-sm text-muted-foreground truncate">{selectedWorkerForDetails.email}</p>
+                </div>
+                <StatusBadge status={selectedWorkerForDetails.status} />
+              </div>
+
+              {/* Details Grid */}
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Worker ID</p>
+                  <p className="text-sm font-mono text-foreground">{formatWorkerId(selectedWorkerForDetails.workerId)}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role</p>
+                  <div><RoleBadge role={getWorkerRoleLabel(selectedWorkerForDetails)} /></div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ministry</p>
+                  <p className="text-sm text-foreground">{ministries.find(m => m.id === selectedWorkerForDetails.majorMinistryId)?.name || "—"}</p>
+                </div>
+
+                {selectedWorkerForDetails.minorMinistryId && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Secondary Ministry</p>
+                    <p className="text-sm text-foreground">{ministries.find(m => m.id === selectedWorkerForDetails.minorMinistryId)?.name || "—"}</p>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employment Type</p>
+                  <p className="text-sm text-foreground">{selectedWorkerForDetails.employmentType || "—"}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone</p>
+                  <p className="text-sm text-foreground">{selectedWorkerForDetails.phone || "—"}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</p>
+                  <p className="text-sm text-foreground break-all">{selectedWorkerForDetails.email || "—"}</p>
+                </div>
+
+                {selectedWorkerForDetails.createdAt && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registered</p>
+                    <p className="text-sm text-foreground">
+                      {new Date(selectedWorkerForDetails.createdAt as any).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-border/40">
+                <button
+                  onClick={() => {
+                    setSelectedWorkerForDetails(null);
+                    handleEdit(selectedWorkerForDetails);
+                  }}
+                  className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  Edit Worker
+                </button>
+                <button
+                  onClick={() => setSelectedWorkerForDetails(null)}
+                  className="h-10 px-4 flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={!!workerToDelete}
+        onClose={() => setWorkerToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Worker Profile"
+        itemName={workerToDelete ? `${workerToDelete.firstName} ${workerToDelete.lastName}` : "this worker"}
+        confirmLabel="Delete Worker"
+      />
+
+      {/* Centered Edit Worker Dialog */}
+      <EditWorkerDialog
+        worker={editingWorker}
+        open={!!editingWorker}
+        onOpenChange={(open) => {
+          if (!open) setEditingWorker(null);
+        }}
+        roles={roles}
+        ministries={ministries}
+        canManage={canManageWorkers}
+        isSuperAdmin={isSuperAdmin}
+        currentWorkerProfile={workerProfile}
+        onSuccess={() => {
+          if (selectedWorkerForDetails && editingWorker && selectedWorkerForDetails.id === editingWorker.id) {
+            setSelectedWorkerForDetails(null);
+          }
+        }}
+      />
     </AppLayout>
   );
 }

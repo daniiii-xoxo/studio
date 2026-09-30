@@ -11,6 +11,8 @@ import {
   Tv,
   Mic,
   Speaker,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import {
   format,
@@ -89,7 +91,7 @@ export default function ScheduleCalendarPage() {
   const router = useRouter();
 
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<CalendarViewMode>("day");
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [selectedAreaId, setSelectedAreaId] = useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -226,27 +228,28 @@ export default function ScheduleCalendarPage() {
           </p>
         </div>
 
-        {/* Navigation & View Mode Card */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Navigation & View Mode Card */}
         <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Date Navigator */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={handlePrev}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-muted text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-border hover:bg-slate-100 dark:hover:bg-muted text-slate-700 dark:text-slate-200 transition-all shadow-2xs"
               title="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            <span className="font-bold text-sm sm:text-base text-gray-800 dark:text-foreground text-center min-w-[160px]">
+            <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-foreground text-center min-w-[170px] px-2">
               {calendarTitle}
             </span>
 
             <button
               type="button"
               onClick={handleNext}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-muted text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-border hover:bg-slate-100 dark:hover:bg-muted text-slate-700 dark:text-slate-200 transition-all shadow-2xs"
               title="Next"
             >
               <ChevronRight className="h-4 w-4" />
@@ -254,15 +257,15 @@ export default function ScheduleCalendarPage() {
           </div>
 
           {/* View Mode Pill Switcher */}
-          <div className="bg-gray-100 dark:bg-muted p-1 rounded-xl flex items-center border border-gray-200/50 dark:border-border/50">
+          <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center border border-slate-200/70 dark:border-border/50 shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode("month")}
               className={cn(
-                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
                 viewMode === "month"
-                  ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                  : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
+                  ? "bg-sidebar text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
               )}
             >
               Month
@@ -271,10 +274,10 @@ export default function ScheduleCalendarPage() {
               type="button"
               onClick={() => setViewMode("week")}
               className={cn(
-                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
                 viewMode === "week"
-                  ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                  : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
+                  ? "bg-sidebar text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
               )}
             >
               Week
@@ -283,10 +286,10 @@ export default function ScheduleCalendarPage() {
               type="button"
               onClick={() => setViewMode("day")}
               className={cn(
-                "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all",
                 viewMode === "day"
-                  ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                  : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
+                  ? "bg-sidebar text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
               )}
             >
               Day
@@ -326,7 +329,7 @@ export default function ScheduleCalendarPage() {
         )}
 
         {/* Main Content Card */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-6 shadow-xs overflow-hidden min-h-[520px]">
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-5 sm:p-6 shadow-card-dark overflow-hidden min-h-[520px]">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-3">
               <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
@@ -336,14 +339,19 @@ export default function ScheduleCalendarPage() {
             </div>
           ) : viewMode === "month" ? (
             /* Month View Grid */
-            <div className="space-y-3">
-              {/* Day Headers (Sun - Sat) */}
-              <div className="grid grid-cols-7 gap-3">
+            <div className="space-y-2.5">
+              {/* Day Headers (Sun - Sat) with styled header cards */}
+              <div className="grid grid-cols-7 gap-2 sm:gap-3">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (dayName) => (
+                  (dayName, i) => (
                     <div
                       key={dayName}
-                      className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-2"
+                      className={cn(
+                        "text-[11px] sm:text-xs font-bold py-2 px-1 text-center uppercase tracking-wider rounded-xl transition-colors shadow-2xs",
+                        i === 0 || i === 6
+                          ? "bg-blue-50/90 dark:bg-blue-950/40 text-sidebar dark:text-blue-300 font-extrabold border border-blue-200/50 dark:border-blue-900/40"
+                          : "bg-slate-100/80 dark:bg-muted/60 text-slate-700 dark:text-slate-200 border border-slate-200/50 dark:border-border/40"
+                      )}
                     >
                       {dayName}
                     </div>
@@ -352,10 +360,11 @@ export default function ScheduleCalendarPage() {
               </div>
 
               {/* 7-column Days Grid */}
-              <div className="grid grid-cols-7 gap-3">
+              <div className="grid grid-cols-7 gap-2 sm:gap-3">
                 {monthDays.map((day, idx) => {
                   const isCurrentMonth = isSameMonth(day, currentDate);
                   const isDayToday = isToday(day);
+                  const isWeekend = idx % 7 === 0 || idx % 7 === 6;
 
                   // Find bookings for this day
                   const dayEvents = approvedBookings.filter((b) =>
@@ -366,35 +375,50 @@ export default function ScheduleCalendarPage() {
                     <div
                       key={idx}
                       className={cn(
-                        "min-h-[110px] md:min-h-[125px] p-2.5 rounded-2xl border transition-all flex flex-col justify-between",
+                        "min-h-[115px] sm:min-h-[135px] p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 flex flex-col justify-between group relative",
                         isCurrentMonth
-                          ? "bg-white dark:bg-card border-gray-200/70 dark:border-border/70 hover:border-gray-300 dark:hover:border-border"
-                          : "bg-gray-50/80 dark:bg-muted/20 border-gray-100 dark:border-border/40 text-gray-400 dark:text-gray-600"
+                          ? isDayToday
+                            ? "bg-white dark:bg-card border-sidebar/50 dark:border-blue-500/60 ring-2 ring-sidebar/15 shadow-sm"
+                            : isWeekend
+                            ? "bg-slate-50/60 dark:bg-muted/20 border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
+                            : "bg-white dark:bg-card border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
+                          : "bg-slate-50/30 dark:bg-muted/10 border-slate-100 dark:border-border/30 text-slate-400 dark:text-slate-600 opacity-60"
                       )}
                     >
-                      {/* Top Header: Day Number */}
-                      <div className="flex items-center justify-between mb-1.5">
+                      {/* Top Header: Day Number + Event Badge count */}
+                      <div className="flex items-center justify-between mb-1">
                         {isDayToday ? (
-                          <span className="w-5 h-5 rounded-full bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center text-[11px] font-bold shadow-xs">
-                            {format(day, "d")}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-6 h-6 rounded-full bg-sidebar text-white flex items-center justify-center text-xs font-black shadow-xs">
+                              {format(day, "d")}
+                            </span>
+                            <span className="text-[10px] font-bold text-sidebar uppercase tracking-tight hidden md:inline-block">
+                              Today
+                            </span>
+                          </div>
                         ) : (
                           <span
                             className={cn(
-                              "text-xs font-bold px-0.5",
+                              "text-xs font-bold px-0.5 transition-colors",
                               isCurrentMonth
-                                ? "text-gray-700 dark:text-gray-300"
-                                : "text-gray-400 dark:text-gray-600"
+                                ? "text-slate-700 dark:text-slate-200 group-hover:text-sidebar"
+                                : "text-slate-400 dark:text-slate-600"
                             )}
                           >
                             {format(day, "d")}
                           </span>
                         )}
+
+                        {dayEvents.length > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sidebar/10 text-sidebar dark:bg-blue-950/60 dark:text-blue-300">
+                            {dayEvents.length}
+                          </span>
+                        )}
                       </div>
 
                       {/* Event Items */}
-                      <div className="space-y-1 overflow-y-auto max-h-[80px]">
-                        {dayEvents.map((booking, bIdx) => {
+                      <div className="space-y-1 overflow-y-auto max-h-[85px] pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {dayEvents.slice(0, 3).map((booking, bIdx) => {
                           const room = rooms?.find(
                             (r) => r.id === booking.roomId
                           );
@@ -407,15 +431,15 @@ export default function ScheduleCalendarPage() {
                               key={booking.id}
                               onClick={() => handleBookingClick(booking)}
                               className={cn(
-                                "border-l-[3px] rounded-md py-1 px-1.5 text-[10px] font-medium truncate cursor-pointer hover:opacity-90 transition-all flex items-center gap-1",
+                                "border-l-[3px] rounded-lg py-1 px-1.5 text-[10px] font-semibold truncate cursor-pointer hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1 shadow-2xs",
                                 color.bg,
                                 color.text,
                                 color.border
                               )}
                               title={`${booking.title} - ${room?.name || "Room"} (${format(startTime, "h:mm a")})`}
                             >
-                              <span className="font-semibold shrink-0">
-                                {format(startTime, "HH:mm")}
+                              <span className="font-bold text-[9px] opacity-80 shrink-0">
+                                {format(startTime, "h:mm a")}
                               </span>
                               <span className="truncate">
                                 {room?.name || booking.title}
@@ -423,6 +447,11 @@ export default function ScheduleCalendarPage() {
                             </div>
                           );
                         })}
+                        {dayEvents.length > 3 && (
+                          <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 pl-1">
+                            +{dayEvents.length - 3} more
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -430,33 +459,131 @@ export default function ScheduleCalendarPage() {
               </div>
             </div>
           ) : viewMode === "week" ? (
-            /* Week Hourly Time Grid Matrix - scrollable on mobile */
-            <div className="overflow-x-auto -mx-6">
-              <div className="min-w-[600px] px-6">
-                {/* Header Row: Days of the Week */}
-                <div className="grid grid-cols-[70px_repeat(7,1fr)] border-b border-gray-200 dark:border-border">
-                  <div className="border-r border-gray-200/80 dark:border-border/80 py-3" />
+            /* Week view */
+            <div>
+              {/* ── MOBILE: vertical day-by-day list ── */}
+              <div className="lg:hidden space-y-3">
+                {weekDays.map((day, dIdx) => {
+                  const isDayToday = isToday(day);
+                  const dayEvents = approvedBookings.filter((b) =>
+                    isSameDay(toJsDate(b.start), day)
+                  ).sort((a, b) => toJsDate(a.start).getTime() - toJsDate(b.start).getTime());
 
-                  {weekDays.map((day) => (
-                    <div
-                      key={day.toISOString()}
-                      className="py-3 px-2 text-center border-r border-gray-200/80 dark:border-border/80 last:border-r-0"
-                    >
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        {format(day, "EEE")}
-                      </p>
-                      <p
+                  return (
+                    <div key={day.toISOString()} className="rounded-xl border border-gray-200 dark:border-border overflow-hidden">
+                      {/* Day header */}
+                      <div className={cn(
+                        "px-4 py-2.5 border-b border-gray-200 dark:border-border flex items-center gap-3",
+                        isDayToday ? "bg-sidebar/10 dark:bg-blue-950/20" : "bg-gray-50 dark:bg-muted/40"
+                      )}>
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shrink-0",
+                          isDayToday ? "bg-sidebar text-white shadow-xs" : "bg-transparent text-gray-700 dark:text-gray-200"
+                        )}>
+                          {format(day, "d")}
+                        </div>
+                        <div>
+                          <p className={cn("text-xs font-extrabold uppercase tracking-wider", isDayToday ? "text-sidebar dark:text-blue-400" : "text-gray-500 dark:text-gray-400")}>
+                            {format(day, "EEEE")}
+                          </p>
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500">{format(day, "MMMM d, yyyy")}</p>
+                        </div>
+                        {dayEvents.length > 0 && (
+                          <span className="ml-auto text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            {dayEvents.length} event{dayEvents.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      {/* Events */}
+                      {dayEvents.length === 0 ? (
+                        <div className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 italic">No events</div>
+                      ) : (
+                        <div className="divide-y divide-gray-100 dark:divide-border">
+                          {dayEvents.map((booking, bIdx) => {
+                            const room = rooms?.find((r) => r.id === booking.roomId);
+                            const color = EVENT_COLORS[bIdx % EVENT_COLORS.length];
+                            const startTime = toJsDate(booking.start);
+                            const endTime = toJsDate(booking.end);
+                            return (
+                              <div
+                                key={booking.id}
+                                onClick={() => handleBookingClick(booking)}
+                                className={cn("px-4 py-3 flex items-center justify-between gap-3 cursor-pointer border-l-[3px] hover:opacity-90 transition-all", color.bg, color.text, color.border)}
+                              >
+                                <div>
+                                  <p className="text-xs font-bold leading-snug">{booking.title}</p>
+                                  <p className="text-[11px] opacity-75 mt-0.5">{room?.name || "Room"}</p>
+                                </div>
+                                <div className="text-right shrink-0 text-[11px] font-semibold opacity-80">
+                                  <p>{format(startTime, "h:mm a")}</p>
+                                  <p>– {format(endTime, "h:mm a")}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── DESKTOP: original horizontal time grid ── */}
+              <div className="hidden lg:block overflow-x-auto -mx-6">
+                <div className="min-w-[760px] px-6">
+                {/* Header Row: Days of the Week */}
+                <div className="grid grid-cols-[80px_repeat(7,1fr)] bg-slate-50/90 dark:bg-muted/40 border-b border-slate-200/80 dark:border-border/80 sticky top-0 z-10">
+                  <div className="border-r border-slate-200/80 dark:border-border/80 py-3" />
+
+                  {weekDays.map((day, dIdx) => {
+                    const isDayToday = isToday(day);
+                    const isWeekend = dIdx === 0 || dIdx === 6;
+
+                    return (
+                      <div
+                        key={day.toISOString()}
                         className={cn(
-                          "text-base font-bold mt-0.5",
-                          isToday(day)
-                            ? "text-indigo-600 dark:text-indigo-400"
-                            : "text-gray-800 dark:text-gray-100"
+                          "py-3 px-2 text-center border-r border-slate-200/80 dark:border-border/80 last:border-r-0 transition-colors flex flex-col items-center justify-center gap-0.5",
+                          isDayToday
+                            ? "bg-sidebar/5 dark:bg-blue-950/20"
+                            : isWeekend
+                            ? "bg-slate-100/50 dark:bg-muted/20"
+                            : ""
                         )}
                       >
-                        {format(day, "d")}
-                      </p>
-                    </div>
-                  ))}
+                        <p
+                          className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider",
+                            isDayToday
+                              ? "text-sidebar dark:text-blue-400 font-extrabold"
+                              : isWeekend
+                              ? "text-sidebar/70 dark:text-blue-300/70"
+                              : "text-slate-500 dark:text-slate-400"
+                          )}
+                        >
+                          {format(day, "EEE")}
+                        </p>
+                        {isDayToday ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-7 h-7 rounded-full bg-sidebar text-white flex items-center justify-center text-xs font-black shadow-xs ring-2 ring-sidebar/20">
+                              {format(day, "d")}
+                            </span>
+                          </div>
+                        ) : (
+                          <p
+                            className={cn(
+                              "text-sm font-bold mt-0.5",
+                              isWeekend
+                                ? "text-slate-700 dark:text-slate-200"
+                                : "text-slate-800 dark:text-slate-100"
+                            )}
+                          >
+                            {format(day, "d")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Hourly Rows (8 AM to 8 PM) */}
@@ -472,15 +599,18 @@ export default function ScheduleCalendarPage() {
                     return (
                       <div
                         key={hour}
-                        className="grid grid-cols-[70px_repeat(7,1fr)] border-b border-gray-200/70 dark:border-border/70 min-h-[52px]"
+                        className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-slate-100 dark:border-border/40 last:border-b-0 min-h-[58px] group/row"
                       >
                         {/* Time Label on left */}
-                        <div className="border-r border-gray-200/80 dark:border-border/80 text-xs font-medium text-gray-400 dark:text-gray-500 flex items-center justify-center p-2 select-none">
+                        <div className="border-r border-slate-200/70 dark:border-border/60 bg-slate-50/40 dark:bg-muted/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-center p-2 select-none">
                           {hourLabel}
                         </div>
 
                         {/* 7 Day Slot Cells */}
                         {weekDays.map((day, dIdx) => {
+                          const isDayToday = isToday(day);
+                          const isWeekend = dIdx === 0 || dIdx === 6;
+
                           const slotBookings = approvedBookings.filter((b) => {
                             const start = toJsDate(b.start);
                             return (
@@ -492,7 +622,14 @@ export default function ScheduleCalendarPage() {
                           return (
                             <div
                               key={dIdx}
-                              className="border-r border-gray-200/70 dark:border-border/70 last:border-r-0 p-1 relative flex flex-col justify-center"
+                              className={cn(
+                                "border-r border-slate-100 dark:border-border/40 last:border-r-0 p-1.5 relative flex flex-col justify-center gap-1.5 transition-colors",
+                                isDayToday
+                                  ? "bg-sidebar/[0.02] dark:bg-blue-950/10 hover:bg-sidebar/[0.06] dark:hover:bg-blue-950/20"
+                                  : isWeekend
+                                  ? "bg-slate-50/30 dark:bg-muted/5 hover:bg-slate-100/60 dark:hover:bg-muted/20"
+                                  : "hover:bg-slate-50/80 dark:hover:bg-muted/30"
+                              )}
                             >
                               {slotBookings.map((booking, bIdx) => {
                                 const room = rooms?.find(
@@ -501,6 +638,7 @@ export default function ScheduleCalendarPage() {
                                 const color =
                                   EVENT_COLORS[bIdx % EVENT_COLORS.length];
                                 const startTime = toJsDate(booking.start);
+                                const endTime = toJsDate(booking.end);
 
                                 return (
                                   <div
@@ -509,16 +647,20 @@ export default function ScheduleCalendarPage() {
                                       handleBookingClick(booking)
                                     }
                                     className={cn(
-                                      "w-full h-full min-h-[36px] rounded-md border-l-[3px] px-2 py-1 text-xs font-medium flex items-center cursor-pointer hover:opacity-90 transition-all truncate shadow-2xs",
+                                      "w-full rounded-lg border-l-[3px] px-2 py-1 text-xs font-medium flex flex-col justify-center cursor-pointer hover:scale-[1.02] active:scale-95 transition-all truncate shadow-2xs",
                                       color.bg,
                                       color.text,
                                       color.border
                                     )}
-                                    title={`${booking.title} - ${room?.name || "Room"} (${format(startTime, "h:mm a")})`}
+                                    title={`${booking.title} - ${room?.name || "Room"} (${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")})`}
                                   >
-                                    <span className="truncate">
-                                      {room?.name || booking.title}
+                                    <span className="font-bold text-[10px] truncate leading-tight">
+                                      {booking.title}
                                     </span>
+                                    <div className="flex items-center justify-between gap-1 text-[9px] opacity-80 mt-0.5">
+                                      <span className="truncate">{room?.name || "Room"}</span>
+                                      <span className="shrink-0 font-medium">{format(startTime, "h:mm a")}</span>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -529,6 +671,7 @@ export default function ScheduleCalendarPage() {
                     );
                   }
                 )}
+              </div>
               </div>
             </div>
           ) : (
@@ -582,38 +725,82 @@ export default function ScheduleCalendarPage() {
                 )}
               </div>
 
-              {/* ── DESKTOP: original horizontal grid ── */}
-              <div className="hidden lg:block overflow-x-auto">
-                <div style={{ minWidth: `${Math.max(700, dayRooms.length * 130 + 70)}px` }}>
-                  <div className="grid border-b border-gray-200 dark:border-border" style={{ gridTemplateColumns: `70px repeat(${Math.max(1, dayRooms.length)}, minmax(120px, 1fr))` }}>
-                    <div className="border-r border-gray-200/80 dark:border-border/80 py-3" />
-                    {dayRooms.map((room) => (
-                      <div key={room.id} className="py-3 px-2 text-center border-r border-gray-200/80 dark:border-border/80 last:border-r-0">
-                        <p className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">{room.name}</p>
-                      </div>
-                    ))}
+              {/* ── DESKTOP: horizontal grid ── */}
+              <div className="hidden lg:block overflow-x-scroll -m-5 sm:-m-6">
+                <div style={{ minWidth: `${Math.max(760, dayRooms.length * 150 + 80)}px` }}>
+                  <div className="grid bg-sidebar text-white border-b border-sidebar-border/60 sticky top-0 z-10 shadow-xs" style={{ gridTemplateColumns: `80px repeat(${Math.max(1, dayRooms.length)}, minmax(140px, 1fr))` }}>
+                    <div className="border-r border-white/15 py-3" />
+                    {dayRooms.map((room) => {
+                      const area = areas?.find((a) => a.id === room.areaId);
+                      const roomDayBookings = approvedBookings.filter(
+                        (b) =>
+                          b.roomId === room.id &&
+                          isSameDay(toJsDate(b.start), currentDate)
+                      );
+                      const isAvailable = roomDayBookings.length === 0;
+
+                      return (
+                        <div
+                          key={room.id}
+                          className="py-3 px-3 text-center border-r border-white/15 last:border-r-0 flex flex-col items-center justify-center gap-0.5"
+                        >
+                          <div className="flex items-center gap-1.5 max-w-full justify-center">
+                            <span
+                              className={cn(
+                                "w-2 h-2 rounded-full shrink-0",
+                                isAvailable ? "bg-emerald-400" : "bg-sky-300 ring-1 ring-white/30"
+                              )}
+                              title={isAvailable ? "Available today" : `${roomDayBookings.length} reservation(s) today`}
+                            />
+                            <p className="text-xs font-bold text-white truncate">
+                              {room.name}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-blue-100/75 truncate font-medium">
+                            {area && <span className="truncate">{area.name}</span>}
+                            {area && room.capacity > 0 && <span>•</span>}
+                            {room.capacity > 0 && <span>{room.capacity} pax</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                   {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hour) => {
                     const hourLabel = hour === 12 ? "12 PM" : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
                     return (
-                      <div key={hour} className="grid border-b border-gray-200/70 dark:border-border/70 min-h-[52px]" style={{ gridTemplateColumns: `70px repeat(${Math.max(1, dayRooms.length)}, minmax(120px, 1fr))` }}>
-                        <div className="border-r border-gray-200/80 dark:border-border/80 text-xs font-medium text-gray-400 dark:text-gray-500 flex items-center justify-center p-2 select-none">{hourLabel}</div>
+                      <div key={hour} className="grid border-b border-slate-100 dark:border-border/40 last:border-b-0 min-h-[58px] group/row" style={{ gridTemplateColumns: `80px repeat(${Math.max(1, dayRooms.length)}, minmax(140px, 1fr))` }}>
+                        <div className="border-r border-slate-200/70 dark:border-border/60 bg-slate-50/40 dark:bg-muted/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-center p-2 select-none">{hourLabel}</div>
                         {dayRooms.map((room) => {
                           const slotBookings = approvedBookings.filter((b) => {
                             const start = toJsDate(b.start);
                             return b.roomId === room.id && isSameDay(start, currentDate) && start.getHours() === hour;
                           });
                           return (
-                            <div key={room.id} className="border-r border-gray-200/70 dark:border-border/70 last:border-r-0 p-1 relative flex flex-col justify-center">
-                              {slotBookings.map((booking) => {
+                            <div key={room.id} className="border-r border-slate-100 dark:border-border/40 last:border-r-0 p-1.5 relative flex flex-col justify-center gap-1 hover:bg-slate-50/80 dark:hover:bg-muted/30 transition-colors">
+                              {slotBookings.map((booking, bIdx) => {
                                 const worker = workers?.find((w) => w.id === booking.workerProfileId);
                                 const startTime = toJsDate(booking.start);
                                 const endTime = toJsDate(booking.end);
                                 const requesterName = worker ? `${worker.firstName} ${worker.lastName}` : booking.name || "Requester";
+                                const color = EVENT_COLORS[bIdx % EVENT_COLORS.length];
+
                                 return (
-                                  <div key={booking.id} onClick={() => handleBookingClick(booking)} className="w-full h-full min-h-[38px] rounded-md border-l-[3px] border-l-blue-500 bg-blue-50/90 text-blue-900 dark:bg-blue-950/40 dark:text-blue-200 px-2 py-1 flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all shadow-2xs" title={`${booking.title} (${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")})`}>
-                                    <span className="text-[11px] font-bold leading-tight">{format(startTime, "HH:mm")}-{format(endTime, "HH:mm")}</span>
-                                    <span className="text-[10px] text-gray-600 dark:text-gray-300 truncate leading-tight mt-0.5">{requesterName}</span>
+                                  <div
+                                    key={booking.id}
+                                    onClick={() => handleBookingClick(booking)}
+                                    className={cn(
+                                      "w-full rounded-lg border-l-[3px] px-2 py-1.5 flex flex-col justify-center cursor-pointer hover:scale-[1.02] active:scale-95 transition-all shadow-2xs",
+                                      color.bg,
+                                      color.text,
+                                      color.border
+                                    )}
+                                    title={`${booking.title} (${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")})`}
+                                  >
+                                    <span className="text-[11px] font-bold leading-tight truncate">{booking.title}</span>
+                                    <div className="flex items-center justify-between gap-1 text-[9px] opacity-80 mt-0.5">
+                                      <span className="truncate">{requesterName}</span>
+                                      <span className="shrink-0 font-medium">{format(startTime, "h:mm a")}</span>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -675,6 +862,7 @@ export default function ScheduleCalendarPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Edit Reservation Dialog Form */}

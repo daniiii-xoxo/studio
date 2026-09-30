@@ -29,8 +29,15 @@ export async function GET(req: NextRequest) {
         status: true,
         type: true,
         category: { select: { name: true } },
+        nextMaintenanceDate: true,
       },
     });
+
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const pmsAlerts = allItems.filter(
+      (i) => i.nextMaintenanceDate && new Date(i.nextMaintenanceDate) <= thirtyDaysFromNow
+    ).length;
 
     const lowStockItems = allItems
       .filter((i) => {
@@ -84,6 +91,7 @@ export async function GET(req: NextRequest) {
       lowStockItems,
       mostUsed,
       activeBorrowingsCount,
+      pmsAlerts,
     });
   } catch (error: any) {
     console.error('[GET /api/inventory/analytics] error:', error);

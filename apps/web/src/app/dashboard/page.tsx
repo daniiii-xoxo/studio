@@ -97,16 +97,30 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-3xl font-headline font-bold tracking-tight text-foreground">
-            Welcome back, {userName}!
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Here is a summary of activities, facilities, and records for today.
-          </p>
+        <div className="relative overflow-hidden rounded-2xl border border-white/60 dark:border-white/10 bg-white/45 dark:bg-white/[0.04] backdrop-blur-2xl backdrop-saturate-150 py-6 px-6 sm:py-8 sm:px-8 shadow-[0_8px_30px_rgb(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.12)] text-center flex flex-col items-center justify-center">
+          {/* Glass specular sheen gradient */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 dark:from-white/[0.06] to-transparent" />
+
+          {/* Colorful light refraction / glow behind frosted glass */}
+          <div className="pointer-events-none absolute -top-10 -left-10 h-52 w-52 rounded-full bg-primary/25 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-52 w-52 rounded-full bg-blue-500/20 blur-2xl" />
+          <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-36 w-80 rounded-full bg-indigo-500/15 blur-3xl" />
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col items-center max-w-2xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-headline font-bold tracking-tight text-foreground">
+              Welcome back, <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">{userName}</span>!
+            </h1>
+            
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-lg leading-relaxed font-normal">
+              Here is a summary of activities, facilities, and records for today.
+            </p>
+          </div>
         </div>
 
-        {isManager ? <AdminDashboard /> : <WorkerDashboard />}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {isManager ? <AdminDashboard /> : <WorkerDashboard />}
+        </div>
       </div>
     </AppLayout>
   );

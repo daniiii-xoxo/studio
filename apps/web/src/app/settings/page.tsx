@@ -5,33 +5,45 @@ import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   LoaderCircle, AlertTriangle, Settings, Shield, Building2,
-  Building, Utensils, MapPin, Clock, Database, ArrowRight,
-  Users, UtensilsCrossed, TrendingUp, Zap,
+  Building, Utensils, MapPin, Clock, ArrowRight,
+  Users, UtensilsCrossed,
 } from "lucide-react";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { upsertRole, updateWorker, getRoles, getWorkers, getMinistries, getRooms, getDepartmentSettings } from "@/actions/db";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@studio/ui";
+import { Card, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Button } from "@studio/ui";
 import { cn } from "@/lib/utils";
 
-// ── Stat card ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon: Icon, iconBg }: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ElementType; iconBg: string;
+// ── Stat card (Consistent with Connect2Souls & Dashboard) ──────────────────────
+function StatCard({ label, value, sub, icon: Icon, accentColor, iconClass, iconBgClass }: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: React.ElementType;
+  accentColor: string;
+  iconClass: string;
+  iconBgClass: string;
 }) {
   return (
-    <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div className={cn("p-2 rounded-xl shrink-0", iconBg)}>
-          <Icon className="h-4 w-4" />
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200/80 dark:border-border shadow-xs bg-white dark:bg-card h-full">
+      <div className={cn("h-1.5 w-full", accentColor)} />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+            <div className="mt-3">
+              <span className="text-4xl font-black tracking-tight font-headline text-foreground leading-none">{value}</span>
+            </div>
+            {sub && <p className="text-xs text-muted-foreground mt-2 font-medium">{sub}</p>}
+          </div>
+          <div className={cn("p-2.5 rounded-xl flex items-center justify-center shrink-0 shadow-xs", iconBgClass)}>
+            <Icon className={cn("h-5 w-5", iconClass)} />
+          </div>
         </div>
       </div>
-      <p className="text-4xl font-black tracking-tight text-foreground leading-none">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-2">{sub}</p>}
     </div>
   );
 }
@@ -43,18 +55,22 @@ function ModuleCard({ href, icon: Icon, iconBg, title, description, badge }: {
 }) {
   return (
     <Link href={href}
-      className="group bg-card rounded-2xl border border-border/60 shadow-card-dark p-6 flex flex-col gap-4 hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer">
+      className="group bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-sm p-6 flex flex-col gap-4 hover:shadow-lg hover:border-sidebar/40 hover:-translate-y-0.5 transition-all cursor-pointer">
       <div className="flex items-start justify-between">
-        <div className={cn("p-3 rounded-xl", iconBg)}>
+        <div className={cn("p-3.5 rounded-xl transition-all group-hover:scale-110", iconBg)}>
           <Icon className="h-5 w-5" />
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-sidebar group-hover:translate-x-1 transition-all" />
       </div>
-      <div>
-        <h3 className="text-base font-bold text-foreground">{title}</h3>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+      <div className="flex-1">
+        <h3 className="text-base font-bold text-foreground group-hover:text-sidebar transition-colors mb-2">{title}</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
       </div>
-      {badge && <p className="text-xs font-semibold text-muted-foreground">{badge}</p>}
+      {badge && (
+        <div className="pt-3 border-t border-gray-100 dark:border-border/40">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{badge}</p>
+        </div>
+      )}
     </Link>
   );
 }
@@ -109,57 +125,104 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-7 pb-12 w-full">
+      <div className="flex flex-col space-y-6 pb-12 w-full">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage every part of your COG App configuration from one place.</p>
+        {/* ── TOP HEADER ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              Configuration
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage every part of your COG App configuration from one place.
+            </p>
+          </div>
         </div>
 
-        {/* Seeding banner */}
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Seeding banner */}
         {needsSeeding && (
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 flex items-start gap-4">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Initial Setup Required</p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Your application has not been initialized. Create default roles and set your account as master administrator.</p>
+          <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+            <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30 shrink-0">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <Button onClick={initializeSystem} size="sm" className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white">
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">Initial Setup Required</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">Your application has not been initialized. Create default roles and set your account as master administrator.</p>
+            </div>
+            <Button onClick={initializeSystem} size="sm" className="shrink-0 bg-sidebar hover:bg-sidebar/90 text-white shadow-sm">
               Initialize System
             </Button>
           </div>
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Active Roles" value={roleCount} sub={`${systemRoles} system · ${customRoles} custom`}
-            icon={Shield} iconBg="bg-primary/10 text-primary" />
-          <StatCard label="Total Members" value={totalMembers.toLocaleString()} sub={`Across ${ministryCount} ministries`}
-            icon={Users} iconBg="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500" />
-          <StatCard label="Weekly Meal Pool" value={weeklyMealPool.toLocaleString()} sub={`${activeWorkers} allocated`}
-            icon={UtensilsCrossed} iconBg="bg-orange-50 dark:bg-orange-950/40 text-orange-500" />
-          <StatCard label="Facilities" value={facilityCount} sub={`${deptCount} departments`}
-            icon={Building} iconBg="bg-amber-50 dark:bg-amber-950/40 text-amber-500" />
+        {/* ── TOP KPI SUMMARY CARDS (CONNECT2SOULS STYLE) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="ACTIVE ROLES"
+            value={roleCount}
+            sub={`${systemRoles} system · ${customRoles} custom`}
+            icon={Shield}
+            accentColor="bg-sidebar"
+            iconClass="text-sidebar dark:text-blue-400"
+            iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+          />
+          <StatCard
+            label="TOTAL MEMBERS"
+            value={totalMembers.toLocaleString()}
+            sub={`Across ${ministryCount} ministries`}
+            icon={Users}
+            accentColor="bg-blue-500"
+            iconClass="text-blue-600 dark:text-blue-400"
+            iconBgClass="bg-blue-50 dark:bg-blue-950/40"
+          />
+          <StatCard
+            label="WEEKLY MEAL POOL"
+            value={weeklyMealPool.toLocaleString()}
+            sub={`${activeWorkers} allocated`}
+            icon={UtensilsCrossed}
+            accentColor="bg-emerald-500"
+            iconClass="text-emerald-600 dark:text-emerald-400"
+            iconBgClass="bg-emerald-50 dark:bg-emerald-950/40"
+          />
+          <StatCard
+            label="FACILITIES"
+            value={facilityCount}
+            sub={`${deptCount} departments`}
+            icon={Building}
+            accentColor="bg-purple-500"
+            iconClass="text-purple-600 dark:text-purple-400"
+            iconBgClass="bg-purple-50 dark:bg-purple-950/40"
+          />
         </div>
 
         {/* Modules */}
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Modules</p>
+          <div className="flex items-center justify-between mb-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Configuration Modules</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <ModuleCard
               href="/settings/general"
               icon={Settings}
-              iconBg="bg-primary/10 text-primary"
+              iconBg="bg-sidebar/10 text-sidebar"
               title="General"
               description="Application name, system preferences and global defaults."
               badge="12 preferences"
+            />
+            <ModuleCard
+              href="/settings/attendance"
+              icon={Clock}
+              iconBg="bg-sidebar/10 text-sidebar"
+              title="Attendance & Shifts"
+              description="Configure shift hours, grace periods and kiosk rules."
+              badge="Auto Shift Rules"
             />
             {canManageRoles && (
               <ModuleCard
                 href="/settings/roles"
                 icon={Shield}
-                iconBg="bg-primary/10 text-primary"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Role Management"
                 description="Define roles and fine-grained permissions across the app."
                 badge={`${roleCount} role${roleCount !== 1 ? "s" : ""}`}
@@ -169,7 +232,7 @@ export default function SettingsPage() {
               <ModuleCard
                 href="/settings/departments"
                 icon={Building2}
-                iconBg="bg-blue-50 dark:bg-blue-950/40 text-blue-500"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Department Management"
                 description="Organise departments, heads and meal stub pools."
                 badge={`${deptCount} department${deptCount !== 1 ? "s" : ""}`}
@@ -179,7 +242,7 @@ export default function SettingsPage() {
               <ModuleCard
                 href="/settings/ministries"
                 icon={Building}
-                iconBg="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Ministry Management"
                 description="Manage ministries, leaders and weekly allocations."
                 badge={`${ministryCount} ministr${ministryCount !== 1 ? "ies" : "y"}`}
@@ -189,7 +252,7 @@ export default function SettingsPage() {
               <ModuleCard
                 href="/settings/meal-stubs"
                 icon={Utensils}
-                iconBg="bg-orange-50 dark:bg-orange-950/40 text-orange-500"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Meal Stub Allocation"
                 description="Distribute the weekly meal stub pool across teams."
                 badge={`${weeklyMealPool.toLocaleString()} / week`}
@@ -199,7 +262,7 @@ export default function SettingsPage() {
               <ModuleCard
                 href="/settings/rooms"
                 icon={MapPin}
-                iconBg="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Facilities Management"
                 description="Rooms, areas and satellite campuses in one place."
                 badge={`${facilityCount} facilit${facilityCount !== 1 ? "ies" : "y"}`}
@@ -209,7 +272,7 @@ export default function SettingsPage() {
               <ModuleCard
                 href="/settings/transaction-logs"
                 icon={Clock}
-                iconBg="bg-slate-100 dark:bg-slate-800 text-slate-500"
+                iconBg="bg-sidebar/10 text-sidebar"
                 title="Transaction Logs"
                 description="Full audit trail of activity across every module."
                 badge="Live"
@@ -217,6 +280,7 @@ export default function SettingsPage() {
             )}
 
           </div>
+        </div>
         </div>
       </div>
     </AppLayout>

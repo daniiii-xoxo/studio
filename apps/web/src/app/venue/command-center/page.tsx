@@ -407,10 +407,12 @@ export default function CommandCenterPage() {
     return (
         <AppLayout>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-headline font-bold">Command Center</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        Command Center
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
                         Monitor all venue assistance requests across bookings.
                     </p>
                 </div>
@@ -418,13 +420,15 @@ export default function CommandCenterPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsSettingsOpen(true)}
+                    className="self-start sm:self-auto"
                 >
                     <Settings2 className="mr-2 h-4 w-4" />
                     SLA Settings
                 </Button>
             </div>
 
-            {/* Color legend */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Color legend */}
             <div className="flex flex-wrap gap-4 mb-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                     <span className="inline-block w-3 h-3 rounded-sm bg-red-500" />
@@ -447,6 +451,7 @@ export default function CommandCenterPage() {
                 selectedRequestId={selectedRequest?.id}
                 ministries={ministries.map((m) => ({ id: m.id, name: m.name }))}
             />
+            </div>
 
             {/* Request detail sheet */}
             <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>

@@ -77,7 +77,14 @@ export function ScannerModal({ isOpen = true, onClose, onScan }: ScannerModalPro
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.setAttribute('playsinline', 'true');
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (playErr: any) {
+          // Ignore AbortError when video is interrupted by reload/unmount
+          if (playErr.name !== 'AbortError') {
+            throw playErr;
+          }
+        }
         animFrameIdRef.current = requestAnimationFrame(tick);
       }
     } catch (err: any) {

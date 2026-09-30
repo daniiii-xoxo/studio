@@ -213,7 +213,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "c:\\Users\\Dave\\studio\\apps\\inventory\\src\\generated\\client",
+      "value": "C:\\Users\\ACER\\OneDrive\\Desktop\\studio\\apps\\inventory\\src\\generated\\client",
       "fromEnvVar": null
     },
     "config": {
@@ -227,12 +227,11 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "c:\\Users\\Dave\\studio\\apps\\inventory\\prisma\\schema.prisma",
+    "sourceFilePath": "C:\\Users\\ACER\\OneDrive\\Desktop\\studio\\apps\\inventory\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../../../prisma",
   "clientVersion": "5.22.0",

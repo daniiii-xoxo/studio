@@ -126,7 +126,7 @@ export function EditReservationDialog({
               <Input
                 value={requestId}
                 disabled
-                className="bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-300 border-0 rounded-xl h-10 text-xs font-medium cursor-not-allowed"
+                className="bg-slate-50/90 dark:bg-muted/30 border border-slate-200/80 dark:border-border text-slate-600 dark:text-slate-300 rounded-xl h-10 text-xs font-medium cursor-not-allowed shadow-2xs"
               />
             </div>
 
@@ -137,7 +137,7 @@ export function EditReservationDialog({
               <Input
                 value={formattedDateRequested}
                 disabled
-                className="bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-300 border-0 rounded-xl h-10 text-xs font-medium cursor-not-allowed"
+                className="bg-slate-50/90 dark:bg-muted/30 border border-slate-200/80 dark:border-border text-slate-600 dark:text-slate-300 rounded-xl h-10 text-xs font-medium cursor-not-allowed shadow-2xs"
               />
             </div>
           </div>
@@ -152,7 +152,7 @@ export function EditReservationDialog({
                 value={requesterName}
                 onChange={(e) => setRequesterName(e.target.value)}
                 placeholder="Requester Name"
-                className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
               />
             </div>
 
@@ -161,7 +161,7 @@ export function EditReservationDialog({
                 Ministry
               </label>
               <Select value={ministryId} onValueChange={setMinistryId}>
-                <SelectTrigger className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus:ring-1 focus:ring-blue-500">
+                <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
                   <SelectValue placeholder="Select Ministry" />
                 </SelectTrigger>
                 <SelectContent>
@@ -185,7 +185,7 @@ export function EditReservationDialog({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email address"
-              className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+              className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
             />
           </div>
 
@@ -198,24 +198,24 @@ export function EditReservationDialog({
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Describe the event or meeting...."
-              className="border border-gray-200 dark:border-border rounded-xl min-h-[100px] p-3 text-xs leading-relaxed text-gray-800 dark:text-gray-100 focus-visible:ring-1 focus-visible:ring-blue-500"
+              className="bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-xl min-h-[100px] p-3 text-xs leading-relaxed text-slate-800 dark:text-slate-100 placeholder:text-slate-400 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
             />
           </div>
 
           {/* Footer Actions */}
-          <DialogFooter className="pt-3 border-t border-gray-100 dark:border-border/60 flex items-center justify-end gap-2.5 sm:space-x-0">
+          <DialogFooter className="pt-3 border-t border-slate-100 dark:border-border/60 flex items-center justify-end gap-2.5 sm:space-x-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="rounded-xl px-5 h-9 text-xs font-semibold border-gray-200 dark:border-border"
+              className="rounded-xl px-5 h-9 text-xs font-semibold border-slate-200/90 dark:border-border hover:bg-slate-100 dark:hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 h-9 text-xs font-semibold shadow-xs gap-1.5"
+              className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-5 h-9 text-xs font-semibold shadow-xs gap-1.5 cursor-pointer"
             >
               {isSaving && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
               Save Changes

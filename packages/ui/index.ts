@@ -5,6 +5,7 @@ export * from './src/avatar';
 export * from './src/badge';
 export * from './src/button';
 export * from './src/calendar';
+export * from './src/date-picker';
 export * from './src/card';
 export * from './src/carousel';
 export * from './src/chart';

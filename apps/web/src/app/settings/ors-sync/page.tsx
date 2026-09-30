@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@studio/ui";
@@ -69,6 +70,7 @@ import {
   ChevronUp,
   GitMerge,
   Key,
+  ArrowLeft,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
@@ -2201,30 +2203,29 @@ export default function OrsLegacySyncPage() {
       <div className="space-y-7 pb-12 w-full">
 
         {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-primary/10 shrink-0 mt-0.5">
-            <DatabaseZap className="h-4 w-4 text-primary" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              ORS Legacy Sync
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Monitor and trigger synchronisation with the ORS legacy system.
+            </p>
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold font-headline tracking-tight text-foreground leading-none">ORS Legacy Sync</h1>
-            <div className="flex items-center justify-between gap-4 -mt-1">
-              <p className="text-sm text-muted-foreground leading-none">Monitor and trigger synchronisation with the ORS legacy system.</p>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={handleManualSync} disabled={isSyncing}
-                  className="h-9 px-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors">
-                  <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                  Manual Sync
-                </button>
-                <a href="/settings" className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                  Back
-                </a>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+            <button onClick={handleManualSync} disabled={isSyncing}
+              className="h-9 px-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors shadow-2xs">
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              Manual Sync
+            </button>
+            <Link href="/settings" className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shrink-0 shadow-2xs">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back
+            </Link>
           </div>
         </div>
 
-        {/* Stat cards */}
+        <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Connection */}
           <div className="relative overflow-hidden rounded-2xl border-0 shadow-card-dark bg-card">
@@ -2421,6 +2422,7 @@ export default function OrsLegacySyncPage() {
           <AttendanceTab onResult={handleResult} />
         </TabsContent>
       </Tabs>
+      </div>
       </div>
     </AppLayout>
   );

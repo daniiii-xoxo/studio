@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { format, isAfter, isBefore, startOfToday } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import type { Booking, Room, Area, Worker, VenueElement, Ministry } from "@studio/types";
 import { Badge } from "@studio/ui";
+import { ReservationDetailsSheet } from "@/components/reservations/reservation-details-sheet";
 import { cn, toJsDate } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
 import {
@@ -194,10 +194,11 @@ export default function MasterviewPage() {
           </p>
         </div>
 
-        {/* Search Bar & View Mode Toggle Card */}
-        <div className="bg-card rounded-2xl border border-border/60 p-4 shadow-card-dark flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Search Bar & View Mode Toggle Card */}
+        <div className="bg-card rounded-2xl border border-border/60 p-4 shadow-none flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
             <Input
               type="text"
               placeholder="Search by title, purpose, or room..."
@@ -206,19 +207,19 @@ export default function MasterviewPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 text-sm h-10 bg-background border-border/60 rounded-xl"
+              className="pl-9 pr-4 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
             />
           </div>
 
-          <div className="bg-muted/50 p-1 rounded-xl flex items-center self-end sm:self-auto border border-border/40">
+          <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center self-end sm:self-auto border border-slate-200/70 dark:border-border/50 shadow-2xs">
             <button
               type="button"
               onClick={() => { setViewMode("history"); setCurrentPage(1); }}
               className={cn(
-                "px-5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "px-5 py-1.5 text-xs font-bold rounded-lg transition-all",
                 viewMode === "history"
-                  ? "bg-card shadow-xs text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-sidebar text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
               )}
             >
               History
@@ -227,10 +228,10 @@ export default function MasterviewPage() {
               type="button"
               onClick={() => { setViewMode("upcoming"); setCurrentPage(1); }}
               className={cn(
-                "px-5 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                "px-5 py-1.5 text-xs font-bold rounded-lg transition-all",
                 viewMode === "upcoming"
-                  ? "bg-card shadow-xs text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-sidebar text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
               )}
             >
               Upcoming
@@ -324,20 +325,20 @@ export default function MasterviewPage() {
               <div className="hidden lg:block overflow-x-auto flex-grow">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/60">
-                      <TableHead className="font-bold text-muted-foreground text-[11px] uppercase tracking-wider h-11 px-8 text-left w-[24%]">
+                    <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-8 text-left w-[24%]">
                         Venue
                       </TableHead>
-                      <TableHead className="font-bold text-muted-foreground text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[26%]">
+                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[26%]">
                         Date & Time
                       </TableHead>
-                      <TableHead className="font-bold text-muted-foreground text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[26%]">
+                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[26%]">
                         Event Details
                       </TableHead>
-                      <TableHead className="font-bold text-muted-foreground text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[18%]">
+                      <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[18%]">
                         Requirements
                       </TableHead>
-                      <TableHead className="w-[6%] h-11 px-6" />
+                      <TableHead className="bg-sidebar w-[6%] h-11 px-6" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -466,9 +467,9 @@ export default function MasterviewPage() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-2xs"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4 stroke-[2.25]" />
                   </button>
 
                   {visiblePageNumbers.map((page) => (
@@ -479,8 +480,8 @@ export default function MasterviewPage() {
                       className={cn(
                         "h-8 w-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all",
                         currentPage === page
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "border border-border text-foreground hover:bg-muted"
+                          ? "bg-[#f4f4f7] text-neutral-800 font-bold dark:bg-neutral-800 dark:text-neutral-100"
+                          : "border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 shadow-2xs"
                       )}
                     >
                       {page}
@@ -491,19 +492,20 @@ export default function MasterviewPage() {
                     type="button"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-2xs"
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 stroke-[2.25]" />
                   </button>
                 </div>
               </div>
             </>
           )}
         </div>
+        </div>
       </div>
 
       {/* Booking Details Sheet (View Only) */}
-      <BookingDetailsSheet
+      <ReservationDetailsSheet
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         booking={selectedBooking}
@@ -528,192 +530,3 @@ export default function MasterviewPage() {
     </AppLayout>
   );
 }
-
-const BookingDetailsSheet = ({
-  isOpen,
-  onClose,
-  booking,
-  roomName,
-  areaName,
-  workers,
-  venueElements,
-  ministries,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  booking: any | null;
-  roomName: string;
-  areaName: string;
-  workers: Worker[];
-  venueElements: any[];
-  ministries: Ministry[];
-}) => {
-  if (!booking) return null;
-
-  const startTime = toJsDate(booking.start);
-  const endTime = toJsDate(booking.end);
-  const requesterWorker = workers?.find(
-    (w) => w.id === booking.workerProfileId
-  );
-  const ministry = ministries?.find((m) => m.id === booking.ministryId);
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-6 border-b text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 text-xs font-semibold">
-              {booking.status}
-            </Badge>
-          </div>
-          <SheetTitle className="text-2xl font-headline font-bold">
-            {booking.title}
-          </SheetTitle>
-          <SheetDescription>
-            Reservation detail summary and equipment requirements
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <DetailRow label="Location" value={`${roomName} (${areaName})`} />
-            <DetailRow label="Date" value={format(startTime, "PPPP")} />
-            <DetailRow
-              label="Schedule"
-              value={`${format(startTime, "h:mm a")} – ${format(endTime, "h:mm a")}`}
-            />
-            <DetailRow
-              label="Requested By"
-              value={
-                requesterWorker
-                  ? `${requesterWorker.firstName} ${requesterWorker.lastName}`
-                  : booking.name || "Unknown"
-              }
-            />
-            {ministry && (
-              <DetailRow label="Ministry" value={ministry.name} />
-            )}
-            <DetailRow label="Headcount (Pax)" value={`${booking.pax || 0} pax`} />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              Purpose
-            </h4>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {booking.purpose || "No specific purpose provided for this reservation."}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Requested Elements & AV
-            </h4>
-            <div className="grid grid-cols-1 gap-2.5">
-              {booking.requestedElements &&
-              booking.requestedElements.length > 0 ? (
-                booking.requestedElements.map((elId: string) => {
-                  const el = venueElements.find((v) => v.id === elId);
-                  return (
-                    <div
-                      key={elId}
-                      className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold block">
-                            {el?.name || elId}
-                          </span>
-                          {el?.category && (
-                            <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                              {el.category}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  );
-                })
-              ) : booking.equipment_TV ||
-                booking.equipment_Mic ||
-                booking.equipment_Speakers ? (
-                <>
-                  {booking.equipment_TV && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-blue-50/50 border-blue-100 text-blue-900 dark:bg-blue-950/20 dark:border-blue-900/40 dark:text-blue-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Tv className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Television / Presentation
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Mic && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Mic className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Microphone & Audio
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Speakers && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-purple-50/50 border-purple-100 text-purple-900 dark:bg-purple-950/20 dark:border-purple-900/40 dark:text-purple-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Speaker className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Sound System / Speakers
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-slate-400 italic">
-                  No elements were requested.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <Button variant="outline" className="w-full mt-4" onClick={onClose}>
-            Close Details
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
-
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-1">
-    <span className="text-xs text-muted-foreground">{label}</span>
-    <span className="text-sm font-medium">{value}</span>
-  </div>
-);

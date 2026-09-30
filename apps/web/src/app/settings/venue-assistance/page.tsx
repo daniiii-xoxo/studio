@@ -12,8 +12,8 @@ import {
     CardDescription,
 } from "@studio/ui";
 import {
-    Sheet,
-    SheetContent,
+    Dialog,
+    DialogContent,
 } from "@studio/ui";
 import {
     AlertDialog,
@@ -41,10 +41,11 @@ import {
 } from "@studio/ui";
 import { Badge } from "@studio/ui";
 import { Alert, AlertDescription } from "@studio/ui";
-import { LoaderCircle, MoreHorizontal, PlusCircle, AlertTriangle, ShieldAlert } from "lucide-react";
+import { LoaderCircle, MoreHorizontal, PlusCircle, AlertTriangle, ShieldAlert, Pencil, Trash2 } from "lucide-react";
 import { usePermissionsStore } from "@studio/store";
 import { useShallow } from "zustand/react/shallow";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { getRooms, getMinistries } from "@/actions/db";
 import {
     getAllAssistanceConfigs,
@@ -226,14 +227,16 @@ export default function VenueAssistanceSettingsPage() {
 
     return (
         <AppLayout>
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-headline font-bold">Venue Assistance</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+                        Venue Assistance
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
                         Configure which ministries provide assistance for each room.
                     </p>
                 </div>
-                <Button onClick={openCreate}>
+                <Button onClick={openCreate} className="self-start sm:self-auto">
                     <PlusCircle className="mr-2 h-4 w-4" /> New Configuration
                 </Button>
             </div>
@@ -249,7 +252,7 @@ export default function VenueAssistanceSettingsPage() {
                 </Alert>
             )}
 
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {isLoading ? (
                     <div className="flex justify-center py-10">
                         <LoaderCircle className="h-8 w-8 animate-spin" />
@@ -308,21 +311,22 @@ export default function VenueAssistanceSettingsPage() {
                                                         {canModify ? (
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon">
+                                                                    <button type="button" className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                                                                         <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
+                                                                    </button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
+                                                                <DropdownMenuContent align="end" className="w-36 p-1 rounded-xl shadow-lg border-border/80">
                                                                     <DropdownMenuItem
                                                                         onSelect={() => setTimeout(() => openEdit(config), 100)}
+                                                                        className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2"
                                                                     >
-                                                                        Edit
+                                                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" /> Edit
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem
                                                                         onSelect={() => setTimeout(() => setConfigToDelete(config), 100)}
-                                                                        className="text-destructive"
+                                                                        className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10"
                                                                     >
-                                                                        Delete
+                                                                        <Trash2 className="h-3.5 w-3.5 text-destructive" /> Delete
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
@@ -341,9 +345,9 @@ export default function VenueAssistanceSettingsPage() {
                 )}
             </div>
 
-            {/* Create / Edit Sheet */}
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="sm:max-w-lg overflow-y-auto">
+            {/* Create / Edit Dialog */}
+            <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 rounded-2xl border-border/80 shadow-2xl">
                     {workerProfile && (
                         <AssistanceConfigForm
                             existingConfig={
@@ -378,33 +382,28 @@ export default function VenueAssistanceSettingsPage() {
                             onClose={() => setIsSheetOpen(false)}
                         />
                     )}
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete confirmation */}
-            <AlertDialog open={!!configToDelete} onOpenChange={(open) => !open && setConfigToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Configuration</AlertDialogTitle>
-                        <AlertDialogDescription>
+            <DeleteConfirmationDialog
+                isOpen={!!configToDelete}
+                onClose={() => setConfigToDelete(null)}
+                onConfirm={handleDelete}
+                title="Delete Configuration"
+                confirmLabel="Delete Configuration"
+                description={
+                    configToDelete ? (
+                        <>
                             Are you sure you want to delete the{" "}
-                            <strong>{configToDelete ? getMinistryName(configToDelete.ministryId) : ""}</strong>{" "}
+                            <strong className="text-foreground font-semibold">{getMinistryName(configToDelete.ministryId)}</strong>{" "}
                             configuration for{" "}
-                            <strong>{configToDelete ? getRoomName(configToDelete.roomId) : ""}</strong>?
+                            <strong className="text-foreground font-semibold">{getRoomName(configToDelete.roomId)}</strong>?
                             This will not affect existing assistance requests already generated from it.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        </>
+                    ) : undefined
+                }
+            />
         </AppLayout>
     );
 }

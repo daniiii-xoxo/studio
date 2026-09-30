@@ -28,6 +28,7 @@ import { useImpersonation } from "@/hooks/use-impersonation";
 import { useUserRole } from "@/hooks/use-user-role";
 import { Button } from "@studio/ui";
 import { useSidebar } from "@studio/ui";
+import { useState } from "react";
 
 const MobileSidebarTrigger = () => {
   const { setOpenMobile } = useSidebar();
@@ -139,6 +140,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, router]);
 
+
   // While auth is loading, show a full-screen loader
   if (isUserLoading) {
     return (
@@ -156,51 +158,59 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader>
+        <SidebarHeader className="pb-1.5 px-3 pt-2.5 sticky top-0 z-10 bg-sidebar">
           <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:hidden">
               <Image
                 src="/church-logo.png"
                 alt="COG Logo"
-                width={32}
-                height={32}
-                className="w-8 h-8 rounded-sm"
+                width={50}
+                height={50}
+                className="w-12 h-12 object-contain shrink-0"
                 priority
               />
-              <span className="text-lg font-semibold font-headline">
-                COG App
+              <span className="text-2xl font-extrabold font-headline tracking-tight text-white translate-y-0.5 leading-none">
+                COG APP
               </span>
             </div>
-            <SidebarTrigger className="flex" />
+            <SidebarTrigger className="flex text-white/80 hover:text-white hover:bg-white/10" />
           </div>
+          <div className="h-[1px] bg-white/15 mx-1.5 mt-2.5 mb-1 group-data-[collapsible=icon]:hidden" />
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <Nav pathname={currentPathname} />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 min-w-0 max-w-full overflow-x-hidden flex flex-col">
-        <ImpersonationBanner />
-        <header className="flex h-14 md:h-[52px] items-center gap-2.5 sm:gap-4 border-b border-border/50 bg-white/95 dark:bg-card/95 backdrop-blur-md px-3 sm:px-4 lg:px-6 fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)] box-content shadow-2xs">
-          <div className="md:hidden flex items-center gap-2 shrink-0">
-            <HeaderMobileTrigger />
-            <div className="flex items-center gap-2">
-              <Image
-                src="/church-logo.png"
-                alt="COG Logo"
-                width={26}
-                height={26}
-                className="w-6 h-6 rounded-sm object-contain"
-                priority
-              />
-              <span className="text-sm font-bold font-headline tracking-tight">COG App</span>
-            </div>
+      {/* Fixed Header - mobile only. Desktop uses the sidebar header instead. */}
+      <header className="md:hidden flex h-14 items-center gap-2.5 border-b border-border/50 bg-white/95 dark:bg-card/95 backdrop-blur-md px-3 fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)] box-content shadow-2xs">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <HeaderMobileTrigger />
+          <div className="flex items-center gap-2">
+            <Image
+              src="/church-logo.png"
+              alt="COG Logo"
+              width={36}
+              height={36}
+              className="w-9 h-9 object-contain"
+              priority
+            />
+            <span className="text-lg font-extrabold font-headline tracking-tight">COG APP</span>
           </div>
+        </div>
+        <div className="w-full flex-1" />
+        <UserNav />
+      </header>
+
+      <SidebarInset className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 min-w-0 max-w-full flex flex-col h-screen overflow-hidden">
+        <ImpersonationBanner />
+        {/* Desktop header bar (inside SidebarInset, sticky) */}
+        <header className="hidden md:flex h-[52px] items-center gap-4 border-b border-border/50 bg-white/95 dark:bg-card/95 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-40 shrink-0 shadow-2xs">
           <div className="w-full flex-1" />
           <UserNav />
         </header>
-        {/* Spacer to push content below the fixed header */}
-        <div className="h-14 md:h-[52px] shrink-0 pt-[env(safe-area-inset-top)] box-content" />
-        <main className="flex flex-1 flex-col gap-4 p-3 sm:p-4 lg:gap-6 lg:p-6 min-w-0 max-w-full overflow-x-hidden overflow-y-auto">
+        {/* Mobile spacer so content doesn't hide behind fixed header */}
+        <div className="md:hidden h-14 shrink-0 pt-[env(safe-area-inset-top)] box-content" />
+        <main className="flex-1 overflow-y-auto flex flex-col gap-4 p-3 sm:p-4 lg:gap-6 lg:p-6 min-w-0 max-w-full">
           {children}
         </main>
       </SidebarInset>
@@ -229,7 +239,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           variant="ghost"
           className="flex-1 h-full flex flex-col justify-center items-center gap-1 rounded-none text-muted-foreground hover:text-foreground data-[active=true]:text-primary active:scale-95 transition-all"
           data-active={currentPathname.startsWith("/reservations")}
-          onClick={() => router.push("/reservations/calendar")}
+          onClick={() => router.push("/reservations/my")}
         >
           <CalendarIcon className="h-5 w-5" />
           <span className="text-[10px] font-semibold leading-none">Rooms</span>

@@ -15,6 +15,7 @@ import {
   SelectGroup,
   SelectLabel,
   Checkbox,
+  DatePicker,
 } from "@studio/ui";
 import {
   Calendar as CalendarIcon,
@@ -133,6 +134,39 @@ export default function NewReservationPage() {
     return slots;
   }, []);
 
+  // Check if selected date is in the past (before today)
+  const isDateInPast = useMemo(() => {
+    if (!selectedDate) return false;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const resDate = new Date(y, m - 1, d);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return resDate < todayStart;
+  }, [selectedDate]);
+
+  // Helper to check if a specific time slot on the selected date is in the past
+  const isSlotInPast = (timeVal: string) => {
+    if (!selectedDate) return false;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const resDate = new Date(y, m - 1, d);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (resDate < todayStart) return true;
+    if (resDate.getTime() === todayStart.getTime()) {
+      const [h, min] = timeVal.split(":").map(Number);
+      const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min, 0, 0);
+      return slotTime <= now;
+    }
+    return false;
+  };
+
+  // Check if current start time is already in the past
+  const isTimeInPast = useMemo(() => {
+    if (!startTime) return false;
+    return isSlotInPast(startTime);
+  }, [selectedDate, startTime]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -154,11 +188,29 @@ export default function NewReservationPage() {
       return;
     }
 
+    if (isDateInPast) {
+      toast({
+        variant: "destructive",
+        title: "Past Date Not Allowed",
+        description: "Room reservations cannot be made for past dates. Please pick today or a future date.",
+      });
+      return;
+    }
+
     if (!startTime || !endTime) {
       toast({
         variant: "destructive",
         title: "Missing Time",
         description: "Please specify both start and end times.",
+      });
+      return;
+    }
+
+    if (isTimeInPast) {
+      toast({
+        variant: "destructive",
+        title: "Past Time Not Allowed",
+        description: "The selected reservation start time has already passed. Please select an upcoming time slot.",
       });
       return;
     }
@@ -207,12 +259,20 @@ export default function NewReservationPage() {
       const [startH, startM] = startTime.split(":").map(Number);
       const [endH, endM] = endTime.split(":").map(Number);
 
-      const parsedDate = new Date(selectedDate);
-      const start = new Date(parsedDate);
-      start.setHours(startH, startM, 0, 0);
+      const [y, m, d] = selectedDate.split("-").map(Number);
+      const parsedDate = new Date(y, m - 1, d);
+      const start = new Date(y, m - 1, d, startH, startM, 0, 0);
+      const end = new Date(y, m - 1, d, endH, endM, 0, 0);
 
-      const end = new Date(parsedDate);
-      end.setHours(endH, endM, 0, 0);
+      if (start <= new Date()) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Start Time",
+          description: "The reservation start time has already passed. Please select a future time slot.",
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       if (start >= end) {
         toast({
@@ -326,7 +386,7 @@ export default function NewReservationPage() {
     return (
       <AppLayout>
         <div className="w-full max-w-2xl mx-auto py-12">
-          <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-8 text-center shadow-xs space-y-6">
+          <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-8 text-center shadow-card-dark space-y-6">
             <div className="flex justify-center">
               <CheckCircle2 className="h-16 w-16 text-emerald-500" />
             </div>
@@ -377,7 +437,7 @@ export default function NewReservationPage() {
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-6 sm:p-8 shadow-xs w-full">
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-6 sm:p-8 shadow-card-dark w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Card Title & Notice */}
           <div className="mb-6 space-y-0.5">
             <h2 className="text-xl font-bold font-headline text-gray-900 dark:text-white">
@@ -398,7 +458,7 @@ export default function NewReservationPage() {
                 <Input
                   value={generatedRequestId || "REQ-1000"}
                   disabled
-                  className="bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-300 border-0 rounded-xl h-10 text-xs font-medium cursor-not-allowed"
+                  className="bg-slate-50/90 dark:bg-muted/30 border border-slate-200/80 dark:border-border text-slate-600 dark:text-slate-300 rounded-xl h-10 text-xs font-medium cursor-not-allowed shadow-2xs"
                 />
               </div>
 
@@ -409,7 +469,7 @@ export default function NewReservationPage() {
                 <Input
                   value={format(new Date(), "MMM d, yyyy")}
                   disabled
-                  className="bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-300 border-0 rounded-xl h-10 text-xs font-medium cursor-not-allowed"
+                  className="bg-slate-50/90 dark:bg-muted/30 border border-slate-200/80 dark:border-border text-slate-600 dark:text-slate-300 rounded-xl h-10 text-xs font-medium cursor-not-allowed shadow-2xs"
                 />
               </div>
             </div>
@@ -424,7 +484,7 @@ export default function NewReservationPage() {
                   value={requesterName}
                   onChange={(e) => setRequesterName(e.target.value)}
                   placeholder="System Admin"
-                  className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                  className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
 
@@ -433,7 +493,7 @@ export default function NewReservationPage() {
                   Ministry
                 </label>
                 <Select value={ministryId} onValueChange={setMinistryId}>
-                  <SelectTrigger className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus:ring-1 focus:ring-blue-500">
+                  <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
                     <SelectValue placeholder="Administration" />
                   </SelectTrigger>
                   <SelectContent>
@@ -457,7 +517,7 @@ export default function NewReservationPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@gmail.com"
-                className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
               />
             </div>
 
@@ -470,7 +530,7 @@ export default function NewReservationPage() {
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="Describe the event or meeting...."
-                className="border border-gray-200 dark:border-border rounded-xl min-h-[110px] p-3 text-xs leading-relaxed text-gray-800 dark:text-gray-100 focus-visible:ring-1 focus-visible:ring-blue-500"
+                className="bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-xl min-h-[110px] p-3 text-xs leading-relaxed text-slate-800 dark:text-slate-100 placeholder:text-slate-400 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
               />
             </div>
 
@@ -481,12 +541,27 @@ export default function NewReservationPage() {
                   <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Select Date
                   </label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                    onChange={(d) => {
+                      setSelectedDate(d);
+                      if (startTime && isSlotInPast(startTime)) {
+                        setStartTime("");
+                      }
+                      if (endTime && isSlotInPast(endTime)) {
+                        setEndTime("");
+                      }
+                    }}
+                    disablePastDates={true}
+                    className="w-full h-10 rounded-xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 shadow-2xs"
+                    align="start"
                   />
+                  {isDateInPast && (
+                    <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1">
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                      Past dates are not allowed.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -494,21 +569,31 @@ export default function NewReservationPage() {
                     Start Time
                   </label>
                   <Select value={startTime} onValueChange={setStartTime}>
-                    <SelectTrigger className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus:ring-1 focus:ring-blue-500">
+                    <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
                       <SelectValue placeholder="Start" />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeSlots.map((slot) => (
-                        <SelectItem
-                          key={`start-${slot.value}`}
-                          value={slot.value}
-                          className="text-xs"
-                        >
-                          {slot.display}
-                        </SelectItem>
-                      ))}
+                      {timeSlots.map((slot) => {
+                        const passed = isSlotInPast(slot.value);
+                        return (
+                          <SelectItem
+                            key={`start-${slot.value}`}
+                            value={slot.value}
+                            disabled={passed}
+                            className={cn("text-xs", passed && "opacity-40 line-through")}
+                          >
+                            {slot.display} {passed ? "(Passed)" : ""}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  {isTimeInPast && (
+                    <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      Time has already passed.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -516,19 +601,23 @@ export default function NewReservationPage() {
                     End Time
                   </label>
                   <Select value={endTime} onValueChange={setEndTime}>
-                    <SelectTrigger className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus:ring-1 focus:ring-blue-500">
+                    <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
                       <SelectValue placeholder="End" />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeSlots.map((slot) => (
-                        <SelectItem
-                          key={`end-${slot.value}`}
-                          value={slot.value}
-                          className="text-xs"
-                        >
-                          {slot.display}
-                        </SelectItem>
-                      ))}
+                      {timeSlots.map((slot) => {
+                        const passed = isSlotInPast(slot.value);
+                        return (
+                          <SelectItem
+                            key={`end-${slot.value}`}
+                            value={slot.value}
+                            disabled={passed}
+                            className={cn("text-xs", passed && "opacity-40 line-through")}
+                          >
+                            {slot.display} {passed ? "(Passed)" : ""}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -544,7 +633,7 @@ export default function NewReservationPage() {
                 Floor / Room
               </label>
               <Select value={roomId} onValueChange={setRoomId}>
-                <SelectTrigger className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus:ring-1 focus:ring-blue-500">
+                <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
                   <SelectValue placeholder="Select floor / room" />
                 </SelectTrigger>
                 <SelectContent>
@@ -586,7 +675,7 @@ export default function NewReservationPage() {
                   value={pax}
                   onChange={(e) => setPax(e.target.value)}
                   placeholder="Number of people"
-                  className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                  className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
                 {selectedRoom && (
                   <p
@@ -613,7 +702,7 @@ export default function NewReservationPage() {
                   value={numTables}
                   onChange={(e) => setNumTables(e.target.value)}
                   placeholder="0"
-                  className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                  className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
 
@@ -626,7 +715,7 @@ export default function NewReservationPage() {
                   value={numChairs}
                   onChange={(e) => setNumChairs(e.target.value)}
                   placeholder="0"
-                  className="bg-gray-100/90 dark:bg-muted text-gray-800 dark:text-gray-100 border-0 rounded-xl h-10 text-xs font-medium focus-visible:ring-1 focus-visible:ring-blue-500"
+                  className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
             </div>
@@ -648,7 +737,7 @@ export default function NewReservationPage() {
                       return (
                         <div
                           key={element.id}
-                          className="flex items-center space-x-2 bg-gray-50 dark:bg-muted/40 p-2.5 rounded-xl border border-gray-200/60 dark:border-border/60"
+                          className="flex items-center space-x-2.5 bg-slate-50/80 dark:bg-muted/30 p-2.5 rounded-xl border border-slate-200/70 dark:border-border/60 hover:border-sidebar/30 transition-all"
                         >
                           <Checkbox
                             id={`element-${element.id}`}
@@ -680,18 +769,18 @@ export default function NewReservationPage() {
               )}
 
             {/* ORS Guidelines Section (Retained before Submit & Cancel buttons) */}
-            <div className="bg-amber-50/60 dark:bg-amber-950/20 p-4 rounded-xl border border-amber-200/70 dark:border-amber-900/40 space-y-2.5 mt-6">
-              <div className="font-bold text-xs text-amber-800 dark:text-amber-300">
+            <div className="bg-slate-50/90 dark:bg-muted/30 p-4 rounded-xl border border-slate-200/90 dark:border-border space-y-2.5 mt-6 shadow-2xs">
+              <div className="font-bold text-xs text-slate-900 dark:text-white">
                 ORS Guidelines
               </div>
-              <p className="text-xs leading-relaxed text-amber-900/80 dark:text-amber-300/80">
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                 1. Rooms must be left clean and tidy after use.
                 <br />
                 2. Switch off all lights, AC, and equipment before leaving.
                 <br />
                 3. Report any damage immediately to the facilities manager.
               </p>
-              <div className="flex items-center space-x-2 pt-1 border-t border-amber-200/50 dark:border-amber-900/30">
+              <div className="flex items-center space-x-2 pt-2 border-t border-slate-200/70 dark:border-border/60">
                 <Checkbox
                   id="guidelines"
                   checked={guidelinesAccepted}
@@ -699,7 +788,7 @@ export default function NewReservationPage() {
                 />
                 <label
                   htmlFor="guidelines"
-                  className="text-xs font-semibold cursor-pointer text-amber-900 dark:text-amber-200 select-none"
+                  className="text-xs font-semibold cursor-pointer text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white select-none transition-colors"
                 >
                   I understand and will follow the ORS guidelines
                 </label>
@@ -712,18 +801,18 @@ export default function NewReservationPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                className="rounded-xl px-6 h-10 text-xs font-semibold border-gray-200 dark:border-border"
+                className="rounded-xl px-6 h-10 text-xs font-semibold border-slate-200/90 dark:border-border hover:bg-slate-100 dark:hover:bg-muted"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || !guidelinesAccepted}
+                disabled={isSubmitting || !guidelinesAccepted || isDateInPast || isTimeInPast}
                 className={cn(
                   "rounded-xl px-7 h-10 text-xs font-bold shadow-xs gap-1.5 transition-all",
-                  guidelinesAccepted
-                    ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-sm"
-                    : "bg-blue-600/40 text-white dark:bg-blue-900/40 dark:text-white/80 cursor-not-allowed"
+                  guidelinesAccepted && !isDateInPast && !isTimeInPast
+                    ? "bg-sidebar hover:bg-sidebar/90 text-white cursor-pointer shadow-sm"
+                    : "bg-sidebar/40 text-white dark:bg-sidebar/40 dark:text-white/80 cursor-not-allowed"
                 )}
               >
                 {isSubmitting && (

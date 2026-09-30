@@ -179,9 +179,9 @@ export default function NewWorkerPage() {
 
         {/* Page header */}
         <div className="flex items-start justify-between">
-          <div>
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Register a new worker</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground">
               A guided onboarding flow — your progress saves automatically as you type.
             </p>
           </div>
@@ -193,8 +193,9 @@ export default function NewWorkerPage() {
           </button>
         </div>
 
-        {/* Stepper */}
-        <Stepper currentStep={step} />
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Stepper */}
+          <Stepper currentStep={step} />
 
         {/* Content + Tips */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6 items-start">
@@ -430,6 +431,7 @@ export default function NewWorkerPage() {
 
           {/* Onboarding Tips sidebar */}
           <OnboardingTips tips={step1Tips} />
+        </div>
         </div>
       </div>
     </AppLayout>

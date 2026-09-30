@@ -51,6 +51,7 @@
     "@studio/store": "file:../../packages/store",
     "@studio/types": "file:../../packages/types",
     "@studio/ui": "file:../../packages/ui",
+    "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.90.21",
     "@types/qrcode": "^1.5.6",
     "class-variance-authority": "^0.7.1",

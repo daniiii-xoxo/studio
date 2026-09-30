@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@stud
 import {
   Building2, HeartHandshake, User as UserIcon, Users, LoaderCircle,
   Upload, PlusCircle, MoreHorizontal, Edit, Trash2, UserCog, Utensils,
-  Eye, ArrowLeft, Search,
+  Eye, ArrowLeft, Search, Copy, ClipboardCheck,
 } from "lucide-react";
 import type { Ministry, Worker, Department } from "@studio/types";
 import { useUserRole } from "@/hooks/use-user-role";
@@ -16,7 +16,7 @@ import { useAuditLog } from "@/hooks/use-audit-log";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@studio/ui";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@studio/ui";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -29,7 +29,7 @@ import { Label } from "@studio/ui";
 import { Input } from "@studio/ui";
 import { Textarea } from "@studio/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@studio/ui";
-import { Copy, ClipboardCheck, Avatar, AvatarFallback, AvatarImage } from "@studio/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@studio/ui";
 import { useMinistries } from "@/hooks/use-ministries";
 import { useWorkers } from "@/hooks/use-workers";
 import { createMinistries } from "@/actions/db";
@@ -42,7 +42,7 @@ const generateMinistryId = (name: string, department: string) =>
 function WorkerInitials({ name }: { name: string }) {
   const parts = name.trim().split(" ");
   const init = parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
-  return <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-[11px] font-black shrink-0">{init}</span>;
+  return <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:text-sky-400 text-[11px] font-black shrink-0 border border-sidebar/20">{init}</span>;
 }
 
 // ── Ministry Form ──────────────────────────────────────────────────────────────
@@ -53,39 +53,143 @@ function MinistryForm({ ministry, workers, departments, onSave, onClose }: {
   const [formData, setFormData] = useState<Partial<Ministry>>({ name: "", description: "", department: "Worship", leaderId: "", headId: "" });
   useEffect(() => { if (ministry) setFormData(ministry); else setFormData({ name: "", description: "", department: "Worship", leaderId: "", headId: "", weight: 0 }); }, [ministry]);
   const set = (field: keyof Ministry, value: string | number) => setFormData(p => ({ ...p, [field]: value }));
+  const sorted = [...workers].sort((a, b) => a.firstName.localeCompare(b.firstName));
+
   return (
-    <>
-      <SheetHeader><SheetTitle className="font-headline">{ministry ? "Edit Ministry" : "Add New Ministry"}</SheetTitle><SheetDescription>Fill in the details for the ministry.</SheetDescription></SheetHeader>
-      <div className="grid gap-4 py-4">
-        <div className="space-y-2"><Label>Ministry Name</Label><Input value={formData.name} onChange={e => set("name", e.target.value)} /></div>
-        <div className="space-y-2"><Label>Description</Label><Textarea value={formData.description} onChange={e => set("description", e.target.value)} /></div>
-        <div className="space-y-2"><Label>Department</Label>
-          <Select value={formData.department} onValueChange={v => set("department", v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-          </Select>
+    <div className="space-y-6">
+      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div>
+            <DialogTitle className="text-xl font-bold font-headline text-foreground">
+              {ministry?.id ? "Edit Ministry" : "Add New Ministry"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Fill in the ministry details, assigned leadership, and parent department.
+            </DialogDescription>
+          </div>
         </div>
-        <div className="space-y-2"><Label>Leader</Label>
-          <Select value={formData.leaderId || "none"} onValueChange={v => set("leaderId", v === "none" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Select a leader" /></SelectTrigger>
-            <SelectContent><SelectItem value="none">None</SelectItem>{workers.map(w => <SelectItem key={w.id} value={w.id}>{w.firstName} {w.lastName}</SelectItem>)}</SelectContent>
-          </Select>
+      </DialogHeader>
+
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto px-0.5">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-bold text-foreground">Ministry Name</Label>
+          <Input
+            value={formData.name}
+            onChange={e => set("name", e.target.value)}
+            placeholder="e.g. Media & Tech Ministry"
+            className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar"
+          />
         </div>
-        <div className="space-y-2"><Label>Ministry Head</Label>
-          <Select value={formData.headId || "none"} onValueChange={v => set("headId", v === "none" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Select a ministry head" /></SelectTrigger>
-            <SelectContent><SelectItem value="none">None</SelectItem>{workers.map(w => <SelectItem key={w.id} value={w.id}>{w.firstName} {w.lastName}</SelectItem>)}</SelectContent>
-          </Select>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-bold text-foreground">Description</Label>
+          <Textarea
+            value={formData.description}
+            onChange={e => set("description", e.target.value)}
+            placeholder="Brief overview of the ministry's role..."
+            className="rounded-xl border-slate-200/90 dark:border-border text-xs min-h-[75px] focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar bg-background dark:bg-muted/20 resize-none transition-all"
+          />
         </div>
-        <div className="space-y-2"><Label>Weight (for sorting)</Label><Input type="number" value={formData.weight ?? 0} onChange={e => set("weight", parseInt(e.target.value, 10) || 0)} /></div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Department</Label>
+            <Select value={formData.department} onValueChange={v => set("department", v)}>
+              <SelectTrigger className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border border-border shadow-xl">
+                {departments.map(d => <SelectItem key={d} value={d} className="text-xs font-medium cursor-pointer">{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Display Order (Weight)</Label>
+            <Input
+              type="number"
+              value={formData.weight ?? 0}
+              onChange={e => set("weight", parseInt(e.target.value, 10) || 0)}
+              className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs font-semibold bg-white dark:bg-background shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar"
+            />
+          </div>
+        </div>
+
+        {/* Leadership Card */}
+        <div className="rounded-2xl border border-border/70 bg-slate-50/60 dark:bg-muted/20 p-4 space-y-3.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <UserCog className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">Ministry Leadership</p>
+              <p className="text-[11px] text-muted-foreground">Assign designated leaders for this ministry.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Leader</Label>
+              <Select value={formData.leaderId || "none"} onValueChange={v => set("leaderId", v === "none" ? "" : v)}>
+                <SelectTrigger className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+                  <SelectValue placeholder="Select a leader" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border border-border shadow-xl max-h-56">
+                  <SelectItem value="none" className="text-xs font-medium cursor-pointer text-muted-foreground">None</SelectItem>
+                  {sorted.map(w => (
+                    <SelectItem key={w.id} value={w.id} className="text-xs font-medium cursor-pointer">
+                      {w.firstName} {w.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Ministry Head</Label>
+              <Select value={formData.headId || "none"} onValueChange={v => set("headId", v === "none" ? "" : v)}>
+                <SelectTrigger className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+                  <SelectValue placeholder="Select a ministry head" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border border-border shadow-xl max-h-56">
+                  <SelectItem value="none" className="text-xs font-medium cursor-pointer text-muted-foreground">None</SelectItem>
+                  {sorted.map(w => (
+                    <SelectItem key={w.id} value={w.id} className="text-xs font-medium cursor-pointer">
+                      {w.firstName} {w.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
       </div>
-      <SheetFooter><SheetClose asChild><Button type="button" variant="secondary">Cancel</Button></SheetClose><Button onClick={() => onSave(formData)}>Save Changes</Button></SheetFooter>
-    </>
+
+      <DialogFooter className="pt-2 border-t border-border/40 flex items-center justify-end gap-2.5">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={() => onSave(formData)}
+          className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+        >
+          Save Changes
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }
 
-// ── Appoint Sheet ──────────────────────────────────────────────────────────────
-function AppointSheet({ ministry, workers, onSave, onClose, type = "approver" }: {
+// ── Appoint Dialog ──────────────────────────────────────────────────────────────
+function AppointDialog({ ministry, workers, onSave, onClose, type = "approver" }: {
   ministry: Ministry; workers: Worker[];
   onSave: (id: string, userId: string | null, type: "approver" | "assigner" | "head") => void;
   onClose: () => void; type?: "approver" | "assigner" | "head";
@@ -94,34 +198,107 @@ function AppointSheet({ ministry, workers, onSave, onClose, type = "approver" }:
   const [sel, setSel] = useState<string>(init);
   const sorted = [...workers].sort((a, b) => a.firstName.localeCompare(b.firstName));
   const label = type === "approver" ? "Approver" : type === "assigner" ? "Meal Stub Assigner" : "Ministry Head";
+
   return (
-    <>
-      <SheetHeader><SheetTitle>Appoint {label}</SheetTitle><SheetDescription>Select a worker for {ministry.name}.</SheetDescription></SheetHeader>
-      <div className="grid gap-4 py-4">
-        <div className="space-y-2"><Label>{label}</Label>
-          <Select value={sel} onValueChange={setSel}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="none">None (Remove {label})</SelectItem>{sorted.map(w => <SelectItem key={w.id} value={w.id}>{w.firstName} {w.lastName}</SelectItem>)}</SelectContent>
-          </Select>
+    <div className="space-y-6">
+      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+            {type === "assigner" ? <Utensils className="h-5 w-5" /> : <UserCog className="h-5 w-5" />}
+          </div>
+          <div>
+            <DialogTitle className="text-xl font-bold font-headline text-foreground">
+              Appoint {label}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Select an authorized worker for <span className="font-semibold text-foreground">{ministry.name}</span>.
+            </DialogDescription>
+          </div>
         </div>
+      </DialogHeader>
+
+      <div className="space-y-3 py-2">
+        <Label className="text-xs font-bold text-foreground">{label}</Label>
+        <Select value={sel} onValueChange={setSel}>
+          <SelectTrigger className="h-11 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+            <SelectValue placeholder={`Select a ${label.toLowerCase()}`} />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl border border-border shadow-xl max-h-64">
+            <SelectItem value="none" className="text-xs font-medium cursor-pointer text-muted-foreground">
+              None (Remove {label})
+            </SelectItem>
+            {sorted.map(w => (
+              <SelectItem key={w.id} value={w.id} className="text-xs font-medium cursor-pointer">
+                <div className="flex items-center gap-2 py-0.5">
+                  <span className="w-5 h-5 rounded-full bg-sidebar/10 text-sidebar dark:text-sky-400 text-[9px] font-black flex items-center justify-center shrink-0">
+                    {w.firstName?.[0]}{w.lastName?.[0]}
+                  </span>
+                  <span>{w.firstName} {w.lastName}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <SheetFooter><SheetClose asChild><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button></SheetClose><Button onClick={() => onSave(ministry.id, sel === "none" ? null : sel, type)}>Save Changes</Button></SheetFooter>
-    </>
+
+      <DialogFooter className="pt-2 border-t border-border/40 flex items-center justify-end gap-2.5">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={() => onSave(ministry.id, sel === "none" ? null : sel, type)}
+          className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+        >
+          Save Changes
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }
 
-// ── Import Sheet ───────────────────────────────────────────────────────────────
-function ImportSheetContent({ onImport, onClose }: { onImport: (csv: string) => void; onClose: () => void }) {
+// ── Import Dialog ───────────────────────────────────────────────────────────────
+function ImportDialogContent({ onImport, onClose }: { onImport: (csv: string) => void; onClose: () => void }) {
   const [csvData, setCsvData] = useState("");
   return (
-    <>
-      <SheetHeader><SheetTitle>Import Ministries</SheetTitle><SheetDescription>Paste CSV data. First line must be: name,department (1=Worship, 2=Outreach, 3=Relationship, 4=Discipleship, 5=Administration)</SheetDescription></SheetHeader>
-      <div className="py-4 space-y-4">
-        <Input readOnly defaultValue="name,department" className="font-mono text-xs" />
-        <Textarea value={csvData} onChange={e => setCsvData(e.target.value)} placeholder={`name,department\nPrayer Ministry,1`} className="h-64 font-mono text-xs" />
+    <div className="space-y-6">
+      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+            <Upload className="h-5 w-5" />
+          </div>
+          <div>
+            <DialogTitle className="text-xl font-bold font-headline text-foreground">Import Ministries</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Paste CSV data with headers: <code className="bg-muted px-1 py-0.5 rounded font-mono text-[11px]">name,department</code> (1=Worship, 2=Outreach, 3=Relationship, 4=Discipleship, 5=Administration)
+            </DialogDescription>
+          </div>
+        </div>
+      </DialogHeader>
+
+      <div className="space-y-3 py-1">
+        <Input readOnly defaultValue="name,department" className="font-mono text-xs h-9 bg-muted/40 rounded-xl" />
+        <Textarea
+          value={csvData}
+          onChange={e => setCsvData(e.target.value)}
+          placeholder={`name,department\nPrayer Ministry,1\nYouth Worship,1`}
+          className="h-52 font-mono text-xs rounded-xl border-slate-200/90 dark:border-border"
+        />
       </div>
-      <SheetFooter><SheetClose asChild><Button type="button" variant="secondary">Cancel</Button></SheetClose><Button onClick={() => onImport(csvData)}>Process Import</Button></SheetFooter>
-    </>
+
+      <DialogFooter className="pt-2 border-t border-border/40 flex items-center justify-end gap-2.5">
+        <Button type="button" variant="outline" onClick={onClose} className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold cursor-pointer">
+          Cancel
+        </Button>
+        <Button onClick={() => onImport(csvData)} className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs cursor-pointer">
+          Process Import
+        </Button>
+      </DialogFooter>
+    </div>
   );
 }
 
@@ -202,6 +379,17 @@ export default function MinistryManagementPage() {
     });
   };
 
+  const deptCounts = useMemo(() => {
+    const list = (ministries as Ministry[] || []);
+    const counts: Record<string, number> = {
+      all: list.length,
+    };
+    for (const d of departments) {
+      counts[d] = list.filter(m => m.department === d || m.departmentCode === d.toUpperCase()).length;
+    }
+    return counts;
+  }, [ministries, departments]);
+
   const filteredMinistries = (ministries as Ministry[] || []).filter(m => {
     const q = search.trim().toLowerCase();
     if (q && !m.name.toLowerCase().includes(q)) return false;
@@ -214,47 +402,67 @@ export default function MinistryManagementPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-7 pb-12 w-full">
+      <div className="space-y-6 pb-12 w-full">
 
         {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-primary/10 shrink-0 mt-0.5">
-            <Building2 className="h-4 w-4 text-primary" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              Ministry Management
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage ministries, leaders and weekly allocations.
+            </p>
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold font-headline tracking-tight text-foreground leading-none">Ministry Management</h1>
-            <div className="flex items-center justify-between gap-4 -mt-1">
-              <p className="text-sm text-muted-foreground leading-none">Manage ministries, leaders and weekly allocations.</p>
-              <Link href="/settings" className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-card text-sm font-medium text-foreground hover:bg-muted/40 transition-colors shrink-0">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </Link>
-            </div>
-          </div>
+          <Link
+            href="/settings"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border/60 bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shrink-0 shadow-2xs self-start sm:self-auto"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </Link>
         </div>
 
-        {/* Toolbar */}
-        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="relative w-56">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input type="text" placeholder="Search ministries...." value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 h-9 rounded-xl border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            {/* Dept filter tabs */}
-            <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 overflow-x-auto">
-              {(["all", ...departments] as const).map(d => (
-                <button key={d} onClick={() => setDeptFilter(d as any)}
-                  className={cn("px-3 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap",
-                    deptFilter === d ? "bg-card shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                  {d === "all" ? "All" : d}
-                </button>
-              ))}
-            </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Controls Row (Search Left, Filter & Add Ministry Right - White Container, No Shadow) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Search bar (Left side) */}
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search ministries...."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 pr-4 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-xl focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all focus:outline-none"
+            />
           </div>
-          <button onClick={() => { setSelectedMinistry(null); setFormOpen(true); }}
-            className="h-9 px-4 flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0">
-            <PlusCircle className="h-4 w-4" /> Add Ministry
-          </button>
+
+          {/* Filter Tabs & Add Ministry Button (Right side) */}
+          <div className="flex items-center gap-3 flex-wrap justify-between lg:justify-end">
+            {/* Dept filter dropdown */}
+            <Select value={deptFilter} onValueChange={(val: any) => setDeptFilter(val)}>
+              <SelectTrigger className="h-10 w-[180px] text-xs rounded-xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                {(["all", ...departments] as const).map(d => (
+                  <SelectItem key={d} value={d} className="text-xs font-medium cursor-pointer">
+                    {d === "all" ? "All Departments" : d} ({deptCounts[d] ?? 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Add Ministry Button */}
+            <button
+              type="button"
+              onClick={() => { setSelectedMinistry(null); setFormOpen(true); }}
+              className="h-10 px-4 flex items-center gap-2 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Add Ministry</span>
+            </button>
+          </div>
         </div>
 
         {/* Ministry cards grid */}
@@ -269,20 +477,20 @@ export default function MinistryManagementPage() {
             const weeklyPool = (ministry as any).mealStubWeeklyLimit || 0;
 
             return (
-              <div key={ministry.id} className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 flex flex-col gap-4">
+              <div key={ministry.id} className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 flex flex-col gap-4 justify-between">
                 {/* Card header */}
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-base font-bold text-foreground">{ministry.name}</h3>
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary mt-0.5">{ministry.department}</span>
+                    <h3 className="text-base font-bold text-foreground font-headline">{ministry.name}</h3>
+                    <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 mt-1">{ministry.department}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="p-2 rounded-xl bg-primary/10 shrink-0">
-                      <Building2 className="h-4 w-4 text-primary" />
+                    <div className="p-2 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+                      <Building2 className="h-4 w-4" />
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                        <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
@@ -299,12 +507,12 @@ export default function MinistryManagementPage() {
                 </div>
 
                 {/* Ministry Head */}
-                <div className="rounded-xl border border-border/60 bg-background px-3 py-2.5 flex items-center gap-2.5">
+                <div className="rounded-xl border border-border/60 bg-muted/[0.12] px-3 py-2.5 flex items-center gap-2.5">
                   {head ? (
                     <>
                       <WorkerInitials name={`${head.firstName} ${head.lastName}`} />
-                      <div>
-                        <p className="text-xs font-bold text-foreground">{head.firstName} {head.lastName}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">{head.firstName} {head.lastName}</p>
                         <p className="text-[10px] text-muted-foreground">Ministry Head</p>
                       </div>
                     </>
@@ -318,67 +526,71 @@ export default function MinistryManagementPage() {
 
                 {/* Approver + Assigner */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5">
+                  <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5">
+                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
                       <UserCog className="h-3 w-3" /> Approver
                     </p>
                     <p className="font-semibold text-foreground truncate">{approver ? `${approver.firstName} ${approver.lastName}` : "—"}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5">
-                      <Utensils className="h-3 w-3" /> Meal Stub Assigner
+                  <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5">
+                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
+                      <Utensils className="h-3 w-3" /> Assigner
                     </p>
                     <p className="font-semibold text-foreground truncate">{assigner ? `${assigner.firstName} ${assigner.lastName}` : "—"}</p>
                   </div>
                 </div>
 
                 {/* Members + Weekly pool */}
-                <div className="flex items-center justify-between pt-1 border-t border-border/30">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" /> {memberCount} members
+                <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                    <Users className="h-3.5 w-3.5 text-sidebar dark:text-sky-400" /> {memberCount} members
                   </span>
                   {weeklyPool > 0 && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
                       ✦ {weeklyPool}/week
                     </span>
                   )}
                 </div>
 
                 {/* View Details */}
-                <button onClick={() => { setDetailsMinistry(ministry); setDetailsOpen(true); }}
-                  className="w-full flex items-center justify-center gap-2 h-9 rounded-xl border border-border/60 bg-background text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors">
-                  <Eye className="h-4 w-4" /> View Details
+                <button
+                  type="button"
+                  onClick={() => { setDetailsMinistry(ministry); setDetailsOpen(true); }}
+                  className="w-full flex items-center justify-center gap-2 h-9 rounded-xl border border-border/60 bg-muted/[0.08] hover:bg-muted/[0.22] text-xs font-bold text-foreground transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Eye className="h-3.5 w-3.5" /> View Details
                 </button>
               </div>
             );
           })}
         </div>
+        </div>
       </div>
 
-      {/* Ministry Form Sheet */}
-      <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent className="sm:max-w-md">
+      {/* Ministry Form Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
           <MinistryForm ministry={selectedMinistry} workers={workers || []} departments={departments} onSave={handleSaveMinistry} onClose={() => setFormOpen(false)} />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
-      {/* Appoint Sheet */}
-      <Sheet open={appointOpen} onOpenChange={setAppointOpen}>
-        <SheetContent className="sm:max-w-md">
-          {appointTarget && <AppointSheet ministry={appointTarget} workers={workers || []} onSave={handleSaveAppointed} onClose={() => setAppointOpen(false)} type={appointType} />}
-        </SheetContent>
-      </Sheet>
+      {/* Appoint Dialog */}
+      <Dialog open={appointOpen} onOpenChange={setAppointOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
+          {appointTarget && <AppointDialog ministry={appointTarget} workers={workers || []} onSave={handleSaveAppointed} onClose={() => setAppointOpen(false)} type={appointType} />}
+        </DialogContent>
+      </Dialog>
 
-      {/* Import Sheet */}
-      <Sheet open={importOpen} onOpenChange={setImportOpen}>
-        <SheetContent className="sm:max-w-md">
-          <ImportSheetContent onImport={handleImport} onClose={() => setImportOpen(false)} />
-        </SheetContent>
-      </Sheet>
+      {/* Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
+          <ImportDialogContent onImport={handleImport} onClose={() => setImportOpen(false)} />
+        </DialogContent>
+      </Dialog>
 
-      {/* Details Sheet */}
-      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+      {/* Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
           {detailsMinistry && (() => {
             const m = detailsMinistry;
             const head = getWorker(m.headId);
@@ -387,29 +599,36 @@ export default function MinistryManagementPage() {
             const leader = getWorker(m.leaderId);
             const members = (workers || []).filter(w => w.majorMinistryId === m.id || w.minorMinistryId === m.id);
             return (
-              <div className="flex flex-col gap-5 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div>
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground">{m.name}</h2>
-                    <p className="text-xs text-muted-foreground">{m.department} Department</p>
+              <div className="flex flex-col gap-5">
+                <DialogHeader className="space-y-1 pb-3 border-b border-border/40">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-bold font-headline text-foreground">{m.name}</DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">{m.department} Department</DialogDescription>
+                    </div>
                   </div>
-                </div>
-                {m.description && <p className="text-sm text-muted-foreground">{m.description}</p>}
+                </DialogHeader>
+
+                {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
+
                 <div className="grid grid-cols-2 gap-3">
                   {[{ label: "Ministry Head", w: head }, { label: "Leader", w: leader }, { label: "Approver", w: approver }, { label: "Meal Assigner", w: assigner }].map(({ label, w }) => (
-                    <div key={label} className="rounded-xl border border-border/60 bg-background p-3">
-                      <p className="text-[10px] text-muted-foreground mb-1.5">{label}</p>
+                    <div key={label} className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mb-1.5">{label}</p>
                       {w ? <div className="flex items-center gap-2"><WorkerInitials name={`${w.firstName} ${w.lastName}`} /><p className="text-xs font-semibold text-foreground truncate">{w.firstName} {w.lastName}</p></div>
                         : <p className="text-xs text-muted-foreground italic">Unassigned</p>}
                     </div>
                   ))}
                 </div>
+
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-3">Members ({members.length})</p>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  <p className="text-xs font-bold text-foreground mb-2">Members ({members.length})</p>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                     {members.map(w => (
-                      <div key={w.id} className="flex items-center gap-2 rounded-lg border border-border/60 p-2">
+                      <div key={w.id} className="flex items-center gap-2 rounded-xl border border-border/60 bg-background p-2">
                         <WorkerInitials name={`${w.firstName} ${w.lastName}`} />
                         <p className="text-xs font-medium text-foreground truncate">{w.firstName} {w.lastName}</p>
                       </div>
@@ -417,21 +636,28 @@ export default function MinistryManagementPage() {
                     {members.length === 0 && <p className="col-span-2 text-xs text-muted-foreground italic text-center py-4">No members.</p>}
                   </div>
                 </div>
-                <div className="flex gap-3 pt-2 border-t border-border/40">
-                  <button onClick={() => { setSelectedMinistry(m); setDetailsOpen(false); setFormOpen(true); }}
-                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl border border-border/60 text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors">
-                    <Edit className="h-4 w-4" /> Edit
-                  </button>
-                  <button onClick={() => setDetailsOpen(false)}
-                    className="flex-1 h-9 flex items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+
+                <DialogFooter className="pt-2 border-t border-border/40 flex items-center justify-end gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setSelectedMinistry(m); setDetailsOpen(false); setFormOpen(true); }}
+                    className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer gap-1.5"
+                  >
+                    <Edit className="h-3.5 w-3.5" /> Edit Ministry
+                  </Button>
+                  <Button
+                    onClick={() => setDetailsOpen(false)}
+                    className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  >
                     Close
-                  </button>
-                </div>
+                  </Button>
+                </DialogFooter>
               </div>
             );
           })()}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

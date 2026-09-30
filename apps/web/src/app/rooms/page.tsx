@@ -9,7 +9,7 @@ export default function RoomsRedirectPage() {
     const router = useRouter();
 
     useEffect(() => {
-        router.replace("/reservations/calendar");
+        router.replace("/reservations/my");
     }, [router]);
 
     return (

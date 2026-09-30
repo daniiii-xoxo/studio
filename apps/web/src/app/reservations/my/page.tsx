@@ -11,6 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  DatePicker,
   Table,
   TableBody,
   TableCell,
@@ -38,6 +39,7 @@ import {
   Mic,
   Speaker,
   ScanLine,
+  Eye,
 } from "lucide-react";
 import { cn, toJsDate } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
@@ -54,6 +56,7 @@ import {
 } from "@/actions/db";
 import { format, isAfter, isBefore, isToday, subMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { ReservationDetailsSheet } from "@/components/reservations/reservation-details-sheet";
 import type { Booking, Room, Area, VenueElement, Ministry } from "@studio/types";
 
 type TabFilter = "upcoming" | "active" | "history";
@@ -257,78 +260,33 @@ export default function MyReservationsPage() {
         </div>
 
         {/* Main Card Container */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border p-6 shadow-xs overflow-hidden">
+        <div className="bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Top Controls Row */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Tab Switcher Pills */}
-            <div className="bg-gray-100 dark:bg-muted p-1 rounded-xl flex items-center border border-gray-200/50 dark:border-border/50 self-start">
-              <button
-                type="button"
-                onClick={() => setActiveTab("upcoming")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                  activeTab === "upcoming"
-                    ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                    : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
-                )}
-              >
-                Upcoming
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("active")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                  activeTab === "active"
-                    ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                    : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
-                )}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                  activeTab === "history"
-                    ? "bg-white dark:bg-card shadow-xs text-gray-800 dark:text-foreground"
-                    : "text-gray-500 hover:text-gray-800 dark:text-muted-foreground dark:hover:text-foreground"
-                )}
-              >
-                History
-              </button>
+            {/* Left: Search Bar */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search ID, room, purpose..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 h-10 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-2xl bg-background dark:bg-muted/30 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+              />
             </div>
 
-            {/* Right Controls: Search, Date Picker, Status Filter */}
+            {/* Right: Date Picker, Status Filter, Tab Switcher Pills */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search ID, room..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl border-gray-200 dark:border-border w-44 sm:w-56"
-                />
-              </div>
-
               {/* Date Filter */}
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <Input
-                  type="date"
-                  placeholder="dd/mm/yyyy"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl border-gray-200 dark:border-border w-36"
-                />
-              </div>
+              <DatePicker
+                value={dateFilter}
+                onChange={setDateFilter}
+                align="end"
+              />
 
               {/* Status Select */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-9 w-36 text-xs rounded-xl border-gray-200 dark:border-border font-medium">
+                <SelectTrigger className="h-10 w-[130px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 font-medium shadow-2xs px-3">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -346,11 +304,51 @@ export default function MyReservationsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Tab Switcher Pills */}
+              <div className="bg-slate-100/90 dark:bg-muted p-1 rounded-xl flex items-center border border-slate-200/70 dark:border-border/50 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("upcoming")}
+                  className={cn(
+                    "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                    activeTab === "upcoming"
+                      ? "bg-sidebar text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
+                  )}
+                >
+                  Upcoming
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("active")}
+                  className={cn(
+                    "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                    activeTab === "active"
+                      ? "bg-sidebar text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
+                  )}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("history")}
+                  className={cn(
+                    "px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                    activeTab === "history"
+                      ? "bg-sidebar text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 dark:text-muted-foreground dark:hover:text-foreground"
+                  )}
+                >
+                  History
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Table Content */}
-          <div className="border border-gray-200/80 dark:border-border rounded-xl mt-6 overflow-hidden">
+          <div className="border border-border/60 rounded-2xl mt-5 overflow-hidden">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
                 <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
@@ -359,8 +357,8 @@ export default function MyReservationsPage() {
                 </p>
               </div>
             ) : filteredBookings.length === 0 ? (
-              <div className="py-20 text-center text-gray-400 dark:text-gray-500">
-                <p className="text-sm font-medium">No reservations found.</p>
+              <div className="py-20 text-center text-muted-foreground">
+                <p className="text-sm font-semibold text-foreground">No reservations found.</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   You have no {activeTab} reservations matching your search.
                 </p>
@@ -376,26 +374,26 @@ export default function MyReservationsPage() {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#F8F9FA] dark:bg-muted/40 hover:bg-[#F8F9FA] border-b border-gray-200 dark:border-border">
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[14%]">
+                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[14%]">
                       ID
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[22%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[24%]">
                       Floor / Room
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[18%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">
                       Date
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[18%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">
                       Time
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-4 text-center w-[8%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[8%]">
                       Pax
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[12%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[10%]">
                       Status
                     </TableHead>
-                    <TableHead className="font-bold text-gray-700 dark:text-gray-200 text-xs h-12 px-6 text-center w-[8%]">
+                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[8%]">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -478,28 +476,29 @@ export default function MyReservationsPage() {
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-muted text-gray-500 hover:text-gray-800 transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuContent align="end" className="w-40 p-1 rounded-xl shadow-lg border-border/80">
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedBooking(booking);
                                   setIsDetailsOpen(true);
                                 }}
-                                className="text-xs cursor-pointer font-medium"
+                                className="text-xs cursor-pointer font-medium gap-2 py-2 rounded-lg"
                               >
+                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                 View Details
                               </DropdownMenuItem>
 
                               {canCheckIn(booking) && (
                                 <DropdownMenuItem
                                   onClick={() => handleCheckIn(booking)}
-                                  className="text-xs cursor-pointer font-medium text-blue-600"
+                                  className="text-xs cursor-pointer font-medium text-blue-600 dark:text-blue-400 gap-2 py-2 rounded-lg"
                                 >
-                                  <ScanLine className="h-3.5 w-3.5 mr-1.5" />
+                                  <ScanLine className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                   Check In
                                 </DropdownMenuItem>
                               )}
@@ -517,7 +516,7 @@ export default function MyReservationsPage() {
       </div>
 
       {/* Booking Details Sheet */}
-      <BookingDetailsSheet
+      <ReservationDetailsSheet
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         booking={selectedBooking}
@@ -538,183 +537,3 @@ export default function MyReservationsPage() {
     </AppLayout>
   );
 }
-
-const BookingDetailsSheet = ({
-  isOpen,
-  onClose,
-  booking,
-  roomName,
-  areaName,
-  venueElements,
-  ministries,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  booking: any | null;
-  roomName: string;
-  areaName: string;
-  venueElements: any[];
-  ministries: any[];
-}) => {
-  if (!booking) return null;
-
-  const startTime = toJsDate(booking.start);
-  const endTime = toJsDate(booking.end);
-  const ministry = ministries?.find((m) => m.id === booking.ministryId);
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-6 border-b text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 text-xs font-semibold">
-              {booking.status}
-            </Badge>
-          </div>
-          <SheetTitle className="text-2xl font-headline font-bold">
-            {booking.title}
-          </SheetTitle>
-          <SheetDescription>
-            Reservation detail summary and equipment requirements
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <DetailRow label="Location" value={`${roomName} (${areaName})`} />
-            <DetailRow label="Date" value={format(startTime, "PPPP")} />
-            <DetailRow
-              label="Schedule"
-              value={`${format(startTime, "h:mm a")} – ${format(endTime, "h:mm a")}`}
-            />
-            {ministry && (
-              <DetailRow label="Ministry" value={ministry.name} />
-            )}
-            <DetailRow
-              label="Headcount (Pax)"
-              value={`${booking.pax || 0} pax`}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              Purpose
-            </h4>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {booking.purpose ||
-                "No specific purpose provided for this reservation."}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Requested Elements & AV
-            </h4>
-            <div className="grid grid-cols-1 gap-2.5">
-              {booking.requestedElements &&
-              booking.requestedElements.length > 0 ? (
-                booking.requestedElements.map((elId: string) => {
-                  const el = venueElements.find((v) => v.id === elId);
-                  return (
-                    <div
-                      key={elId}
-                      className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold block">
-                            {el?.name || elId}
-                          </span>
-                          {el?.category && (
-                            <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                              {el.category}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  );
-                })
-              ) : booking.equipment_TV ||
-                booking.equipment_Mic ||
-                booking.equipment_Speakers ? (
-                <>
-                  {booking.equipment_TV && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-blue-50/50 border-blue-100 text-blue-900 dark:bg-blue-950/20 dark:border-blue-900/40 dark:text-blue-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Tv className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Television / Presentation
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Mic && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-emerald-50/50 border-emerald-100 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Mic className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Microphone & Audio
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                  {booking.equipment_Speakers && (
-                    <div className="flex items-center justify-between p-3 rounded-xl border bg-purple-50/50 border-purple-100 text-purple-900 dark:bg-purple-950/20 dark:border-purple-900/40 dark:text-purple-300">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white dark:bg-card shadow-xs">
-                          <Speaker className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <span className="text-xs font-bold">
-                          Sound System / Speakers
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
-                        Requested
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-slate-400 italic">
-                  No elements were requested.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <Button variant="outline" className="w-full mt-4" onClick={onClose}>
-            Close Details
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
-
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-1">
-    <span className="text-xs text-muted-foreground">{label}</span>
-    <span className="text-sm font-medium">{value}</span>
-  </div>
-);

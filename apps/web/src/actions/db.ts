@@ -5,6 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { NotificationService } from '@/services/notification-service';
 import { getSupabaseAdminClient } from '@/lib/supabase-admin';
 import { EmailService } from '@/services/email-service';
+import { type AttendanceShiftSettings, DEFAULT_ATTENDANCE_SETTINGS } from '@/lib/attendance-config';
+
+export type { AttendanceShiftSettings };
 
 const DEPARTMENT_NAME_TO_CODE: Record<string, string> = {
     Worship: 'W',
@@ -721,6 +724,13 @@ export async function createBooking(data: any) {
     if (!workerProfileId) throw new Error('workerProfileId is required to create a booking');
     if (!roomId) throw new Error('roomId is required to create a booking');
 
+    if (rest.start) {
+        const startDate = new Date(rest.start);
+        if (startDate < new Date()) {
+            throw new Error('Cannot reserve a room for a past date or time.');
+        }
+    }
+
     // Strip fields not in the Booking schema to avoid Prisma validation errors
     const {
         requesterEmail: _re, dateRequested: _dr,
@@ -830,6 +840,48 @@ export async function getAttendanceRecords(filters: { workerProfileId?: string; 
     });
 }
 
+export async function seedAttendanceData() {
+    const workers = await prisma.worker.findMany();
+    if (!workers.length) return { count: 0 };
+
+    const today = new Date();
+    const currentDay = today.getDay();
+    const diffToMonday = (currentDay + 6) % 7;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    let inserted = 0;
+    for (const worker of workers) {
+        // Mon in/out (On Time: 7:45 AM - 5:15 PM)
+        const monIn = new Date(monday); monIn.setHours(7, 45, 0, 0);
+        const monOut = new Date(monday); monOut.setHours(17, 15, 0, 0);
+
+        // Tue in/out (Late: 8:45 AM - 5:00 PM)
+        const tueIn = new Date(monday); tueIn.setDate(monday.getDate() + 1); tueIn.setHours(8, 45, 0, 0);
+        const tueOut = new Date(monday); tueOut.setDate(monday.getDate() + 1); tueOut.setHours(17, 0, 0, 0);
+
+        // Wed in/out (On Time: 7:55 AM - 5:30 PM)
+        const wedIn = new Date(monday); wedIn.setDate(monday.getDate() + 2); wedIn.setHours(7, 55, 0, 0);
+        const wedOut = new Date(monday); wedOut.setDate(monday.getDate() + 2); wedOut.setHours(17, 30, 0, 0);
+
+        await prisma.attendanceRecord.createMany({
+            data: [
+                { workerProfileId: worker.id, type: 'Clock In', time: monIn },
+                { workerProfileId: worker.id, type: 'Clock Out', time: monOut },
+                { workerProfileId: worker.id, type: 'Clock In', time: tueIn },
+                { workerProfileId: worker.id, type: 'Clock Out', time: tueOut },
+                { workerProfileId: worker.id, type: 'Clock In', time: wedIn },
+                { workerProfileId: worker.id, type: 'Clock Out', time: wedOut },
+            ]
+        });
+        inserted += 6;
+    }
+
+    revalidatePath('/attendance');
+    return { count: inserted };
+}
+
 export async function createAttendanceRecord(data: { workerProfileId: string; type: string }) {
     const record = await prisma.attendanceRecord.create({
         data: {
@@ -873,6 +925,198 @@ export async function createAttendanceRecord(data: { workerProfileId: string; ty
     revalidatePath('/attendance');
     revalidatePath('/meals');
     return record;
+}
+
+export async function getAttendanceSettings(): Promise<AttendanceShiftSettings> {
+    try {
+        const setting = await prisma.setting.findUnique({
+            where: { id: 'attendance_shift_settings' },
+        });
+        if (setting?.data) {
+            const data = typeof setting.data === 'string' ? JSON.parse(setting.data) : setting.data;
+            return {
+                ...DEFAULT_ATTENDANCE_SETTINGS,
+                ...data,
+            };
+        }
+    } catch (e) {
+        console.error("Failed to load attendance settings from DB", e);
+    }
+    return DEFAULT_ATTENDANCE_SETTINGS;
+}
+
+export async function updateAttendanceSettings(data: Partial<AttendanceShiftSettings>) {
+    const current = await getAttendanceSettings();
+    const updated: AttendanceShiftSettings = {
+        ...current,
+        ...data,
+    };
+    await prisma.setting.upsert({
+        where: { id: 'attendance_shift_settings' },
+        update: { data: updated as any },
+        create: { id: 'attendance_shift_settings', data: updated as any },
+    });
+    revalidatePath('/settings');
+    revalidatePath('/settings/attendance');
+    revalidatePath('/attendance/scanner');
+    return updated;
+}
+
+export async function recordAutoAttendance(workerProfileId: string) {
+    const worker = await prisma.worker.findUnique({ where: { id: workerProfileId } });
+    if (!worker) {
+        throw new Error("Worker not found");
+    }
+
+    // Load dynamic shift settings from database
+    const settings = await getAttendanceSettings();
+
+    // Parse shift start time (e.g. "09:00" -> 9 hours, 0 mins)
+    const [startHStr, startMStr] = (settings.shiftStartTime || "09:00").split(':');
+    const shiftStartHour = parseInt(startHStr, 10) || 9;
+    const shiftStartMin = parseInt(startMStr, 10) || 0;
+    const graceMinutes = typeof settings.gracePeriodMinutes === 'number' ? settings.gracePeriodMinutes : 15;
+
+    // Parse shift end time (e.g. "17:00" -> 17 hours, 0 mins)
+    const [endHStr, endMStr] = (settings.shiftEndTime || "17:00").split(':');
+    const shiftEndHour = parseInt(endHStr, 10) || 17;
+    const shiftEndMin = parseInt(endMStr, 10) || 0;
+    const cooldownMins = typeof settings.cooldownMinutes === 'number' ? settings.cooldownMinutes : 5;
+
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayRecords = await prisma.attendanceRecord.findMany({
+        where: {
+            workerProfileId: worker.id,
+            time: { gte: startOfDay, lte: endOfDay }
+        },
+        orderBy: { time: 'desc' }
+    });
+
+    const latestRecord = todayRecords[0];
+    const workerData = {
+        id: worker.id,
+        firstName: worker.firstName,
+        lastName: worker.lastName,
+        avatarUrl: worker.avatarUrl,
+        roleId: worker.roleId,
+        employmentType: worker.employmentType
+    };
+
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+    const startCutoffTotalMinutes = shiftStartHour * 60 + shiftStartMin + graceMinutes;
+    const endCutoffTotalMinutes = shiftEndHour * 60 + shiftEndMin;
+
+    // Case 1: No attendance record yet today -> CLOCK IN
+    if (!latestRecord) {
+        const isOnTime = currentTotalMinutes <= startCutoffTotalMinutes;
+        const status = isOnTime ? 'On Time' : 'Late';
+        const statusBadgeColor = isOnTime ? 'emerald' : 'amber';
+
+        const record = await createAttendanceRecord({
+            workerProfileId: worker.id,
+            type: 'Clock In'
+        });
+
+        return {
+            success: true,
+            action: 'Clock In' as const,
+            status,
+            statusBadgeColor,
+            record,
+            time: now,
+            message: `Timed In successfully (${status})`,
+            worker: workerData
+        };
+    }
+
+    // Check cooldown time from the latest record
+    const diffMs = now.getTime() - new Date(latestRecord.time).getTime();
+    const diffMinutes = diffMs / (1000 * 60);
+
+    // Case 2: Latest record is Clock In
+    if (latestRecord.type === 'Clock In') {
+        // Dynamic cooldown check (default 5 minutes buffer)
+        if (diffMinutes < cooldownMins) {
+            const recordedTimeStr = new Date(latestRecord.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return {
+                success: false,
+                action: 'Cooldown' as const,
+                status: 'Cooldown',
+                statusBadgeColor: 'amber',
+                record: latestRecord,
+                time: latestRecord.time,
+                message: `Already Timed In at ${recordedTimeStr}.`,
+                worker: workerData
+            };
+        }
+
+        // Past cooldown -> CLOCK OUT
+        const isCompleted = currentTotalMinutes >= endCutoffTotalMinutes;
+        const status = isCompleted ? 'Shift Completed' : 'Undertime';
+        const statusBadgeColor = isCompleted ? 'emerald' : 'amber';
+
+        const record = await createAttendanceRecord({
+            workerProfileId: worker.id,
+            type: 'Clock Out'
+        });
+
+        return {
+            success: true,
+            action: 'Clock Out' as const,
+            status,
+            statusBadgeColor,
+            record,
+            time: now,
+            message: `Timed Out successfully (${status})`,
+            worker: workerData
+        };
+    }
+
+    // Case 3: Latest record is Clock Out
+    if (latestRecord.type === 'Clock Out') {
+        // Cooldown check
+        if (diffMinutes < cooldownMins) {
+            const recordedTimeStr = new Date(latestRecord.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return {
+                success: false,
+                action: 'Cooldown' as const,
+                status: 'Cooldown',
+                statusBadgeColor: 'amber',
+                record: latestRecord,
+                time: latestRecord.time,
+                message: `Already Timed Out at ${recordedTimeStr}.`,
+                worker: workerData
+            };
+        }
+
+        // Past cooldown -> Re-entry or Overtime CLOCK IN
+        const isOvertime = currentTotalMinutes >= endCutoffTotalMinutes;
+        const status = isOvertime ? 'Overtime In' : 'Re-entry In';
+        const statusBadgeColor = 'blue';
+
+        const record = await createAttendanceRecord({
+            workerProfileId: worker.id,
+            type: 'Clock In'
+        });
+
+        return {
+            success: true,
+            action: 'Clock In' as const,
+            status,
+            statusBadgeColor,
+            record,
+            time: now,
+            message: `Timed In for ${status}`,
+            worker: workerData
+        };
+    }
+
+    throw new Error('Unhandled attendance state');
 }
 
 // --- Rooms, Areas, Branches ---
@@ -1135,10 +1379,10 @@ export async function getC2SDevotionRecords(params?: {
             where.clusterName = params.clusterName;
         }
 
-        const records = await (prisma as any).c2SDevotionRecord.findMany({
+        const records = await prisma.c2SDevotionRecord.findMany({
             where,
             orderBy: {
-                devotionDate: 'desc',
+                createdAt: 'desc',
             },
         });
         return records || [];
@@ -1171,7 +1415,7 @@ export async function createC2SDevotionRecord(data: {
     let validGroupId: string | null = null;
     if (data.groupId) {
         try {
-            const groupExists = await (prisma as any).c2SGroup.findUnique({
+            const groupExists = await prisma.c2SGroup.findUnique({
                 where: { id: data.groupId },
             });
             if (groupExists) {
@@ -1181,6 +1425,41 @@ export async function createC2SDevotionRecord(data: {
             validGroupId = null;
         }
     }
+
+    // Upload photos to Supabase Storage if they are base64 strings
+    let uploadedPhotoUrls: string[] = [];
+    if (data.photoUrls && data.photoUrls.length > 0) {
+        const { uploadBase64ToSupabase } = await import('@/lib/upload-to-supabase');
+        for (const photoUrl of data.photoUrls) {
+            if (photoUrl.startsWith('data:image')) {
+                // This is a base64 string, upload to Supabase
+                try {
+                    const publicUrl = await uploadBase64ToSupabase(photoUrl, 'Devotion-Photos', 'c2s');
+                    uploadedPhotoUrls.push(publicUrl);
+                } catch (error) {
+                    console.error('Error uploading photo to Supabase:', error);
+                    // Fallback to base64 if upload fails
+                    uploadedPhotoUrls.push(photoUrl);
+                }
+            } else {
+                // Already a URL, keep it
+                uploadedPhotoUrls.push(photoUrl);
+            }
+        }
+    } else if (data.photoUrl && data.photoUrl.startsWith('data:image')) {
+        // Upload single photo
+        const { uploadBase64ToSupabase } = await import('@/lib/upload-to-supabase');
+        try {
+            const publicUrl = await uploadBase64ToSupabase(data.photoUrl, 'Devotion-Photos', 'c2s');
+            uploadedPhotoUrls.push(publicUrl);
+        } catch (error) {
+            console.error('Error uploading photo to Supabase:', error);
+            uploadedPhotoUrls.push(data.photoUrl);
+        }
+    }
+
+    const finalPhotoUrl = uploadedPhotoUrls[0] || data.photoUrl || null;
+    const finalPhotoUrls = uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : (data.photoUrls || (data.photoUrl ? [data.photoUrl] : []));
 
     const payload = {
         manualType: data.manualType || 'C2S Devotional Manual',
@@ -1198,25 +1477,22 @@ export async function createC2SDevotionRecord(data: {
         attendeeCount: data.attendeeCount ?? (data.attendeeNames ? data.attendeeNames.length : 0),
         reflectionNotes: data.reflectionNotes,
         prayerRequests: data.prayerRequests || null,
-        photoUrl: data.photoUrl || (data.photoUrls && data.photoUrls[0]) || null,
-        photoUrls: data.photoUrls || (data.photoUrl ? [data.photoUrl] : []),
+        photoUrl: finalPhotoUrl,
+        photoUrls: finalPhotoUrls,
         status: data.status || 'Submitted',
     };
 
     try {
-        const record = await (prisma as any).c2SDevotionRecord.create({
+        const record = await prisma.c2SDevotionRecord.create({
             data: payload,
         });
         revalidatePath('/c2s');
         return record;
     } catch (err: any) {
         console.error("Error creating C2SDevotionRecord in DB:", err);
-        return {
-            id: `dev-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            ...payload,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+        console.error("Payload:", JSON.stringify(payload, null, 2));
+        // Throw the error instead of returning a mock object
+        throw new Error(`Failed to create devotion record: ${err.message}`);
     }
 }
 
@@ -1240,6 +1516,38 @@ export async function updateC2SDevotionRecord(id: string, data: {
     photoUrls?: string[];
     status?: string;
 }) {
+    // Upload photos to Supabase Storage if they are base64 strings
+    let uploadedPhotoUrls: string[] = [];
+    if (data.photoUrls && data.photoUrls.length > 0) {
+        const { uploadBase64ToSupabase } = await import('@/lib/upload-to-supabase');
+        for (const photoUrl of data.photoUrls) {
+            if (photoUrl.startsWith('data:image')) {
+                // This is a base64 string, upload to Supabase
+                try {
+                    const publicUrl = await uploadBase64ToSupabase(photoUrl, 'Devotion-Photos', 'c2s');
+                    uploadedPhotoUrls.push(publicUrl);
+                } catch (error) {
+                    console.error('Error uploading photo to Supabase:', error);
+                    // Fallback to base64 if upload fails
+                    uploadedPhotoUrls.push(photoUrl);
+                }
+            } else {
+                // Already a URL, keep it
+                uploadedPhotoUrls.push(photoUrl);
+            }
+        }
+    } else if (data.photoUrl && data.photoUrl.startsWith('data:image')) {
+        // Upload single photo
+        const { uploadBase64ToSupabase } = await import('@/lib/upload-to-supabase');
+        try {
+            const publicUrl = await uploadBase64ToSupabase(data.photoUrl, 'Devotion-Photos', 'c2s');
+            uploadedPhotoUrls.push(publicUrl);
+        } catch (error) {
+            console.error('Error uploading photo to Supabase:', error);
+            uploadedPhotoUrls.push(data.photoUrl);
+        }
+    }
+
     const updateData: any = {};
     if (data.manualType !== undefined) updateData.manualType = data.manualType;
     if (data.moduleName !== undefined) updateData.moduleName = data.moduleName;
@@ -1258,16 +1566,22 @@ export async function updateC2SDevotionRecord(id: string, data: {
     }
     if (data.reflectionNotes !== undefined) updateData.reflectionNotes = data.reflectionNotes;
     if (data.prayerRequests !== undefined) updateData.prayerRequests = data.prayerRequests;
-    if (data.photoUrls !== undefined) {
+    
+    // Use uploaded URLs if available
+    if (uploadedPhotoUrls.length > 0) {
+        updateData.photoUrls = uploadedPhotoUrls;
+        updateData.photoUrl = uploadedPhotoUrls[0];
+    } else if (data.photoUrls !== undefined) {
         updateData.photoUrls = data.photoUrls;
         updateData.photoUrl = data.photoUrl || (data.photoUrls.length > 0 ? data.photoUrls[0] : null);
     } else if (data.photoUrl !== undefined) {
         updateData.photoUrl = data.photoUrl;
         updateData.photoUrls = data.photoUrl ? [data.photoUrl] : [];
     }
+    
     if (data.status !== undefined) updateData.status = data.status;
 
-    const record = await (prisma as any).c2SDevotionRecord.update({
+    const record = await prisma.c2SDevotionRecord.update({
         where: { id },
         data: updateData,
         include: {
@@ -1279,7 +1593,7 @@ export async function updateC2SDevotionRecord(id: string, data: {
 }
 
 export async function deleteC2SDevotionRecord(id: string) {
-    await (prisma as any).c2SDevotionRecord.delete({ where: { id } });
+    await prisma.c2SDevotionRecord.delete({ where: { id } });
     revalidatePath('/c2s');
 }
 

@@ -12,9 +12,33 @@ import {
   Input,
   Label,
   Checkbox,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Badge,
 } from '@studio/ui';
-import { Package, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import {
+  Boxes,
+  Package,
+  Barcode,
+  Tag,
+  Layers,
+  MapPin,
+  User,
+  Calendar,
+  ShieldCheck,
+  Image as ImageIcon,
+  Loader2,
+  AlertTriangle,
+  FolderTree,
+  Sparkles,
+  CheckCircle2,
+  X,
+} from 'lucide-react';
 import { useInventory, type InventoryItem } from '@/hooks/use-inventory';
+import { cn } from '@/lib/utils';
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -140,146 +164,241 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            {item ? 'Edit Inventory Item' : 'Add New Item'}
-          </DialogTitle>
-          <DialogDescription>
-            {item ? 'Update item details, location, and maintenance status.' : 'Register a new equipment or consumable record into inventory.'}
-          </DialogDescription>
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 rounded-2xl gap-0 border-border/80 shadow-2xl">
+        {/* ── MODAL HEADER ── */}
+        <DialogHeader className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-xs">
+                <Boxes className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-lg font-bold font-headline tracking-tight text-foreground flex items-center gap-2">
+                  <span className="truncate">{item ? 'Edit Inventory Item' : 'Add New Item'}</span>
+                  {item?.inventoryCode && (
+                    <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/70 shrink-0">
+                      {item.inventoryCode}
+                    </span>
+                  )}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground truncate">
+                  {item
+                    ? 'Update specifications, stock levels, location placement, and PMS status.'
+                    : 'Register a new equipment or consumable record into inventory catalog.'}
+                </DialogDescription>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
+              title="Close modal"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        {/* ── FORM CONTENT ── */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {error && (
-            <div className="p-3 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded-lg">
-              {error}
+            <div className="p-3 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded-xl flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Name & Code */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Item Name *</Label>
-              <Input
-                required
-                placeholder="e.g. Shure SM58 Microphone"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+          {/* 1. General Info Card */}
+          <div className="space-y-3.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-headline">
+                Item Specifications
+              </span>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Inventory Code / Barcode</Label>
-              <Input
-                placeholder="Auto-generated if empty"
-                value={formData.inventoryCode}
-                onChange={(e) => setFormData({ ...formData, inventoryCode: e.target.value })}
-              />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  <span>Item Name</span>
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  placeholder="e.g. Shure SM58 Microphone"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  <span>Inventory Code / Barcode</span>
+                </Label>
+                <div className="relative">
+                  <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Auto-generated if empty"
+                    value={formData.inventoryCode}
+                    onChange={(e) => setFormData({ ...formData, inventoryCode: e.target.value })}
+                    className="pl-9 h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background font-mono transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  <span>Category</span>
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={formData.categoryId || ''}
+                  onValueChange={(val) => setFormData({ ...formData, categoryId: val })}
+                >
+                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Select Category..." className="truncate text-left" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl w-[var(--radix-popover-trigger-width)]">
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(val) => setFormData({ ...formData, type: val as any })}
+                >
+                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Select Type..." className="truncate text-left" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl w-[var(--radix-popover-trigger-width)]">
+                    <SelectItem value="EQUIPMENT" className="text-xs">
+                      Equipment (Tracked &amp; Borrowable)
+                    </SelectItem>
+                    <SelectItem value="CONSUMABLE" className="text-xs">
+                      Consumable (Stock tracked only)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          {/* Category & Type */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Category *</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                required
-              >
-                <option value="">Select Category...</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+          {/* 2. Stock & Health Section */}
+          <div className="space-y-3.5 pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-headline">
+                Stock &amp; Condition
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Type</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-              >
-                <option value="EQUIPMENT">Equipment (Tracked & Borrowable)</option>
-                <option value="CONSUMABLE">Consumable (Stock tracked only)</option>
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Current Stock</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all font-mono font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Min Stock Alert</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.minStock}
+                  onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Unit</Label>
+                <Input
+                  placeholder="pcs, box, roll"
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Condition / Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(val) => setFormData({ ...formData, status: val })}
+                >
+                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
+                    <SelectValue placeholder="Select Status..." className="truncate text-left" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl w-[var(--radix-popover-trigger-width)]">
+                    <SelectItem value="Good Condition" className="text-xs font-medium">Good Condition</SelectItem>
+                    <SelectItem value="Low Stock" className="text-xs font-medium">Low Stock</SelectItem>
+                    <SelectItem value="Out of Stock" className="text-xs font-medium">Out of Stock</SelectItem>
+                    <SelectItem value="Under Maintenance" className="text-xs font-medium">Under Maintenance</SelectItem>
+                    <SelectItem value="Damaged" className="text-xs font-medium">Damaged</SelectItem>
+                    <SelectItem value="Borrowed" className="text-xs font-medium">Borrowed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Next Maintenance (PMS)</Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={formData.nextMaintenanceDate}
+                    onChange={(e) => setFormData({ ...formData, nextMaintenanceDate: e.target.value })}
+                    className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Stock, Min Stock & Unit */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Current Stock</Label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Min Stock Alert</Label>
-              <Input
-                type="number"
-                min="0"
-                value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Unit</Label>
-              <Input
-                placeholder="pcs, box, roll"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Status & Maintenance Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Status</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <option value="Good Condition">Good Condition</option>
-                <option value="Low Stock">Low Stock</option>
-                <option value="Out of Stock">Out of Stock</option>
-                <option value="Under Maintenance">Under Maintenance</option>
-                <option value="Damaged">Damaged</option>
-                <option value="Borrowed">Borrowed</option>
-              </select>
+          {/* 3. Location & Placement Box */}
+          <div className="rounded-2xl border border-border/70 bg-card/60 p-4 space-y-3.5 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-lg bg-primary/10 text-primary">
+                <MapPin className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground font-headline">
+                Location &amp; Placement
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Next Maintenance (PMS)</Label>
-              <Input
-                type="date"
-                value={formData.nextMaintenanceDate}
-                onChange={(e) => setFormData({ ...formData, nextMaintenanceDate: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Location details */}
-          <div className="space-y-2 border rounded-xl p-3 bg-muted/20">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location & Placement</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[11px]">Location Area / Room</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground">Location Area / Room</Label>
                 <Input
                   placeholder="e.g. 4th Floor Studio"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   list="locations-list"
+                  className="h-8.5 text-xs rounded-xl bg-background border-border/70"
                 />
                 <datalist id="locations-list">
                   {locations.map((l) => (
@@ -287,80 +406,128 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
                   ))}
                 </datalist>
               </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">Assigned Worker / Person</Label>
-                <Input
-                  placeholder="e.g. Tech Head"
-                  value={formData.assignedTo}
-                  onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                />
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground">Assigned Custodian / Person</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="e.g. Tech Head"
+                    value={formData.assignedTo}
+                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                    className="pl-9 h-8.5 text-xs rounded-xl bg-background border-border/70"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="grid grid-cols-3 gap-2.5 pt-1">
               <div className="space-y-1">
-                <Label className="text-[11px]">Aisle</Label>
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Aisle</Label>
                 <Input
                   placeholder="A-1"
                   value={formData.aisle}
                   onChange={(e) => setFormData({ ...formData, aisle: e.target.value })}
+                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
                 />
               </div>
+
               <div className="space-y-1">
-                <Label className="text-[11px]">Shelf</Label>
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shelf</Label>
                 <Input
                   placeholder="S-2"
                   value={formData.shelf}
                   onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
+                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
                 />
               </div>
+
               <div className="space-y-1">
-                <Label className="text-[11px]">Bin</Label>
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Bin</Label>
                 <Input
                   placeholder="B-04"
                   value={formData.bin}
                   onChange={(e) => setFormData({ ...formData, bin: e.target.value })}
+                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
                 />
               </div>
             </div>
           </div>
 
-          {/* Image URL & Bundle/Kit Flag */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Image URL (Optional)</Label>
-            <Input
-              placeholder="https://..."
-              value={formData.imageUrl}
-              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            />
+          {/* 4. Image & Options */}
+          <div className="space-y-3.5">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Image URL (Optional)</span>
+              </Label>
+              <Input
+                placeholder="https://..."
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+              />
+            </div>
+
+            {formData.imageUrl && (
+              <div className="p-2 rounded-xl bg-muted/40 border border-border/70 flex items-center gap-3">
+                <img
+                  src={formData.imageUrl}
+                  alt="Item Preview"
+                  className="h-12 w-12 rounded-lg object-cover border border-border shrink-0"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+                <div className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">Thumbnail Preview</p>
+                  <p className="text-[11px] truncate max-w-sm">{formData.imageUrl}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <label className="flex items-center gap-2.5 p-3 rounded-xl border border-border/70 bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-2xs">
+                <Checkbox
+                  checked={formData.isKit}
+                  onCheckedChange={(c) => setFormData({ ...formData, isKit: Boolean(c) })}
+                />
+                <div className="text-xs">
+                  <p className="font-bold text-foreground">Kit / Bundle</p>
+                  <p className="text-[10px] text-muted-foreground">Check out child items together</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-3 rounded-xl border border-border/70 bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-2xs">
+                <Checkbox
+                  checked={formData.isApprovalRequired}
+                  onCheckedChange={(c) => setFormData({ ...formData, isApprovalRequired: Boolean(c) })}
+                />
+                <div className="text-xs">
+                  <p className="font-bold text-foreground">Requires Approval</p>
+                  <p className="text-[10px] text-muted-foreground">Needs manager check before release</p>
+                </div>
+              </label>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 pt-1">
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-              <Checkbox
-                checked={formData.isKit}
-                onCheckedChange={(c) => setFormData({ ...formData, isKit: Boolean(c) })}
-              />
-              <span>Is Kit / Bundle (Autocheckout child items together)</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-              <Checkbox
-                checked={formData.isApprovalRequired}
-                onCheckedChange={(c) => setFormData({ ...formData, isApprovalRequired: Boolean(c) })}
-              />
-              <span>Requires Approval Before Borrowing</span>
-            </label>
-          </div>
-
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+          {/* ── MODAL FOOTER ── */}
+          <DialogFooter className="pt-4 border-t border-border/70 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80 cursor-pointer"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="h-9 px-5 text-xs font-bold rounded-xl bg-sidebar hover:bg-sidebar/90 text-white shadow-xs cursor-pointer"
+            >
               {submitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Saving...
                 </>
               ) : item ? (
                 'Update Item'
