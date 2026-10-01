@@ -31,14 +31,14 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
-  "fixed left-[50%] top-[50%] z-50 grid w-[94vw] sm:max-w-lg md:max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border border-border/70 bg-background dark:bg-card p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] max-h-[90vh] overflow-y-auto",
+  "fixed z-50 bg-background dark:bg-card shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out",
   {
     variants: {
       side: {
-        top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
-        bottom: "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "data-[state=closed]:slide-out-to-left-1/2 data-[state=open]:slide-in-from-left-1/2",
-        right: "data-[state=closed]:slide-out-to-left-1/2 data-[state=open]:slide-in-from-left-1/2",
+        top: "inset-x-0 top-0 border-b rounded-b-2xl data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top max-h-[90vh] overflow-y-auto p-6",
+        bottom: "inset-x-0 bottom-0 border-t rounded-t-2xl data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90vh] overflow-y-auto p-6",
+        left: "inset-y-0 left-0 h-full border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+        right: "rounded-2xl border border-border/70 p-6 gap-4 grid overflow-y-auto overflow-x-hidden data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
       },
     },
     defaultVariants: {
@@ -54,7 +54,7 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => {
+>(({ side = "right", className, children, style, ...props }, ref) => {
   // FIX: Radix UI sometimes leaves pointer-events: none on the body
   // when a sheet is unmounted forcefully during a save/update.
   React.useEffect(() => {
@@ -65,12 +65,24 @@ const SheetContent = React.forwardRef<
     };
   }, []);
 
+  // For the centered modal (right variant), use inline styles to guarantee
+  // correct positioning regardless of any CSS transform on parent containers.
+  const centeredStyle: React.CSSProperties = side === "right" ? {
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "min(calc(100vw - 2rem), 32rem)",
+    maxHeight: "min(calc(100svh - 8rem), 92vh)",
+    ...style,
+  } : (style ?? {});
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
+        style={centeredStyle}
         {...props}
       >
         {children}

@@ -113,6 +113,9 @@ interface ApprovalDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requesterWorker?: Worker | null;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
+  canManage?: boolean;
 }
 
 export function ApprovalDetailsDialog({
@@ -120,6 +123,9 @@ export function ApprovalDetailsDialog({
   open,
   onOpenChange,
   requesterWorker,
+  onApprove,
+  onReject,
+  canManage = false,
 }: ApprovalDetailsDialogProps) {
   if (!request) return null;
 
@@ -242,6 +248,32 @@ export function ApprovalDetailsDialog({
               {request.details || "No additional details provided."}
             </div>
           </div>
+
+          {/* 5. Approve / Reject Actions */}
+          {canManage && request.status.startsWith("Pending") && (onApprove || onReject) && (
+            <div className="pt-1 grid grid-cols-2 gap-3">
+              {onApprove && (
+                <button
+                  type="button"
+                  onClick={() => { onApprove(request.id!); onOpenChange(false); }}
+                  className="flex items-center justify-center gap-2 h-11 rounded-xl border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 active:scale-95 transition-all cursor-pointer"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  Approve
+                </button>
+              )}
+              {onReject && (
+                <button
+                  type="button"
+                  onClick={() => { onReject(request.id!); onOpenChange(false); }}
+                  className="flex items-center justify-center gap-2 h-11 rounded-xl border-2 border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 active:scale-95 transition-all cursor-pointer"
+                >
+                  <XCircle className="h-5 w-5" />
+                  Reject
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -79,7 +79,10 @@ export function ReservationDetailsSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto p-0 rounded-2xl gap-0 border-border/80 shadow-2xl">
+      <SheetContent
+        className="max-h-[calc(100svh-8rem)] md:max-h-[92vh] overflow-y-auto overflow-x-hidden p-0 rounded-2xl gap-0 border-border/80 shadow-2xl [&>button]:hidden"
+        style={{ width: "min(calc(100vw - 2rem), 36rem)", maxHeight: "min(calc(100svh - 8rem), 92vh)" }}
+      >
         {/* ── MODAL HEADER ── */}
         <SheetHeader className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 text-left space-y-0">
           <div className="flex items-start justify-between gap-3">
@@ -116,7 +119,7 @@ export function ReservationDetailsSheet({
                     {booking.status}
                   </span>
                 </SheetTitle>
-                <SheetDescription className="text-xs text-muted-foreground truncate mt-0.5">
+                <SheetDescription className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                   Reservation detail summary, requester info, and equipment requirements
                 </SheetDescription>
               </div>

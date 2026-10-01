@@ -39,6 +39,7 @@ import { useMealStubs } from "@/hooks/use-meal-stubs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useAuditLog } from "@/hooks/use-audit-log";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { useApprovals } from "@/hooks/use-approvals";
 import {
@@ -142,6 +143,7 @@ export default function WorkersPage() {
   const { workerProfile, canManageWorkers, isSuperAdmin, allRoles, isLoading: isRoleLoading } = useUserRole();
   const { logAction } = useAuditLog();
   const { isMealStubAssigner, canManageAllMealStubs } = useUserRole();
+  const isMobile = useIsMobile();
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -534,17 +536,25 @@ export default function WorkersPage() {
           <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-6">
             <h2 className="text-base font-bold text-foreground mb-0.5">Ministry Distribution</h2>
             <p className="text-xs text-muted-foreground mb-5">Workers per ministry.</p>
-            <div className="h-[240px] w-full">
+            <div className="h-[240px] md:h-[240px] w-full" style={{ height: isMobile ? 300 : 240 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ministryChartData} margin={{ top: 4, right: 4, left: -20, bottom: 5 }} barCategoryGap="30%">
+                <BarChart
+                  data={ministryChartData}
+                  margin={{ top: 4, right: 4, left: -20, bottom: isMobile ? 55 : 5 }}
+                  barCategoryGap="30%"
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis
                     dataKey="name"
-                    fontSize={11}
+                    fontSize={isMobile ? 10 : 11}
                     tickLine={false}
                     axisLine={false}
                     tick={{ fill: "#6b7280" }}
                     interval={0}
+                    angle={isMobile ? -40 : 0}
+                    textAnchor={isMobile ? "end" : "middle"}
+                    height={isMobile ? 65 : 30}
+                    tickFormatter={(v: string) => isMobile && v.length > 10 ? v.slice(0, 10) + "…" : v}
                   />
                   <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#9ca3af" }} />
                   <Tooltip

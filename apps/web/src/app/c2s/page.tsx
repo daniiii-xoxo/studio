@@ -758,7 +758,10 @@ const DevotionDetailsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-7 rounded-2xl bg-background border shadow-xl">
+      <DialogContent
+        className="rounded-2xl bg-background border shadow-xl p-4 sm:p-6 md:p-7"
+        style={{ width: "min(calc(100vw - 2rem), 48rem)", maxHeight: "min(calc(100svh - 8rem), 92vh)" }}
+      >
         <DialogHeader className="space-y-2.5 text-left pb-1">
           {/* Top Row: Date & Cluster Pill Badges */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -2020,35 +2023,36 @@ const AdminOverview = ({
           }
         }}
       >
-        <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[88vh] overflow-y-auto rounded-3xl p-6">
+        <DialogContent
+          className="rounded-3xl p-4 sm:p-6"
+          style={{ width: "min(calc(100vw - 2rem), 56rem)", maxHeight: "min(calc(100svh - 8rem), 88vh)" }}
+        >
           <DialogHeader>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {viewingDeptMeta && (
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center font-black text-base shadow-xs shrink-0 tracking-tight", viewingDeptMeta.circleBg)}>
-                    {viewingDeptMeta.code}
-                  </div>
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <DialogTitle className="text-2xl font-extrabold text-foreground tracking-tight">
-                      {viewingDept?.department} Department
-                    </DialogTitle>
-                    <Badge
-                      className={`${
-                        viewingDept?.status === "Needs Attention"
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                          : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                      } font-semibold text-xs border-transparent`}
-                    >
-                      {viewingDept?.status}
-                    </Badge>
-                  </div>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    Assigned Head: <strong className="text-foreground">{viewingDept?.headName}</strong> •{" "}
-                    {viewingDept?.completionPct}% overall mentee completion rate.
-                  </DialogDescription>
+            <div className="flex items-start gap-3">
+              {viewingDeptMeta && (
+                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center font-black text-base shadow-xs shrink-0 tracking-tight mt-0.5", viewingDeptMeta.circleBg)}>
+                  {viewingDeptMeta.code}
                 </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+                    {viewingDept?.department} Department
+                  </DialogTitle>
+                  <Badge
+                    className={`${
+                      viewingDept?.status === "Needs Attention"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    } font-semibold text-xs border-transparent shrink-0`}
+                  >
+                    {viewingDept?.status}
+                  </Badge>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Assigned Head: <strong className="text-foreground">{viewingDept?.headName}</strong> •{" "}
+                  {viewingDept?.completionPct}% overall mentee completion rate.
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -2302,70 +2306,33 @@ const AdminOverview = ({
                             No mentees assigned to this mentor yet.
                           </div>
                         ) : (
-                          <div className="border border-border/60 rounded-xl overflow-hidden bg-background">
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="bg-slate-50 dark:bg-muted/40 border-b border-border/40">
-                                  <TableHead className="text-[10px] uppercase font-bold text-muted-foreground h-8 px-3 text-left">Mentee</TableHead>
-                                  <TableHead className="text-[10px] uppercase font-bold text-muted-foreground h-8 px-3 text-left">Ministry</TableHead>
-                                  <TableHead className="text-[10px] uppercase font-bold text-muted-foreground h-8 px-3 text-center">Status</TableHead>
-                                  <TableHead className="text-[10px] uppercase font-bold text-muted-foreground h-8 px-3 text-center">Progress</TableHead>
-                                  <TableHead className="text-[10px] uppercase font-bold text-muted-foreground h-8 px-3 text-center">Last Session</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {mentor.mentees.map((me: any) => {
-                                  const isMenteeActive = (me.status || "Active").toLowerCase() === "active";
-                                  const displayStatus = isMenteeActive ? "Active" : me.status || "Inactive";
-                                  const statusColorClass =
-                                    me.status === "Completed"
-                                      ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
-                                      : isMenteeActive
-                                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                      : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
-
-                                  return (
-                                    <TableRow key={me.id} className="border-b border-border/30 hover:bg-muted/15 transition-colors text-xs">
-                                      <TableCell className="px-3 py-2.5">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-6 h-6 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                            {me.initials}
-                                          </div>
-                                          <div>
-                                            <p className="font-semibold text-foreground leading-tight text-xs">{me.fullName}</p>
-                                            <p className="text-[10px] text-muted-foreground">{me.email || me.phone || "No contact"}</p>
-                                          </div>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="px-3 py-2.5 text-[11px] text-muted-foreground">
-                                        {me.ministryName}
-                                      </TableCell>
-                                      <TableCell className="px-3 py-2.5 text-center">
-                                        <Badge variant="secondary" className={cn(statusColorClass, "px-2 py-0.2 rounded-full text-[10px] font-bold border-transparent")}>
-                                          {displayStatus}
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell className="px-3 py-2.5 text-center">
-                                        <div className="flex items-center justify-center gap-1.5">
-                                          <div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden">
-                                            <div
-                                              className="bg-sidebar h-full rounded-full"
-                                              style={{ width: `${me.progressPct}%` }}
-                                            />
-                                          </div>
-                                          <span className="font-bold text-[10px] text-muted-foreground">
-                                            {me.progressPct}%
-                                          </span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="px-3 py-2.5 text-center font-mono text-[10px] text-muted-foreground">
-                                        {me.lastSessionDate}
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
+                          <div className="space-y-2">
+                            {mentor.mentees.map((me: any) => {
+                              const isMenteeActive = (me.status || "Active").toLowerCase() === "active";
+                              const displayStatus = isMenteeActive ? "Active" : me.status || "Inactive";
+                              const statusColorClass =
+                                me.status === "Completed"
+                                  ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                                  : isMenteeActive
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+                              return (
+                                <div key={me.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-muted/20 border border-border/50">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
+                                      {me.initials}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-semibold text-foreground text-xs truncate">{me.fullName}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{me.ministryName} {me.email ? `• ${me.email}` : ""}</p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="secondary" className={cn(statusColorClass, "px-2 py-0.5 rounded-full text-[10px] font-bold border-transparent shrink-0")}>
+                                    {displayStatus}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -2403,105 +2370,38 @@ const AdminOverview = ({
                   </p>
                 </div>
               ) : (
-                <div className="border border-border/70 rounded-2xl overflow-hidden bg-card">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[160px]">
-                          Mentee
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[120px]">
-                          Ministry
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[140px]">
-                          Assigned Mentor
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[90px]">
-                          Status
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[100px]">
-                          Progress
-                        </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[120px]">
-                          Last Session
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {modalFilteredMentees.map((m: any) => {
-                        const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
-                        const displayStatus = isMenteeActive ? "Active" : m.status || "Inactive";
-                        const statusColorClass =
-                          m.status === "Completed"
-                            ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
-                            : isMenteeActive
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
-
-                        return (
-                          <TableRow key={m.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
-                            {/* Mentee */}
-                            <TableCell className="px-4 py-3 align-middle">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
-                                  {m.initials}
-                                </div>
-                                <div className="overflow-hidden">
-                                  <p className="font-bold text-foreground text-xs leading-none truncate">
-                                    {m.fullName}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
-                                    {m.email || m.phone || "No contact info"}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            {/* Ministry */}
-                            <TableCell className="px-4 py-3 align-middle">
-                              <Badge variant="outline" className="text-[10px] font-semibold bg-muted/40">
-                                {m.ministryName}
-                              </Badge>
-                            </TableCell>
-
-                            {/* Assigned Mentor */}
-                            <TableCell className="px-4 py-3 align-middle">
-                              <span className="text-xs font-medium text-foreground truncate">
-                                {m.mentorName}
-                              </span>
-                            </TableCell>
-
-                            {/* Status */}
-                            <TableCell className="px-3 py-3 text-center align-middle">
-                              <Badge variant="secondary" className={cn(statusColorClass, "px-2.5 py-0.5 rounded-full text-[10px] font-bold border-transparent")}>
-                                {displayStatus}
-                              </Badge>
-                            </TableCell>
-
-                            {/* Progress */}
-                            <TableCell className="px-3 py-3 align-middle text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-14 bg-muted h-1.5 rounded-full overflow-hidden">
-                                  <div
-                                    className="bg-sidebar h-full rounded-full transition-all duration-300"
-                                    style={{ width: `${m.progressPct}%` }}
-                                  />
-                                </div>
-                                <span className="font-bold text-muted-foreground text-[11px]">
-                                  {m.progressPct}%
-                                </span>
-                              </div>
-                            </TableCell>
-
-                            {/* Last Session */}
-                            <TableCell className="px-3 py-3 text-center align-middle font-mono text-[11px] text-muted-foreground">
-                              {m.lastSessionDate}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-2">
+                  {modalFilteredMentees.map((m: any) => {
+                    const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
+                    const displayStatus = isMenteeActive ? "Active" : m.status || "Inactive";
+                    const statusColorClass =
+                      m.status === "Completed"
+                        ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                        : isMenteeActive
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+                    return (
+                      <div key={m.id} className="p-3 rounded-2xl bg-slate-50/70 dark:bg-muted/20 border border-slate-200/80 dark:border-border/60 flex items-center justify-between gap-3 hover:border-sidebar/40 hover:shadow-xs transition-all">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
+                            {m.initials}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-foreground truncate">{m.fullName}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {m.ministryName} • {m.mentorName ? `Mentor: ${m.mentorName}` : "No mentor"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <Badge variant="secondary" className={cn(statusColorClass, "px-2.5 py-0.5 rounded-full text-[10px] font-bold border-transparent")}>
+                            {displayStatus}
+                          </Badge>
+                          <span className="text-[10px] font-semibold text-muted-foreground">{m.progressPct}% done</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -3326,6 +3226,7 @@ function C2SPageContent() {
   const [isMenteeSheetOpen, setIsMenteeSheetOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
   const [selectedMentee, setSelectedMentee] = useState<any | null>(null);
+  const [viewingMenteeDetail, setViewingMenteeDetail] = useState<any | null>(null);
 
   const [itemToDelete, setItemToDelete] = useState<{
     id: string;
@@ -4667,7 +4568,83 @@ function C2SPageContent() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto flex-grow">
+                    <div className="flex-grow flex flex-col">
+                      {/* ── Mobile card view ── */}
+                      <div className="md:hidden divide-y divide-border/30">
+                        {filteredMyMentees.map((m) => {
+                          const fullName = `${m.firstName} ${m.lastName}`.trim();
+                          const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
+                          const menteeDevotions = allDevotions?.filter((d: any) =>
+                            d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
+                          ) || [];
+                          const lastSessionDate = menteeDevotions[0]?.devotionDate
+                            ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd")
+                            : "—";
+                          const progressPct =
+                            m.status === "Completed" ? 100 :
+                            m.status === "Dropped" ? 25 :
+                            menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
+                          const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
+                          const displayStatus = isMenteeActive ? "Active" : "Inactive";
+                          const statusColorClass = isMenteeActive
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+                          return (
+                            <div key={m.id} className="p-4 flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2.5 mb-1.5">
+                                  <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar text-xs font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-foreground truncate">{fullName}</p>
+                                    <p className="text-[11px] text-muted-foreground truncate">{m.email || m.phone || "No contact info"}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="secondary" className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}>
+                                    {displayStatus}
+                                  </Badge>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden">
+                                      <div className="bg-primary h-full rounded-full" style={{ width: `${progressPct}%` }} />
+                                    </div>
+                                    <span className="text-[10px] font-semibold text-muted-foreground">{progressPct}%</span>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-mono">{lastSessionDate}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingMenteeDetail({ ...m, fullName, initials, menteeMinistry: (m as any).majorMinistryId, mentorName: "—", progressPct, lastSessionDate, displayStatus, statusColorClass })}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
+                                >
+                                  View Details
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button type="button" className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-36 p-1 rounded-xl shadow-lg border-border/80">
+                                  <DropdownMenuItem onClick={() => { setSelectedMentee(m); setIsMenteeSheetOpen(true); }} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" /> Edit Mentee
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setItemToDelete({ id: m.id, type: "mentee", name: fullName })} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-destructive focus:text-destructive focus:bg-destructive/10">
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" /> Delete Mentee
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* ── Desktop table view ── */}
+                      <div className="hidden md:block overflow-x-auto flex-grow">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -4809,6 +4786,7 @@ function C2SPageContent() {
                           })}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -4963,201 +4941,123 @@ function C2SPageContent() {
                       </Button>
                     </div>
                   ) : (
+                    <div className="flex-grow flex flex-col">
+                      {/* ── Mobile card view ── */}
+                      <div className="md:hidden divide-y divide-border/30">
+                        {filteredHeadMentees.map((m) => {
+                          const fullName = `${m.firstName} ${m.lastName}`.trim();
+                          const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
+                          const mentor = workers?.find(w => w.id === m.mentorId || (m.groupId && groups?.find(g => g.id === m.groupId)?.mentorId === w.id));
+                          const mentorName = mentor ? `${mentor.firstName} ${mentor.lastName}`.trim() : "Unassigned";
+                          const menteeMinistry = getMenteeMinistry(m);
+                          const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))) || [];
+                          const progressPct = m.status === "Completed" ? 100 : m.status === "Dropped" ? 25 : menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
+                          const lastSessionDate = menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "—";
+                          const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
+                          const displayStatus = isMenteeActive ? "Active" : "Inactive";
+                          const statusColorClass = isMenteeActive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+                          return (
+                            <div key={m.id} className="p-4 flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2.5 mb-1.5">
+                                  <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar text-xs font-bold flex items-center justify-center shrink-0 border border-sidebar/20">{initials}</div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-foreground truncate">{fullName}</p>
+                                    <p className="text-[11px] text-muted-foreground truncate">{menteeMinistry} · {mentorName}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="secondary" className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}>{displayStatus}</Badge>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden">
+                                      <div className="bg-primary h-full rounded-full" style={{ width: `${progressPct}%` }} />
+                                    </div>
+                                    <span className="text-[10px] font-semibold text-muted-foreground">{progressPct}%</span>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-mono">{lastSessionDate}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingMenteeDetail({ ...m, fullName, initials, menteeMinistry, mentorName, progressPct, lastSessionDate, displayStatus, statusColorClass })}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
+                                >
+                                  View Details
+                                </button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button type="button" className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-36 p-1 rounded-xl shadow-lg border-border/80">
+                                    <DropdownMenuItem onClick={() => { setSelectedMentee(m); setIsMenteeSheetOpen(true); }} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" /> Edit Mentee
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setItemToDelete({ id: m.id, type: "mentee", name: fullName })} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-destructive focus:text-destructive focus:bg-destructive/10">
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" /> Delete Mentee
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* ── Desktop table view ── */}
+                      <div className="hidden md:block overflow-x-auto">
                     <Table className="w-full">
                       <TableHeader>
                         <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap", isAdminUser ? "w-[20%]" : "w-[24%]")}>
-                            Mentee
-                          </TableHead>
-                          {isAdminUser && (
-                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap w-[12%]">
-                              Department
-                            </TableHead>
-                          )}
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[16%]" : "w-[18%]")}>
-                            Assigned Mentor
-                          </TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[13%]" : "w-[15%]")}>
-                            Ministry
-                          </TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-left whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>
-                            Barangay
-                          </TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>
-                            Status
-                          </TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>
-                            Progress
-                          </TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>
-                            Last Session
-                          </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3.5 sm:px-4 text-center whitespace-nowrap w-[8%]">
-                            <span className="relative -left-2">Actions</span>
-                          </TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap", isAdminUser ? "w-[20%]" : "w-[24%]")}>Mentee</TableHead>
+                          {isAdminUser && (<TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap w-[12%]">Department</TableHead>)}
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[16%]" : "w-[18%]")}>Assigned Mentor</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[13%]" : "w-[15%]")}>Ministry</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-left whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>Barangay</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>Status</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>Progress</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>Last Session</TableHead>
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3.5 sm:px-4 text-center whitespace-nowrap w-[8%]"><span className="relative -left-2">Actions</span></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredHeadMentees.map((m) => {
                           const fullName = `${m.firstName} ${m.lastName}`.trim();
                           const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
-
-                          const mentor = workers?.find(
-                            (w) => w.id === m.mentorId || (m.groupId && groups?.find((g) => g.id === m.groupId)?.mentorId === w.id)
-                          );
+                          const mentor = workers?.find(w => w.id === m.mentorId || (m.groupId && groups?.find(g => g.id === m.groupId)?.mentorId === w.id));
                           const mentorName = mentor ? `${mentor.firstName} ${mentor.lastName}`.trim() : "Unassigned";
-                          const mentorInitials = mentor
-                            ? `${mentor.firstName?.[0] || ""}${mentor.lastName?.[0] || ""}`.toUpperCase()
-                            : "UA";
+                          const mentorInitials = mentor ? `${mentor.firstName?.[0] || ""}${mentor.lastName?.[0] || ""}`.toUpperCase() : "UA";
                           const menteeMinistry = getMenteeMinistry(m);
                           const menteeDepartment = getMenteeDepartment(m);
-
-                          const menteeDevotions = allDevotions?.filter((d: any) =>
-                            d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
-                          ) || [];
-                          const lastSessionDate = menteeDevotions[0]?.devotionDate
-                            ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd")
-                            : "2026-09-04";
-
-                          const progressPct =
-                            m.status === "Completed"
-                              ? 100
-                              : m.status === "Dropped"
-                                ? 25
-                                : menteeDevotions.length > 0
-                                  ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100)))
-                                  : 65;
-
+                          const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))) || [];
+                          const lastSessionDate = menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "2026-09-04";
+                          const progressPct = m.status === "Completed" ? 100 : m.status === "Dropped" ? 25 : menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
                           const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
                           const displayStatus = isMenteeActive ? "Active" : "Inactive";
-                          const statusColorClass = isMenteeActive
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
-
+                          const statusColorClass = isMenteeActive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
                           return (
-                            <TableRow
-                              key={m.id}
-                              className="border-b border-border/40 hover:bg-muted/20 transition-colors"
-                            >
-                              {/* Mentee */}
+                            <TableRow key={m.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
                               <TableCell className="px-4 py-3 align-middle whitespace-nowrap">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
-                                    {initials}
-                                  </div>
-                                  <div className="overflow-hidden">
-                                    <p className="font-bold text-foreground text-xs leading-none truncate">
-                                      {fullName}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                                      {m.email || m.phone || "No contact info"}
-                                    </p>
-                                  </div>
+                                  <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">{initials}</div>
+                                  <div className="overflow-hidden"><p className="font-bold text-foreground text-xs leading-none truncate">{fullName}</p><p className="text-[10px] text-muted-foreground mt-0.5 truncate">{m.email || m.phone || "No contact info"}</p></div>
                                 </div>
                               </TableCell>
-
-                              {/* Department (Admin only) */}
-                              {isAdminUser && (
-                                <TableCell className="px-3 py-3 text-xs align-middle whitespace-nowrap">
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] font-semibold bg-slate-100 dark:bg-muted/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-border"
-                                  >
-                                    {menteeDepartment}
-                                  </Badge>
-                                </TableCell>
-                              )}
-
-                              {/* Assigned Mentor */}
-                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center shrink-0 border border-primary/20">
-                                    {mentorInitials}
-                                  </div>
-                                  <span className="text-xs font-medium text-foreground truncate">
-                                    {mentorName}
-                                  </span>
-                                </div>
-                              </TableCell>
-
-                              {/* Ministry */}
-                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2 py-0.5"
-                                >
-                                  {menteeMinistry}
-                                </Badge>
-                              </TableCell>
-
-                              {/* Barangay */}
-                              <TableCell className="px-2.5 py-3 text-xs text-muted-foreground align-middle whitespace-nowrap">
-                                {m.phone ? `Brgy. ${m.phone.slice(-1) || "1"}` : "Brgy. 1"}
-                              </TableCell>
-
-                              {/* Status */}
-                              <TableCell className="px-2.5 py-3 text-center align-middle whitespace-nowrap">
-                                <Badge
-                                  variant="secondary"
-                                  className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}
-                                >
-                                  {displayStatus}
-                                </Badge>
-                              </TableCell>
-
-                              {/* Progress */}
-                              <TableCell className="px-2.5 py-3 align-middle text-center whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden">
-                                    <div
-                                      className="bg-primary h-full rounded-full transition-all duration-300"
-                                      style={{ width: `${progressPct}%` }}
-                                    />
-                                  </div>
-                                  <span className="font-semibold text-muted-foreground text-[11px]">
-                                    {progressPct}%
-                                  </span>
-                                </div>
-                              </TableCell>
-
-                              {/* Last Session */}
-                              <TableCell className="px-3 py-3 text-xs text-muted-foreground text-center align-middle font-mono whitespace-nowrap">
-                                {lastSessionDate}
-                              </TableCell>
-
-                              {/* Actions */}
+                              {isAdminUser && (<TableCell className="px-3 py-3 text-xs align-middle whitespace-nowrap"><Badge variant="outline" className="text-[10px] font-semibold bg-slate-100 dark:bg-muted/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-border">{menteeDepartment}</Badge></TableCell>)}
+                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center shrink-0 border border-primary/20">{mentorInitials}</div><span className="text-xs font-medium text-foreground truncate">{mentorName}</span></div></TableCell>
+                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap"><Badge variant="outline" className="text-[10px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2 py-0.5">{menteeMinistry}</Badge></TableCell>
+                              <TableCell className="px-2.5 py-3 text-xs text-muted-foreground align-middle whitespace-nowrap">{m.phone ? `Brgy. ${m.phone.slice(-1) || "1"}` : "Brgy. 1"}</TableCell>
+                              <TableCell className="px-2.5 py-3 text-center align-middle whitespace-nowrap"><Badge variant="secondary" className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}>{displayStatus}</Badge></TableCell>
+                              <TableCell className="px-2.5 py-3 align-middle text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1.5"><div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden"><div className="bg-primary h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} /></div><span className="font-semibold text-muted-foreground text-[11px]">{progressPct}%</span></div></TableCell>
+                              <TableCell className="px-3 py-3 text-xs text-muted-foreground text-center align-middle font-mono whitespace-nowrap">{lastSessionDate}</TableCell>
                               <TableCell className="px-3.5 sm:px-4 py-3 text-center align-middle whitespace-nowrap">
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                                    >
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </button>
-                                  </DropdownMenuTrigger>
+                                  <DropdownMenuTrigger asChild><button type="button" className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-36 p-1 rounded-xl shadow-lg border-border/80">
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setSelectedMentee(m);
-                                        setIsMenteeSheetOpen(true);
-                                      }}
-                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" /> Edit Mentee
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        setItemToDelete({
-                                          id: m.id,
-                                          type: "mentee",
-                                          name: fullName,
-                                        })
-                                      }
-                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-destructive" /> Delete Mentee
-                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { setSelectedMentee(m); setIsMenteeSheetOpen(true); }} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2"><Pencil className="h-3.5 w-3.5 text-muted-foreground" /> Edit Mentee</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setItemToDelete({ id: m.id, type: "mentee", name: fullName })} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="h-3.5 w-3.5 text-destructive" /> Delete Mentee</DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
@@ -5166,6 +5066,8 @@ function C2SPageContent() {
                         })}
                       </TableBody>
                     </Table>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -5221,6 +5123,105 @@ function C2SPageContent() {
         onClose={() => setViewingDevotion(null)}
         isSuperAdmin={isSuperAdmin}
       />
+
+      {/* ── Mentee Detail Sheet (Mobile View Details) ── */}
+      <Sheet open={!!viewingMenteeDetail} onOpenChange={(open) => { if (!open) setViewingMenteeDetail(null); }}>
+        <SheetContent className="p-0 overflow-y-auto rounded-2xl gap-0 border-border/80 shadow-2xl [&>button]:hidden">
+          {viewingMenteeDetail && (() => {
+            const md = viewingMenteeDetail;
+            const mentor = workers?.find((w: any) => w.id === md.mentorId || (md.groupId && groups?.find((g: any) => g.id === md.groupId)?.mentorId === w.id));
+            const mentorName = mentor ? `${mentor.firstName} ${mentor.lastName}`.trim() : (md.mentorName || "Unassigned");
+            const mentorInitials = mentor ? `${mentor.firstName?.[0] || ""}${mentor.lastName?.[0] || ""}`.toUpperCase() : "UA";
+            const menteeMinistry = md.menteeMinistry || getMenteeMinistry(md);
+            const menteeDepartment = getMenteeDepartment ? getMenteeDepartment(md) : "—";
+            const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(md.fullName?.toLowerCase()))) || [];
+            const progressPct = md.progressPct ?? (md.status === "Completed" ? 100 : md.status === "Dropped" ? 25 : 65);
+            const lastSessionDate = md.lastSessionDate ?? (menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "—");
+            const isMenteeActive = (md.status || "Active").toLowerCase() === "active";
+            const displayStatus = isMenteeActive ? "Active" : "Inactive";
+            const statusColorClass = isMenteeActive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+            return (
+              <>
+                {/* Header */}
+                <SheetHeader className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 text-left space-y-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-full bg-sidebar/10 text-sidebar text-sm font-bold flex items-center justify-center shrink-0 border-2 border-sidebar/20">
+                        {md.initials || (md.firstName?.[0] || "") + (md.lastName?.[0] || "")}
+                      </div>
+                      <div className="min-w-0">
+                        <SheetTitle className="text-lg font-bold text-foreground truncate">{md.fullName || `${md.firstName} ${md.lastName}`}</SheetTitle>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{md.email || md.phone || "No contact info"}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setViewingMenteeDetail(null)} className="h-8 w-8 p-0 rounded-xl shrink-0 -mt-1 -mr-1">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </SheetHeader>
+
+                {/* Body */}
+                <div className="p-5 space-y-4">
+                  {/* Status + Progress */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl border border-border/60 bg-card/60 space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</p>
+                      <Badge variant="secondary" className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-xs border-transparent`}>{displayStatus}</Badge>
+                    </div>
+                    <div className="p-3 rounded-xl border border-border/60 bg-card/60 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Progress</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted h-2 rounded-full overflow-hidden">
+                          <div className="bg-primary h-full rounded-full" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <span className="text-xs font-bold text-foreground">{progressPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Details cards */}
+                  {[
+                    { label: "Ministry", value: menteeMinistry },
+                    { label: "Department", value: menteeDepartment },
+                    { label: "Last Session", value: lastSessionDate },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="p-3.5 rounded-xl border border-border/60 bg-card/60">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{label}</p>
+                      <p className="text-sm font-semibold text-foreground">{value || "—"}</p>
+                    </div>
+                  ))}
+
+                  {/* Assigned Mentor */}
+                  <div className="p-3.5 rounded-xl border border-border/60 bg-card/60">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Assigned Mentor</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/20">{mentorInitials}</div>
+                      <span className="text-sm font-semibold text-foreground">{mentorName}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2 grid grid-cols-2 gap-2.5">
+                    <Button
+                      onClick={() => { setViewingMenteeDetail(null); setSelectedMentee(md); setIsMenteeSheetOpen(true); }}
+                      className="h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold gap-1.5"
+                    >
+                      <Pencil className="h-4 w-4" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setViewingMenteeDetail(null); setItemToDelete({ id: md.id, type: "mentee", name: md.fullName || `${md.firstName} ${md.lastName}` }); }}
+                      className="h-10 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 text-sm font-semibold gap-1.5"
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
 
       {/* ── Mentee Sheet ── */}
       <Sheet open={isMenteeSheetOpen} onOpenChange={setIsMenteeSheetOpen}>

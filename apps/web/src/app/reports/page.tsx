@@ -761,7 +761,33 @@ function MealStubClaimsTab() {
 
           {/* Table */}
           <div className="border border-gray-200/80 dark:border-border rounded-2xl mt-5 overflow-hidden">
-            <div className="overflow-x-auto">
+
+            {/* Mobile card view */}
+            <div className="md:hidden divide-y divide-border/30">
+              {paginated.length === 0 ? (
+                <div className="py-14 text-center text-xs font-medium text-muted-foreground">No records found.</div>
+              ) : paginated.map((s, i) => (
+                <div key={i} className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-1">
+                      <WorkerInitials name={s.workerName} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-foreground truncate">{s.workerName}</p>
+                        <p className="text-[11px] text-muted-foreground">{s.ministry?.name || "—"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                      <span>Issued: <strong className="text-foreground">{format(toJsDate(s.date), "MMM d, yyyy")}</strong></span>
+                      {(s as any).claimedAt && <span>Claimed: <strong className="text-foreground">{format(toJsDate((s as any).claimedAt), "MMM d, yyyy")}</strong></span>}
+                      <StatusBadge status={s.status} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-sidebar">
                   <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -1024,7 +1050,37 @@ function AllocationsTab() {
 
           {/* Table */}
           <div className="border border-gray-200/80 dark:border-border rounded-2xl mt-5 overflow-hidden">
-            <div className="overflow-x-auto">
+
+            {/* Mobile card view */}
+            <div className="md:hidden divide-y divide-border/30">
+              {paginated.length === 0 ? (
+                <div className="py-14 text-center text-xs font-medium text-muted-foreground">No workers found.</div>
+              ) : paginated.map((worker, i) => {
+                const s = getStats(worker.id);
+                const min = getMinistry(worker.majorMinistryId);
+                return (
+                  <div key={i} className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-foreground truncate">{worker.firstName} {worker.lastName}</p>
+                          <p className="text-[11px] text-muted-foreground">{min?.name || "—"} · {worker.employmentType || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                        <span>Weekday: <strong className="font-mono text-foreground">{s.weekday}/{s.weekdayLimit}</strong></span>
+                        <span>Sunday: <strong className="font-mono text-foreground">{s.sunday}/{s.sundayLimit}</strong></span>
+                        <span>Left: <strong className="font-mono text-foreground">{s.remaining}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-sidebar">
                   <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -1279,7 +1335,39 @@ function ReservationsTab() {
 
           {/* Table */}
           <div className="border border-gray-200/80 dark:border-border rounded-2xl mt-5 overflow-hidden">
-            <div className="overflow-x-auto">
+
+            {/* Mobile card view */}
+            <div className="md:hidden divide-y divide-border/30">
+              {paginated.length === 0 ? (
+                <div className="py-14 text-center text-xs font-medium text-muted-foreground">No records found.</div>
+              ) : paginated.map((r, i) => {
+                const start = toJsDate(r.start);
+                const end = toJsDate(r.end);
+                const name = getWorkerName(r.workerProfileId);
+                const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
+                return (
+                  <div key={i} className="p-4 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <WorkerInitials name={name} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-foreground truncate">{name}</p>
+                          <p className="text-[11px] text-muted-foreground">{min?.name || "—"} · {getRoomName(r.roomId)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                        <span>{format(start, "MMM d, yyyy")}</span>
+                        <span className="font-mono">{format(start, "H:mm")}–{format(end, "H:mm")}</span>
+                        <StatusBadge status={r.status} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-sidebar">
                   <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -1309,9 +1397,7 @@ function ReservationsTab() {
                         <td className="px-4 py-3.5 text-xs text-muted-foreground font-medium align-middle whitespace-nowrap">{format(start, "MMM d, yyyy")}</td>
                         <td className="px-4 py-3.5 text-xs font-mono text-muted-foreground font-medium align-middle whitespace-nowrap">{format(start, "H:mm")} - {format(end, "H:mm")}</td>
                         <td className="px-4 py-3.5 text-xs text-muted-foreground font-medium align-middle">{r.purpose || r.title || "—"}</td>
-                        <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                          <StatusBadge status={r.status} />
-                        </td>
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap"><StatusBadge status={r.status} /></td>
                       </tr>
                     );
                   })}

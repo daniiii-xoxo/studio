@@ -372,144 +372,123 @@ export default function MyReservationsPage() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[14%]">
-                      ID
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[24%]">
-                      Floor / Room
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">
-                      Date
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">
-                      Time
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[8%]">
-                      Pax
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[10%]">
-                      Status
-                    </TableHead>
-                    <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[8%]">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <div>
+                {/* ── Mobile card view ── */}
+                <div className="md:hidden divide-y divide-border/30">
                   {filteredBookings.map((booking) => {
                     const room = getRoom(booking.roomId);
                     const area = getArea(room?.areaId);
                     const startTime = toJsDate(booking.start);
                     const endTime = toJsDate(booking.end);
-                    const reqId =
-                      booking.requestId || `REQ-${booking.id?.slice(0, 4)}`;
-
+                    const reqId = booking.requestId || `REQ-${booking.id?.slice(0, 4)}`;
                     const isApproved = booking.status === "Approved";
-                    const isPending = booking.status
-                      ?.toLowerCase()
-                      .startsWith("pending");
-
+                    const isPending = booking.status?.toLowerCase().startsWith("pending");
                     return (
-                      <TableRow
-                        key={booking.id}
-                        className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors"
-                      >
-                        {/* ID */}
-                        <TableCell className="py-4 px-6 text-center align-middle font-medium text-xs text-gray-700 dark:text-gray-300 font-mono">
-                          {reqId}
-                        </TableCell>
-
-                        {/* Floor / Room */}
-                        <TableCell className="py-4 px-6 text-center align-middle">
-                          <div>
-                            <p className="text-xs text-muted-foreground font-medium">
-                              {area?.name || "5th Floor"},
-                            </p>
-                            <p className="text-xs text-gray-800 dark:text-gray-200 font-semibold mt-0.5">
-                              {room?.name || "Sapphire"}
-                            </p>
+                      <div key={booking.id} className="p-4 flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-[10px] text-muted-foreground font-medium">{reqId}</span>
+                            {isApproved ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Approved
+                              </span>
+                            ) : isPending ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Pending
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />{booking.status}
+                              </span>
+                            )}
                           </div>
-                        </TableCell>
-
-                        {/* Date */}
-                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">
-                          {format(startTime, "MMMM d, yyyy")}
-                        </TableCell>
-
-                        {/* Time */}
-                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                          {format(startTime, "h:mm a")} -{" "}
-                          {format(endTime, "h:mm a")}
-                        </TableCell>
-
-                        {/* Pax */}
-                        <TableCell className="py-4 px-4 text-center align-middle text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {booking.pax || 0}
-                        </TableCell>
-
-                        {/* Status */}
-                        <TableCell className="py-4 px-6 text-center align-middle">
-                          {isApproved ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              Approved
-                            </span>
-                          ) : isPending ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              Pending
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                              {booking.status}
-                            </span>
-                          )}
-                        </TableCell>
-
-                        {/* Actions */}
-                        <TableCell className="py-4 px-6 text-center align-middle">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40 p-1 rounded-xl shadow-lg border-border/80">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedBooking(booking);
-                                  setIsDetailsOpen(true);
-                                }}
-                                className="text-xs cursor-pointer font-medium gap-2 py-2 rounded-lg"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                View Details
-                              </DropdownMenuItem>
-
-                              {canCheckIn(booking) && (
-                                <DropdownMenuItem
-                                  onClick={() => handleCheckIn(booking)}
-                                  className="text-xs cursor-pointer font-medium text-blue-600 dark:text-blue-400 gap-2 py-2 rounded-lg"
-                                >
-                                  <ScanLine className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                                  Check In
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+                          <p className="text-sm font-bold text-foreground">{room?.name || "Unknown Room"}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {area?.name || ""} · {format(startTime, "MMM d, yyyy")} · {format(startTime, "h:mm a")}–{format(endTime, "h:mm a")} · {booking.pax || 0} pax
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedBooking(booking); setIsDetailsOpen(true); }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap shrink-0"
+                        >
+                          Details
+                        </button>
+                      </div>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* ── Desktop table view ── */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[14%]">ID</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[24%]">Floor / Room</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">Date</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">Time</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[8%]">Pax</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[10%]">Status</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[8%]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookings.map((booking) => {
+                        const room = getRoom(booking.roomId);
+                        const area = getArea(room?.areaId);
+                        const startTime = toJsDate(booking.start);
+                        const endTime = toJsDate(booking.end);
+                        const reqId = booking.requestId || `REQ-${booking.id?.slice(0, 4)}`;
+                        const isApproved = booking.status === "Approved";
+                        const isPending = booking.status?.toLowerCase().startsWith("pending");
+                        return (
+                          <TableRow key={booking.id} className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors">
+                            <TableCell className="py-4 px-6 text-center align-middle font-medium text-xs text-gray-700 dark:text-gray-300 font-mono">{reqId}</TableCell>
+                            <TableCell className="py-4 px-6 text-center align-middle">
+                              <div>
+                                <p className="text-xs text-muted-foreground font-medium">{area?.name || "5th Floor"},</p>
+                                <p className="text-xs text-gray-800 dark:text-gray-200 font-semibold mt-0.5">{room?.name || "Sapphire"}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{format(startTime, "MMMM d, yyyy")}</TableCell>
+                            <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">{format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}</TableCell>
+                            <TableCell className="py-4 px-4 text-center align-middle text-xs font-semibold text-gray-700 dark:text-gray-300">{booking.pax || 0}</TableCell>
+                            <TableCell className="py-4 px-6 text-center align-middle">
+                              {isApproved ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Approved</span>
+                              ) : isPending ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Pending</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />{booking.status}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-4 px-6 text-center align-middle">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button type="button" className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40 p-1 rounded-xl shadow-lg border-border/80">
+                                  <DropdownMenuItem onClick={() => { setSelectedBooking(booking); setIsDetailsOpen(true); }} className="text-xs cursor-pointer font-medium gap-2 py-2 rounded-lg">
+                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" /> View Details
+                                  </DropdownMenuItem>
+                                  {canCheckIn(booking) && (
+                                    <DropdownMenuItem onClick={() => handleCheckIn(booking)} className="text-xs cursor-pointer font-medium text-blue-600 dark:text-blue-400 gap-2 py-2 rounded-lg">
+                                      <ScanLine className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /> Check In
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             )}
           </div>
         </div>

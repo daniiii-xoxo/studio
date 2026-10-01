@@ -133,25 +133,43 @@ export default function ApprovalsPage() {
     const isAdmin = isSuperAdmin || canApproveAllRequests;
 
     results = results.filter(r => {
+      // Super admins / full admins see everything
+      if (isAdmin) return true;
+
+      // Resolve the requester worker to check their ministry
+      const requesterWorker = workers?.find(w => w.id === r.workerId);
+      const workerInMyMinistry = requesterWorker
+        ? myMinistryIds.includes(requesterWorker.majorMinistryId ?? "") ||
+          myMinistryIds.includes(requesterWorker.minorMinistryId ?? "")
+        : false;
+
       if (r.type === "Room Booking") {
         if (r.status === "Pending Ministry Approval") {
-          if (isMinistryHead) {
-            const tw = workers?.find(w => w.id === r.workerId);
-            if (tw && (myMinistryIds.includes(tw.majorMinistryId) || myMinistryIds.includes(tw.minorMinistryId))) return true;
-          }
-          if (isAdmin) return true;
-          return false;
+          // Ministry head can approve only their own ministry's bookings
+          return isMinistryHead && workerInMyMinistry;
         }
         if (r.status === "Pending Admin Approval") {
-          if (isAdmin) return true;
-          if (isMinistryHead) {
-            const tw = workers?.find(w => w.id === r.workerId);
-            if (tw && (myMinistryIds.includes(tw.majorMinistryId) || myMinistryIds.includes(tw.minorMinistryId))) return true;
-          }
-          return false;
+          // Only admins can approve; ministry heads can still see (read-only) their own ministry's
+          return isMinistryHead && workerInMyMinistry;
         }
+        // For Approved/Rejected bookings, show only own ministry
+        return isMinistryHead && workerInMyMinistry;
       }
-      return true;
+
+      if (r.type === "New Worker" || r.type === "Ministry Change" || r.type === "Profile Update") {
+        if (!isMinistryHead) return false;
+        // Show only if the worker being registered/changed belongs to the ministry head's ministry
+        // If workerId can't be resolved yet (new worker not in cache), show pending ones submitted by ministry head themselves
+        if (workerInMyMinistry) return true;
+        if (!requesterWorker && r.status?.startsWith("Pending")) {
+          // Worker may not be in the list yet — allow if JL submitted it and it's pending
+          return r.requester === `${workerProfile?.firstName} ${workerProfile?.lastName}`;
+        }
+        return false;
+      }
+
+      // For any other type, show to ministry heads only if it concerns their ministry
+      return isMinistryHead && workerInMyMinistry;
     });
 
     if (searchTerm) {
@@ -757,6 +775,15 @@ export default function ApprovalsPage() {
         open={!!selectedRequest}
         requesterWorker={workers?.find(w => w.id === selectedRequest?.workerId)}
         onOpenChange={open => { if (!open) setSelectedRequest(null); }}
+        canManage={selectedRequest ? checkCanManage(selectedRequest) : false}
+        onApprove={(id) => {
+          const req = requests?.find(r => r.id === id);
+          if (req) handleUpdateRequestStatus(req, "Approved");
+        }}
+        onReject={(id) => {
+          const req = requests?.find(r => r.id === id);
+          if (req) handleUpdateRequestStatus(req, "Rejected");
+        }}
       />
     </AppLayout>
   );

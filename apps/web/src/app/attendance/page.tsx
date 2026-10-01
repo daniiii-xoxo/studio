@@ -389,55 +389,53 @@ function AttendanceContent() {
 
               {/* Inner Table Container */}
               <div className="bg-card rounded-2xl border border-border/60 overflow-hidden flex flex-col">
-                <div className="overflow-x-auto">
+
+                {/* Mobile card view */}
+                <div className="md:hidden divide-y divide-border/30">
+                  {sessions.length === 0 ? (
+                    <div className="py-14 text-center text-xs font-medium text-muted-foreground">No records this week.</div>
+                  ) : sessions.map((s, i) => (
+                    <div key={i} className="p-4 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground">{format(s.date, "EEE, MMM d, yyyy")}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          In: <strong className="text-foreground">{format(s.timeIn, "h:mm a")}</strong>
+                          {" · "}
+                          Out: <strong className="text-foreground">{s.timeOut ? format(s.timeOut, "h:mm a") : "—"}</strong>
+                          {" · "}
+                          {formatHours(s.totalMinutes)}
+                        </p>
+                      </div>
+                      <StatusPill isLate={s.isLate} hasOut={s.timeOut !== null} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop table view */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-sidebar">
                       <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[25%]">
-                          DATE
-                        </th>
-                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">
-                          TIME IN
-                        </th>
-                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">
-                          TIME OUT
-                        </th>
-                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[18%]">
-                          TOTAL HOURS
-                        </th>
-                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center w-[17%]">
-                          STATUS
-                        </th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[25%]">DATE</th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">TIME IN</th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[20%]">TIME OUT</th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-left w-[18%]">TOTAL HOURS</th>
+                        <th className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-12 px-6 text-center w-[17%]">STATUS</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sessions.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-14 text-center text-xs font-medium text-muted-foreground">
-                            No records this week.
-                          </td>
+                          <td colSpan={5} className="py-14 text-center text-xs font-medium text-muted-foreground">No records this week.</td>
                         </tr>
                       ) : (
                         sessions.map((s, i) => (
-                          <tr
-                            key={i}
-                            className="border-b border-gray-100 dark:border-border/60 hover:bg-gray-50/60 dark:hover:bg-muted/30 transition-colors"
-                          >
-                            <td className="py-4 px-6 font-bold text-xs text-foreground whitespace-nowrap align-middle">
-                              {format(s.date, "EEE, MMM d, yyyy")}
-                            </td>
-                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
-                              {format(s.timeIn, "h:mm a")}
-                            </td>
-                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
-                              {s.timeOut ? format(s.timeOut, "h:mm a") : "—"}
-                            </td>
-                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">
-                              {formatHours(s.totalMinutes)}
-                            </td>
-                            <td className="py-4 px-6 text-center align-middle whitespace-nowrap">
-                              <StatusPill isLate={s.isLate} hasOut={s.timeOut !== null} />
-                            </td>
+                          <tr key={i} className="border-b border-gray-100 dark:border-border/60 hover:bg-gray-50/60 dark:hover:bg-muted/30 transition-colors">
+                            <td className="py-4 px-6 font-bold text-xs text-foreground whitespace-nowrap align-middle">{format(s.date, "EEE, MMM d, yyyy")}</td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{format(s.timeIn, "h:mm a")}</td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{s.timeOut ? format(s.timeOut, "h:mm a") : "—"}</td>
+                            <td className="py-4 px-6 text-xs text-muted-foreground font-medium whitespace-nowrap align-middle">{formatHours(s.totalMinutes)}</td>
+                            <td className="py-4 px-6 text-center align-middle whitespace-nowrap"><StatusPill isLate={s.isLate} hasOut={s.timeOut !== null} /></td>
                           </tr>
                         ))
                       )}
@@ -524,7 +522,69 @@ function AttendanceContent() {
 
             {/* Table */}
             <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
-              <div className="overflow-x-auto">
+
+              {/* ── Mobile card view ── */}
+              <div className="md:hidden divide-y divide-border/30">
+                {filteredWorkers.length === 0 ? (
+                  <div className="py-14 text-center text-xs font-medium text-muted-foreground">No workers found.</div>
+                ) : filteredWorkers.map(w => {
+                  const ws = workerStatusMap[w.id];
+                  const currentStatus = ws?.status ?? "not-yet";
+                  const lastTime = ws?.lastTime ? format(ws.lastTime, "h:mm a") : null;
+                  const lastType = ws?.lastType;
+                  const ministry = (ministries as any[]).find(m => m.id === w.majorMinistryId);
+                  const roleName = getRoleName(w);
+                  return (
+                    <div key={w.id} className="p-4 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                          <WorkerInitials name={`${w.firstName} ${w.lastName}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-foreground leading-tight truncate">{w.firstName} {w.lastName}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <RoleBadge role={roleName} />
+                          <AttendanceStatusBadge status={currentStatus} />
+                          {lastTime && (
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {lastType === "Clock In" ? "In" : "Out"} · {lastTime}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await createAttendanceRecord({ workerProfileId: w.id, type: "Clock In" });
+                            const hasStub = assignedStubs?.some((s: any) => { const sd = s.date instanceof Date ? s.date : new Date(s.date); return s.workerId === w.id && sd >= todayStart; });
+                            if (!hasStub) { try { await createMealStub({ workerId: w.id, workerName: `${w.firstName} ${w.lastName}`, status: "Issued", assignedBy: workerProfile?.id || user?.id, assignedByName: workerProfile ? `${workerProfile.firstName} ${workerProfile.lastName}` : (user?.email || "System"), stubType: "daily" }); } catch {} }
+                            toast({ title: "Timed In", description: `${w.firstName} ${w.lastName}` });
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 hover:bg-emerald-700 transition-colors"
+                        >
+                          <LogIn className="h-3 w-3" /> In
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await createAttendanceRecord({ workerProfileId: w.id, type: "Clock Out" });
+                            toast({ title: "Timed Out", description: `${w.firstName} ${w.lastName}` });
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors"
+                        >
+                          <LogOut className="h-3 w-3" /> Out
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Desktop table view ── */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-sidebar">
                     <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -749,7 +809,66 @@ function AttendanceContent() {
 
               {/* Table Container */}
               <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
-                <div className="overflow-x-auto">
+
+                {/* ── Mobile card view ── */}
+                <div className="md:hidden divide-y divide-border/30">
+                  {recordsLoading ? (
+                    <div className="py-12 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-sidebar" /></div>
+                  ) : filteredRecordRows.length === 0 ? (
+                    <div className="py-14 text-center text-xs font-medium text-muted-foreground">No records found.</div>
+                  ) : filteredRecordRows.map((row, i) => {
+                    const ministry = (ministries as any[]).find(m => m.id === row.worker.majorMinistryId);
+                    return (
+                      <div key={i} className="p-4 flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2.5 mb-1.5">
+                            <WorkerInitials name={`${row.worker.firstName} ${row.worker.lastName}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-foreground leading-tight truncate">{row.worker.firstName} {row.worker.lastName}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"} · {format(row.date, "MMM d, yyyy")}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                            <span>In: <strong className="text-foreground">{row.timeIn ? format(row.timeIn, "h:mm a") : "——"}</strong></span>
+                            <span>Out: <strong className="text-foreground">{row.timeOut ? format(row.timeOut, "h:mm a") : "——"}</strong></span>
+                            <span>{formatHours(row.hours)}</span>
+                            {row.status === "present"    && <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Present</span>}
+                            {row.status === "late"       && <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Late</span>}
+                            {row.status === "absent"     && <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">Absent</span>}
+                            {row.status === "incomplete" && <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Incomplete</span>}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await createAttendanceRecord({ workerProfileId: row.worker.id, type: "Clock In" });
+                              const hasStub = assignedStubs?.some((s: any) => { const sd = s.date instanceof Date ? s.date : new Date(s.date); return s.workerId === row.worker.id && sd >= todayStart; });
+                              if (!hasStub) { try { await createMealStub({ workerId: row.worker.id, workerName: `${row.worker.firstName} ${row.worker.lastName}`, status: "Issued", assignedBy: workerProfile?.id || user?.id, assignedByName: workerProfile ? `${workerProfile.firstName} ${workerProfile.lastName}` : (user?.email || "System"), stubType: "daily" }); } catch {} }
+                              toast({ title: "Timed In", description: `${row.worker.firstName} ${row.worker.lastName}` });
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 hover:bg-emerald-700 transition-colors"
+                          >
+                            <LogIn className="h-3 w-3" /> In
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await createAttendanceRecord({ workerProfileId: row.worker.id, type: "Clock Out" });
+                              toast({ title: "Timed Out", description: `${row.worker.firstName} ${row.worker.lastName}` });
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors"
+                          >
+                            <LogOut className="h-3 w-3" /> Out
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* ── Desktop table view ── */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-sidebar">
                       <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
@@ -792,10 +911,7 @@ function AttendanceContent() {
                               <div className="flex items-center justify-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                                    >
+                                    <button type="button" className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                                       <MoreHorizontal className="h-4 w-4" />
                                     </button>
                                   </DropdownMenuTrigger>
