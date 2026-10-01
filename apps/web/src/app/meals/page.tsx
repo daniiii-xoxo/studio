@@ -155,6 +155,7 @@ function MealsPageContent() {
   const [isCleanupConfirmOpen, setIsCleanupConfirmOpen] = useState(false);
   const [isAssignAllConfirmOpen, setIsAssignAllConfirmOpen] = useState(false);
   const [isBatchRemoveConfirmOpen, setIsBatchRemoveConfirmOpen] = useState(false);
+  const [assignSingleWorker, setAssignSingleWorker] = useState<Worker | null>(null);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -802,7 +803,7 @@ function MealsPageContent() {
                               Reassign
                             </Button>
                           ) : (
-                            <Button size="sm" onClick={() => issueStub(w.id, 1)} disabled={isAssigning} className="shrink-0 bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-4 h-8 text-xs font-semibold shadow-xs">
+                            <Button size="sm" onClick={() => setAssignSingleWorker(w)} disabled={isAssigning} className="shrink-0 bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-4 h-8 text-xs font-semibold shadow-xs cursor-pointer">
                               Assign
                             </Button>
                           )}
@@ -919,7 +920,7 @@ function MealsPageContent() {
                                 ) : (
                                   <Button
                                     size="sm"
-                                    onClick={() => issueStub(w.id, 1)}
+                                    onClick={() => setAssignSingleWorker(w)}
                                     disabled={isAssigning}
                                     className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl px-5 h-8 text-xs font-semibold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
                                   >
@@ -1297,6 +1298,30 @@ function MealsPageContent() {
         confirmLabel="Cleanup Now"
         isLoading={isAssigning}
         description="Are you sure you want to delete duplicate or expired unredeemed meal stubs? This action cannot be undone."
+      />
+
+      {/* Single Worker Assign Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={!!assignSingleWorker}
+        onClose={() => setAssignSingleWorker(null)}
+        onConfirm={async () => {
+          if (!assignSingleWorker) return;
+          const targetId = assignSingleWorker.id;
+          setAssignSingleWorker(null);
+          await issueStub(targetId, 1);
+        }}
+        title="Assign Meal Stub"
+        variant="primary"
+        icon={<Plus className="h-6 w-6" />}
+        confirmLabel={assignSingleWorker ? `Assign to ${assignSingleWorker.firstName}` : "Assign"}
+        isLoading={isAssigning}
+        description={
+          assignSingleWorker ? (
+            <>
+              Are you sure you want to issue 1 meal stub to <strong className="text-foreground font-semibold">{assignSingleWorker.firstName} {assignSingleWorker.lastName}</strong> for <strong className="text-foreground font-semibold">{format(assignDateObj, 'MMMM d, yyyy')}</strong>?
+            </>
+          ) : undefined
+        }
       />
 
       {/* Assign All Confirmation Dialog */}

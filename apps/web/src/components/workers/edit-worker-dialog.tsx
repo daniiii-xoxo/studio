@@ -594,58 +594,25 @@ export function EditWorkerDialog({
                 <div className="flex items-center gap-2 pb-1 border-b border-border/50">
                   <Building2 className="h-4 w-4 text-primary shrink-0" />
                   <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Ministry & Employment Status
+                    Ministry & Worker Status
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Major Ministry</Label>
+                    <Label className="text-xs font-semibold">Ministry</Label>
                     <Select
                       value={formData.majorMinistryId || "none"}
                       onValueChange={(v) =>
                         setFormData({
                           ...formData,
                           majorMinistryId: v === "none" ? "" : v,
+                          minorMinistryId: "",
                         })
                       }
                     >
                       <SelectTrigger className="h-9 text-xs rounded-xl">
-                        <SelectValue placeholder="Select a major ministry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {Object.entries(groupedMinistries).map(([dept, mins]) => (
-                          <SelectGroup key={dept}>
-                            <SelectLabel className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
-                              {dept}
-                            </SelectLabel>
-                            {[...mins]
-                              .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))
-                              .map((m) => (
-                                <SelectItem key={m.id} value={m.id} className="text-xs">
-                                  {m.name}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Minor Ministry</Label>
-                    <Select
-                      value={formData.minorMinistryId || "none"}
-                      onValueChange={(v) =>
-                        setFormData({
-                          ...formData,
-                          minorMinistryId: v === "none" ? "" : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-9 text-xs rounded-xl">
-                        <SelectValue placeholder="Select a minor ministry" />
+                        <SelectValue placeholder="Select a ministry" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>

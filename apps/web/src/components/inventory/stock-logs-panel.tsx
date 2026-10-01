@@ -396,7 +396,7 @@ export function StockLogsPanel() {
                             </Badge>
 
                             <h4 className="text-xs font-bold text-foreground group-hover:text-sidebar transition-colors truncate">
-                              {d.item?.name || 'Inventory Item'}
+                              {d.item?.name || 'Item'}
                             </h4>
 
                             {d.item?.inventoryCode && (

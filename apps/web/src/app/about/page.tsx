@@ -91,40 +91,36 @@ export default function AboutPage() {
           {/* Glass Type Navigation Buttons Bar */}
           <div
             id="about-subtabs-hero"
-            className={`inline-flex transition-all duration-300 ${
-              isDocked ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
-            }`}
+            className={`inline-flex transition-all duration-300 ${isDocked ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
+              }`}
           >
             <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 p-1.5 rounded-2xl sm:rounded-full bg-white/10 backdrop-blur-xl backdrop-saturate-150 border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37),inset_0_1px_1px_rgba(255,255,255,0.3)]">
               <button
                 onClick={() => setActiveTab("history")}
-                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${
-                  activeTab === "history"
+                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${activeTab === "history"
                     ? "bg-white text-slate-950 shadow-md scale-102"
                     : "text-white/90 hover:text-white hover:bg-white/15"
-                }`}
+                  }`}
               >
                 Church History
               </button>
 
               <button
                 onClick={() => setActiveTab("beliefs")}
-                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${
-                  activeTab === "beliefs"
+                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${activeTab === "beliefs"
                     ? "bg-white text-slate-950 shadow-md scale-102"
                     : "text-white/90 hover:text-white hover:bg-white/15"
-                }`}
+                  }`}
               >
                 What We Believe
               </button>
 
               <button
                 onClick={() => setActiveTab("services")}
-                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${
-                  activeTab === "services"
+                className={`px-5 sm:px-7 py-2 sm:py-2.5 rounded-xl sm:rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 cursor-pointer ${activeTab === "services"
                     ? "bg-white text-slate-950 shadow-md scale-102"
                     : "text-white/90 hover:text-white hover:bg-white/15"
-                }`}
+                  }`}
               >
                 Services
               </button>
@@ -144,7 +140,7 @@ export default function AboutPage() {
             {/* Background Ambient Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-80 bg-gradient-to-b from-blue-500/8 via-indigo-500/5 to-transparent blur-3xl pointer-events-none" />
 
-            <div className="relative max-w-4xl mx-auto">
+            <div className="relative max-w-6xl mx-auto">
               {/* Header Title */}
               <div className="text-center sm:text-left mb-8 sm:mb-10">
                 <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-950 dark:text-white uppercase leading-tight">
@@ -153,10 +149,10 @@ export default function AboutPage() {
               </div>
 
               {/* Historical Chapter 1: 1990 */}
-              <div className="mb-14 sm:mb-20">
-                {/* Story Narrative Card 1 */}
-                <div className="relative p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] mb-8 transition-all">
-                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
+              <div className="mb-12 sm:mb-16 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] p-6 sm:p-8 transition-all">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+                  {/* Left: Story Narrative */}
+                  <div className="lg:col-span-7 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-lg shadow-blue-500/25">
                       1990
                     </div>
@@ -173,40 +169,42 @@ export default function AboutPage() {
                       </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Museum Showcase Photo Frame 1 */}
-                <div className="group relative rounded-3xl p-2.5 sm:p-3.5 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-2xl transition-all duration-300">
-                  <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] max-h-[580px] rounded-2xl sm:rounded-[1.25rem] overflow-hidden bg-slate-950">
-                    <Image
-                      src="/worship-place-1.jpg"
-                      alt="First Worship Place in Salitran, 1990"
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-102"
-                      priority
-                    />
-                    <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-2xl pointer-events-none" />
-                  </div>
+                  {/* Right: Museum Showcase Photo Frame */}
+                  <div className="lg:col-span-5">
+                    <div className="group relative rounded-2xl p-2.5 sm:p-3 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-xl transition-all duration-300">
+                      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-950">
+                        <Image
+                          src="/worship-place-1.jpg"
+                          alt="First Worship Place in Salitran, 1990"
+                          fill
+                          className="object-cover transition-transform duration-700 group-hover:scale-105"
+                          priority
+                        />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-xl pointer-events-none" />
+                      </div>
 
-                  <div className="pt-3.5 pb-2 px-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        First Worship Place in Salitran, 1990
-                      </span>
+                      <div className="pt-3 pb-1 px-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            First Worship Place in Salitran, 1990
+                          </span>
+                        </div>
+                        <span className="text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          Historical Archive
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
-                      Historical Archive
-                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Historical Chapter 2: 1994 - 2008 */}
-              <div>
-                {/* Story Narrative Card 2 */}
-                <div className="relative p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] mb-8 transition-all">
-                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
+              <div className="mb-12 sm:mb-16 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] p-6 sm:p-8 transition-all">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+                  {/* Left: Story Narrative */}
+                  <div className="lg:col-span-7 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-lg shadow-indigo-500/25">
                       2006
                     </div>
@@ -232,40 +230,42 @@ export default function AboutPage() {
                       </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Museum Showcase Photo Frame 2 */}
-                <div className="group relative rounded-3xl p-2.5 sm:p-3.5 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-2xl transition-all duration-300">
-                  <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] max-h-[580px] rounded-2xl sm:rounded-[1.25rem] overflow-hidden bg-slate-950">
-                    <Image
-                      src="/worship-place-2.jpg"
-                      alt="COG Dasmariñas, 2006"
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-102"
-                      priority
-                    />
-                    <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-2xl pointer-events-none" />
-                  </div>
+                  {/* Right: Museum Showcase Photo Frame */}
+                  <div className="lg:col-span-5">
+                    <div className="group relative rounded-2xl p-2.5 sm:p-3 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-xl transition-all duration-300">
+                      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-950">
+                        <Image
+                          src="/worship-place-2.jpg"
+                          alt="COG Dasmariñas, 2006"
+                          fill
+                          className="object-cover transition-transform duration-700 group-hover:scale-105"
+                          priority
+                        />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-xl pointer-events-none" />
+                      </div>
 
-                  <div className="pt-3.5 pb-2 px-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        COG Dasmariñas, 2006
-                      </span>
+                      <div className="pt-3 pb-1 px-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            COG Dasmariñas, 2006
+                          </span>
+                        </div>
+                        <span className="text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          Historical Archive
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
-                      Historical Archive
-                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Historical Chapter 3: 2010 - Present */}
-              <div className="mt-14 sm:mt-20">
-                {/* Story Narrative Card 3 (Vision of the Jar & GenBless) */}
-                <div className="relative p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] mb-8 transition-all">
-                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
+              <div className="mb-12 sm:mb-16 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] p-6 sm:p-8 transition-all">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+                  {/* Left: Story Narrative */}
+                  <div className="lg:col-span-7 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-600 to-blue-700 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-lg shadow-sky-500/25">
                       2019
                     </div>
@@ -283,50 +283,52 @@ export default function AboutPage() {
                       </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Museum Showcase Photo Frame 3 */}
-                <div className="group relative rounded-3xl p-2.5 sm:p-3.5 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-2xl transition-all duration-300 mb-8">
-                  <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] max-h-[580px] rounded-2xl sm:rounded-[1.25rem] overflow-hidden bg-slate-950">
-                    <Image
-                      src="/worship-place-3.jpg"
-                      alt="Generation Blessing Building, 2019"
-                      fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-102"
-                      priority
-                    />
-                    <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-2xl pointer-events-none" />
-                  </div>
+                  {/* Right: Museum Showcase Photo Frame */}
+                  <div className="lg:col-span-5">
+                    <div className="group relative rounded-2xl p-2.5 sm:p-3 bg-gradient-to-b from-slate-200/80 via-slate-100 to-slate-200/80 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 border border-slate-300/80 dark:border-slate-700 shadow-xl transition-all duration-300">
+                      <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-950">
+                        <Image
+                          src="/worship-place-3.jpg"
+                          alt="Generation Blessing Building, 2019"
+                          fill
+                          className="object-cover transition-transform duration-700 group-hover:scale-105"
+                          priority
+                        />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-black/15 rounded-xl pointer-events-none" />
+                      </div>
 
-                  <div className="pt-3.5 pb-2 px-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        Generation Blessing Building, 2019
-                      </span>
+                      <div className="pt-3 pb-1 px-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            Generation Blessing Building, 2019
+                          </span>
+                        </div>
+                        <span className="text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
+                          Historical Archive
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-xs">
-                      Historical Archive
-                    </span>
                   </div>
                 </div>
+              </div>
 
-                {/* Present Day & Satellites Vision Card */}
-                <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-blue-50/80 via-indigo-50/50 to-white/90 dark:from-slate-900/90 dark:via-blue-950/40 dark:to-slate-900/90 backdrop-blur-md border border-blue-200/80 dark:border-blue-900/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all">
-                  <div className="space-y-4">
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-blue-600" />
-                      Expanding Satellites & Born-Again Pilipinas
-                    </h3>
+              {/* Present Day & Satellites Vision Card */}
+              <div className="relative p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-blue-50/80 via-indigo-50/50 to-white/90 dark:from-slate-900/90 dark:via-blue-950/40 dark:to-slate-900/90 backdrop-blur-md border border-blue-200/80 dark:border-blue-900/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all">
+                <div className="space-y-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-blue-600" />
+                    Expanding Satellites & Born-Again Pilipinas
+                  </h3>
 
-                    <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-                      In 2013, another satellite church was established by God&apos;s grace. Previously known as <strong>COG Lalaan</strong>, it was renamed to <strong>COG Silang</strong> and was transferred to Premiere Plaza, Silang, Cavite. Then in 2014, <strong>COG FCIE</strong> was renamed to <strong>COG General Trias</strong> and is now located inside Metro South Subdivision, General Trias, Cavite.
-                    </p>
+                  <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+                    In 2013, another satellite church was established by God&apos;s grace. Previously known as <strong>COG Lalaan</strong>, it was renamed to <strong>COG Silang</strong> and was transferred to Premiere Plaza, Silang, Cavite. Then in 2014, <strong>COG FCIE</strong> was renamed to <strong>COG General Trias</strong> and is now located inside Metro South Subdivision, General Trias, Cavite.
+                  </p>
 
-                    <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 font-medium leading-relaxed pt-2 border-t border-blue-200/60 dark:border-slate-800">
-                      Today, the Lord has continued to bless and enlarge the church. With <strong className="text-blue-600 dark:text-blue-400 font-bold">almost 15,000 strong members</strong> and <strong className="text-indigo-600 dark:text-indigo-400 font-bold">3,700 dedicated workers</strong> ready to fulfill the vision of turning Dasmariñas into a born-again city&hellip; and eventually turning our country into <strong className="text-slate-950 dark:text-white font-extrabold">Born-Again Pilipinas</strong>.
-                    </p>
-                  </div>
+                  <p className="text-base sm:text-lg text-slate-700 dark:text-slate-200 font-medium leading-relaxed pt-2 border-t border-blue-200/60 dark:border-slate-800">
+                    Today, the Lord has continued to bless and enlarge the church. With <strong className="text-blue-600 dark:text-blue-400 font-bold">almost 15,000 strong members</strong> and <strong className="text-indigo-600 dark:text-indigo-400 font-bold">3,700 dedicated workers</strong> ready to fulfill the vision of turning Dasmariñas into a born-again city&hellip; and eventually turning our country into <strong className="text-slate-950 dark:text-white font-extrabold">Born-Again Pilipinas</strong>.
+                  </p>
                 </div>
               </div>
             </div>
@@ -341,15 +343,15 @@ export default function AboutPage() {
             {/* Ambient Background Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-80 bg-gradient-to-b from-blue-500/8 via-indigo-500/5 to-transparent blur-3xl pointer-events-none" />
 
-            <div className="relative max-w-4xl mx-auto space-y-16 sm:space-y-24">
-              
+            <div className="relative max-w-6xl mx-auto space-y-16 sm:space-y-24">
+
               {/* ============================================================ */}
               {/* 1. VISION & MISSION SECTION                                  */}
               {/* ============================================================ */}
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {/* Vision Card */}
-                <div className="relative p-7 sm:p-9 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all">
-                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-7 items-start">
+                <div className="relative p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all flex flex-col justify-between">
+                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/25">
                       <Target className="w-7 h-7" />
                     </div>
@@ -357,7 +359,7 @@ export default function AboutPage() {
                       <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 dark:text-white uppercase">
                         VISION
                       </h2>
-                      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed sm:leading-loose">
+                      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
                         The men and women of Church of God Dasmariñas aspire to transform Dasmariñas and its neighboring communities into a born-again city in our lifetime.
                       </p>
                     </div>
@@ -365,8 +367,8 @@ export default function AboutPage() {
                 </div>
 
                 {/* Mission Card */}
-                <div className="relative p-7 sm:p-9 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all">
-                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-7 items-start">
+                <div className="relative p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] transition-all flex flex-col justify-between">
+                  <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 items-start">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/25">
                       <Compass className="w-7 h-7" />
                     </div>
@@ -374,7 +376,7 @@ export default function AboutPage() {
                       <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 dark:text-white uppercase">
                         MISSION
                       </h2>
-                      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed sm:leading-loose">
+                      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
                         To realize this vision, the Church of God shall take every opportunity an occasion to evangelize and minister to every lost soul in the name of Jesus Christ.
                       </p>
                     </div>
@@ -489,7 +491,7 @@ export default function AboutPage() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-80 bg-gradient-to-b from-blue-500/8 via-indigo-500/5 to-transparent blur-3xl pointer-events-none" />
 
             <div className="relative max-w-6xl mx-auto space-y-16 sm:space-y-20">
-              
+
               {/* ============================================================ */}
               {/* 1. SUNDAY SERVICES (8 GATHERINGS)                            */}
               {/* ============================================================ */}

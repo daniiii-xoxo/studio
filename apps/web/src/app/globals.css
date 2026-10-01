@@ -4,19 +4,23 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%; /* Clean crisp page bg */
-    --foreground: 222 47% 11%; /* Slate dark text */
+    --background: 210 20% 98%;
+    /* Clean crisp page bg */
+    --foreground: 222 47% 11%;
+    /* Slate dark text */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 222 67% 32%; /* #1e3a8a - Dark Navy Blue */
+    --primary: 222 67% 32%;
+    /* #1e3a8a - Dark Navy Blue */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
-    --accent: 214 95% 93%; /* Light blue accent */
+    --accent: 214 95% 93%;
+    /* Light blue accent */
     --accent-foreground: 221 83% 53%;
     --destructive: 2 97% 68%;
     --destructive-foreground: 0 0% 100%;
@@ -25,30 +29,42 @@
     --ring: 221 83% 53%;
     --radius: 0.25rem;
 
-    --chart-1: 237 46% 53%; /* #5156be */
-    --chart-2: 157 62% 44%; /* #2ab57d */
-    --chart-3: 208 83% 61%; /* #4ba6ef */
-    --chart-4: 40 100% 66%; /* #ffbf53 */
-    --chart-5: 2 97% 68%;   /* #fd625e */
+    --chart-1: 237 46% 53%;
+    /* #5156be */
+    --chart-2: 157 62% 44%;
+    /* #2ab57d */
+    --chart-3: 208 83% 61%;
+    /* #4ba6ef */
+    --chart-4: 40 100% 66%;
+    /* #ffbf53 */
+    --chart-5: 2 97% 68%;
+    /* #fd625e */
 
-    --sidebar-background: 222 67% 32%; /* #1e3a8a */
-    --sidebar-foreground: 210 40% 98%; /* Crisp White */
-    --sidebar-primary: 222 67% 32%; /* #1e3a8a */
+    --sidebar-background: 222 67% 32%;
+    /* #1e3a8a */
+    --sidebar-foreground: 210 40% 98%;
+    /* Crisp White */
+    --sidebar-primary: 222 67% 32%;
+    /* #1e3a8a */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 60% 40%; /* slightly lighter hover */
-    --sidebar-accent-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-accent: 222 60% 40%;
+    /* slightly lighter hover */
+    --sidebar-accent-foreground: 0 0% 100%;
+    /* Pure White */
     --sidebar-border: 222 55% 40%;
     --sidebar-ring: 222 67% 32%;
   }
 
   .dark {
-    --background: 150 4% 18%; /* #2C302E - Minia dark bg */
+    --background: 150 4% 18%;
+    /* #2C302E - Minia dark bg */
     --foreground: 230 10% 70%;
     --card: 150 4% 21%;
     --card-foreground: 230 10% 70%;
     --popover: 150 4% 21%;
     --popover-foreground: 230 10% 70%;
-    --primary: 222 67% 32%; /* #1e3a8a - Dark Navy Blue */
+    --primary: 222 67% 32%;
+    /* #1e3a8a - Dark Navy Blue */
     --primary-foreground: 0 0% 100%;
     --secondary: 150 3% 25%;
     --secondary-foreground: 230 10% 70%;
@@ -68,9 +84,11 @@
     --chart-4: 40 100% 66%;
     --chart-5: 2 97% 68%;
 
-    --sidebar-background: 222 67% 32%; /* #1e3a8a */
+    --sidebar-background: 222 67% 32%;
+    /* #1e3a8a */
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 222 67% 32%; /* #1e3a8a */
+    --sidebar-primary: 222 67% 32%;
+    /* #1e3a8a */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 222 60% 40%;
     --sidebar-accent-foreground: 0 0% 100%;
@@ -83,6 +101,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-size: 0.875rem;
@@ -92,12 +111,19 @@
   }
 
   /* Re-enable text selection for form elements */
-  input, textarea, [contenteditable="true"] {
+  input,
+  textarea,
+  [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-weight: 600;
     color: hsl(var(--foreground));
   }
@@ -114,6 +140,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   [data-sidebar="content"]::-webkit-scrollbar,
   [data-sidebar="sidebar"]::-webkit-scrollbar {
     display: none;
@@ -126,12 +153,15 @@
 /* HIDE SCROLLBARS GLOBALLY ACROSS ALL BROWSERS & ELEMENTS     */
 /* ============================================================ */
 * {
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important;
+  /* Firefox */
+  -ms-overflow-style: none !important;
+  /* IE and Edge */
 }
 
 *::-webkit-scrollbar {
-  display: none !important; /* Chrome, Safari, Edge, Opera */
+  display: none !important;
+  /* Chrome, Safari, Edge, Opera */
   width: 0px !important;
   height: 0px !important;
 }
@@ -183,9 +213,3 @@ main,
   --removed-body-scroll-bar-size: 0px !important;
   margin-right: 0px !important;
 }
-
-
-
-
-
-

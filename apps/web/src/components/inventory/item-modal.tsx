@@ -36,6 +36,9 @@ import {
   Sparkles,
   CheckCircle2,
   X,
+  UploadCloud,
+  Trash2,
+  Camera,
 } from 'lucide-react';
 import { useInventory, type InventoryItem } from '@/hooks/use-inventory';
 import { cn } from '@/lib/utils';
@@ -74,6 +77,66 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Image file exceeds 15MB limit.');
+      e.target.value = '';
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setError('');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            setFormData((prev) => ({ ...prev, imageUrl: compressed }));
+          } else {
+            setFormData((prev) => ({ ...prev, imageUrl: reader.result as string }));
+          }
+          setIsUploadingImage(false);
+        };
+        img.onerror = () => {
+          setFormData((prev) => ({ ...prev, imageUrl: reader.result as string }));
+          setIsUploadingImage(false);
+        };
+        img.src = reader.result;
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read image file.');
+      setIsUploadingImage(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -174,7 +237,7 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-bold font-headline tracking-tight text-foreground flex items-center gap-2">
-                  <span className="truncate">{item ? 'Edit Inventory Item' : 'Add New Item'}</span>
+                  <span className="truncate">{item ? 'Edit Item' : 'Add New Item'}</span>
                   {item?.inventoryCode && (
                     <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/70 shrink-0">
                       {item.inventoryCode}
@@ -184,7 +247,7 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
                 <DialogDescription className="text-xs text-muted-foreground truncate">
                   {item
                     ? 'Update specifications, stock levels, location placement, and PMS status.'
-                    : 'Register a new equipment or consumable record into inventory catalog.'}
+                    : 'Register a new equipment or consumable record into the catalog.'}
                 </DialogDescription>
               </div>
             </div>
@@ -237,7 +300,7 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <span>Inventory Code / Barcode</span>
+                  <span>Item Code / Barcode</span>
                 </Label>
                 <div className="relative">
                   <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -456,33 +519,83 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
 
           {/* 4. Image & Options */}
           <div className="space-y-3.5">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Image URL (Optional)</span>
+                <span>Item Photo (Optional)</span>
               </Label>
-              <Input
-                placeholder="https://..."
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
-              />
-            </div>
 
-            {formData.imageUrl && (
-              <div className="p-2 rounded-xl bg-muted/40 border border-border/70 flex items-center gap-3">
-                <img
-                  src={formData.imageUrl}
-                  alt="Item Preview"
-                  className="h-12 w-12 rounded-lg object-cover border border-border shrink-0"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
-                <div className="text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">Thumbnail Preview</p>
-                  <p className="text-[11px] truncate max-w-sm">{formData.imageUrl}</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFileChange}
+              />
+
+              {formData.imageUrl ? (
+                <div className="p-3 rounded-2xl bg-muted/40 border border-border/70 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Item Preview"
+                      className="h-14 w-14 rounded-xl object-cover border border-border shrink-0 shadow-2xs"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                    <div className="text-xs min-w-0">
+                      <p className="font-semibold text-foreground truncate">Photo Attached</p>
+                      <p className="text-[11px] text-muted-foreground">Ready to save with item</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                      className="h-8 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer"
+                    >
+                      <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Change</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                      disabled={isUploadingImage}
+                      className="h-8 text-xs font-semibold rounded-xl text-destructive hover:bg-destructive/10 cursor-pointer px-2.5"
+                      title="Remove photo"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage}
+                  className="w-full flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-border/80 hover:border-primary/60 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer group"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                    {isUploadingImage ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="h-5 w-5" />
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-foreground">
+                    {isUploadingImage ? "Processing photo..." : "Click to upload item photo"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    PNG, JPG, WEBP, or GIF (max. 15MB)
+                  </p>
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <label className="flex items-center gap-2.5 p-3 rounded-xl border border-border/70 bg-card hover:bg-muted/30 transition-colors cursor-pointer shadow-2xs">

@@ -364,7 +364,7 @@ export function CommandCenterTable({
                                             <TableCell className="text-muted-foreground text-sm">
                                                 {booking.room?.name ?? "—"}
                                             </TableCell>
-                                            <TableCell className="text-sm">
+                                            <TableCell className="text-sm whitespace-nowrap">
                                                 {format(new Date(booking.start), "PPP")}
                                             </TableCell>
                                             <TableCell>
@@ -418,7 +418,7 @@ export function CommandCenterTable({
                                                             </div>
                                                         </TableCell>
                                                         <TableCell />
-                                                        <TableCell className="text-xs text-muted-foreground">
+                                                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                                             {request.respondedAt
                                                                 ? `Responded ${format(new Date(request.respondedAt), "PP")}`
                                                                 : `Created ${format(new Date(request.createdAt), "PP")}`}
@@ -431,7 +431,7 @@ export function CommandCenterTable({
                                                                 {statusLabel(request.status)}
                                                             </Badge>
                                                         </TableCell>
-                                                        <TableCell className="text-xs text-muted-foreground">
+                                                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                                             {lastLog
                                                                 ? format(new Date(lastLog.createdAt), "PP p")
                                                                 : "—"}

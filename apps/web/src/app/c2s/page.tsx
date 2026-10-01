@@ -2407,22 +2407,22 @@ const AdminOverview = ({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[160px]">
                           Mentee
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[120px]">
                           Ministry
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-4 text-left whitespace-nowrap min-w-[140px]">
                           Assigned Mentor
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[90px]">
                           Status
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[100px]">
                           Progress
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-10 px-3 text-center whitespace-nowrap min-w-[120px]">
                           Last Session
                         </TableHead>
                       </TableRow>
@@ -4963,37 +4963,37 @@ function C2SPageContent() {
                       </Button>
                     </div>
                   ) : (
-                    <Table>
+                    <Table className="w-full">
                       <TableHeader>
                         <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[22%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap", isAdminUser ? "w-[20%]" : "w-[24%]")}>
                             Mentee
                           </TableHead>
                           {isAdminUser && (
-                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[13%]">
+                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap w-[12%]">
                               Department
                             </TableHead>
                           )}
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[15%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[16%]" : "w-[18%]")}>
                             Assigned Mentor
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[14%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[13%]" : "w-[15%]")}>
                             Ministry
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[10%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-left whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>
                             Barangay
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[9%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>
                             Status
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[9%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>
                             Progress
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[5%]">
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>
                             Last Session
                           </TableHead>
-                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[3%]">
-                            Actions
+                          <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3.5 sm:px-4 text-center whitespace-nowrap w-[8%]">
+                            <span className="relative -left-2">Actions</span>
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -5040,16 +5040,16 @@ function C2SPageContent() {
                               className="border-b border-border/40 hover:bg-muted/20 transition-colors"
                             >
                               {/* Mentee */}
-                              <TableCell className="px-5 py-3.5 align-middle">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground text-xs font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
+                              <TableCell className="px-4 py-3 align-middle whitespace-nowrap">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full bg-sidebar/10 text-sidebar dark:bg-sidebar/30 dark:text-sidebar-foreground text-[10px] font-bold flex items-center justify-center shrink-0 border border-sidebar/20">
                                     {initials}
                                   </div>
                                   <div className="overflow-hidden">
                                     <p className="font-bold text-foreground text-xs leading-none truncate">
                                       {fullName}
                                     </p>
-                                    <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                                       {m.email || m.phone || "No contact info"}
                                     </p>
                                   </div>
@@ -5058,10 +5058,10 @@ function C2SPageContent() {
 
                               {/* Department (Admin only) */}
                               {isAdminUser && (
-                                <TableCell className="px-4 py-3.5 text-xs align-middle">
+                                <TableCell className="px-3 py-3 text-xs align-middle whitespace-nowrap">
                                   <Badge
                                     variant="outline"
-                                    className="text-[11px] font-semibold bg-slate-100 dark:bg-muted/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-border"
+                                    className="text-[10px] font-semibold bg-slate-100 dark:bg-muted/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-border"
                                   >
                                     {menteeDepartment}
                                   </Badge>
@@ -5069,9 +5069,9 @@ function C2SPageContent() {
                               )}
 
                               {/* Assigned Mentor */}
-                              <TableCell className="px-4 py-3.5 align-middle">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 border border-primary/20">
+                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center shrink-0 border border-primary/20">
                                     {mentorInitials}
                                   </div>
                                   <span className="text-xs font-medium text-foreground truncate">
@@ -5081,57 +5081,57 @@ function C2SPageContent() {
                               </TableCell>
 
                               {/* Ministry */}
-                              <TableCell className="px-4 py-3.5 align-middle">
+                              <TableCell className="px-3 py-3 align-middle whitespace-nowrap">
                                 <Badge
                                   variant="outline"
-                                  className="text-[11px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2.5 py-0.5"
+                                  className="text-[10px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2 py-0.5"
                                 >
                                   {menteeMinistry}
                                 </Badge>
                               </TableCell>
 
                               {/* Barangay */}
-                              <TableCell className="px-4 py-3.5 text-xs text-muted-foreground align-middle">
+                              <TableCell className="px-2.5 py-3 text-xs text-muted-foreground align-middle whitespace-nowrap">
                                 {m.phone ? `Brgy. ${m.phone.slice(-1) || "1"}` : "Brgy. 1"}
                               </TableCell>
 
                               {/* Status */}
-                              <TableCell className="px-4 py-3.5 text-center align-middle">
+                              <TableCell className="px-2.5 py-3 text-center align-middle whitespace-nowrap">
                                 <Badge
                                   variant="secondary"
-                                  className={`${statusColorClass} font-semibold px-3 py-1 rounded-full text-[11px] border-transparent`}
+                                  className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}
                                 >
                                   {displayStatus}
                                 </Badge>
                               </TableCell>
 
                               {/* Progress */}
-                              <TableCell className="px-4 py-3.5 align-middle text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  <div className="w-16 bg-muted h-1.5 rounded-full overflow-hidden">
+                              <TableCell className="px-2.5 py-3 align-middle text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden">
                                     <div
                                       className="bg-primary h-full rounded-full transition-all duration-300"
                                       style={{ width: `${progressPct}%` }}
                                     />
                                   </div>
-                                  <span className="font-semibold text-muted-foreground text-xs">
+                                  <span className="font-semibold text-muted-foreground text-[11px]">
                                     {progressPct}%
                                   </span>
                                 </div>
                               </TableCell>
 
                               {/* Last Session */}
-                              <TableCell className="px-4 py-3.5 text-xs text-muted-foreground text-center align-middle font-mono">
+                              <TableCell className="px-3 py-3 text-xs text-muted-foreground text-center align-middle font-mono whitespace-nowrap">
                                 {lastSessionDate}
                               </TableCell>
 
                               {/* Actions */}
-                              <TableCell className="px-4 py-3.5 text-center align-middle">
+                              <TableCell className="px-3.5 sm:px-4 py-3 text-center align-middle whitespace-nowrap">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
                                       type="button"
-                                      className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                      className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                                     >
                                       <MoreHorizontal className="h-4 w-4" />
                                     </button>

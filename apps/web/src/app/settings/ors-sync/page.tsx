@@ -771,7 +771,7 @@ function WorkersTab({
                   </div>
                 </TableHead>
                 <TableHead className="w-40 text-xs">Phone</TableHead>
-                <TableHead className="w-28 text-xs">Employment</TableHead>
+                <TableHead className="w-28 text-xs">Worker Type</TableHead>
                 <TableHead className="w-20 text-xs">Status</TableHead>
                 <TableHead className="w-28 text-xs">Password</TableHead>
                 <TableHead className="w-8" />

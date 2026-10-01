@@ -88,7 +88,7 @@ export default function ContactPage() {
 
       {/* Main Content: Info & Interactive Form */}
       <section className="py-16 sm:py-20 px-4 sm:px-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-5 gap-12 items-start">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-5 gap-12 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Left Column: Church Info & Schedule (2 cols) */}
           <div className="lg:col-span-2 space-y-8">
             {/* Contact Details Card */}

@@ -47,10 +47,10 @@ function WorkerInitials({ name }: { name: string }) {
 function RoleBadge({ role }: { role: string }) {
   const lower = role.toLowerCase();
   if (lower.includes("admin"))
-    return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800">{role}</span>;
+    return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800 whitespace-nowrap">{role}</span>;
   if (lower.includes("head") || lower.includes("pastor") || lower.includes("ministry"))
-    return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">{role}</span>;
-  return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-muted dark:text-slate-300 border border-slate-200 dark:border-border">{role}</span>;
+    return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">{role}</span>;
+  return <span className="inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-muted dark:text-slate-300 border border-slate-200 dark:border-border whitespace-nowrap">{role}</span>;
 }
 
 function StatCard({ label, value, sub, icon: Icon, accentColor, iconClass, iconBgClass }: {

@@ -240,12 +240,8 @@ export function WorkerForm({
         </Select>
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
-        <Label className="text-right">Major Ministry</Label>
-        <MinistrySelect value={formData.majorMinistryId || ""} onChange={(v) => setFormData({ ...formData, majorMinistryId: v })} />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label className="text-right">Minor Ministry</Label>
-        <MinistrySelect value={formData.minorMinistryId || ""} onChange={(v) => setFormData({ ...formData, minorMinistryId: v })} />
+        <Label className="text-right">Ministry</Label>
+        <MinistrySelect value={formData.majorMinistryId || ""} onChange={(v) => setFormData({ ...formData, majorMinistryId: v, minorMinistryId: "" })} />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="employmentType" className="text-right">Worker Type</Label>

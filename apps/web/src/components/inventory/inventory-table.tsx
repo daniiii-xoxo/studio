@@ -842,6 +842,25 @@ export function InventoryTable({
                               <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>Edit Item</span>
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
+                                setStockAdjustItem(item);
+                                setAdjustAction('Stock In');
+                                setAdjustQuantity(1);
+                                setAdjustNote('');
+                              }}
+                            >
+                              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>Adjust Stock</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => handleSingleQR(item)}
+                            >
+                              <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>Print QR Label</span>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="gap-2 text-destructive focus:text-destructive cursor-pointer"
@@ -900,8 +919,8 @@ export function InventoryTable({
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                    <TableHead className="w-10 pl-4 bg-sidebar">
+                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40 whitespace-nowrap">
+                    <TableHead className="w-10 pl-4 bg-sidebar whitespace-nowrap">
                       <div className="flex items-center">
                         <Checkbox
                           checked={items.length > 0 && selectedIds.size === items.length}
@@ -910,18 +929,18 @@ export function InventoryTable({
                         />
                       </div>
                     </TableHead>
-                    <TableHead className="w-12 text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Item</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider min-w-[200px] bg-sidebar">
+                    <TableHead className="w-12 text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Item</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider min-w-[200px] bg-sidebar whitespace-nowrap">
                       Name &amp; Code
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Category</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Type</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-center bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Category</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Type</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-center bg-sidebar whitespace-nowrap">
                       Stock
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Location</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">Status</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-4 bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Location</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-4 bg-sidebar whitespace-nowrap">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -1197,6 +1216,25 @@ export function InventoryTable({
                                     <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                                     <span>Edit Item</span>
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer"
+                                    onClick={() => {
+                                      setStockAdjustItem(item);
+                                      setAdjustAction('Stock In');
+                                      setAdjustQuantity(1);
+                                      setAdjustNote('');
+                                    }}
+                                  >
+                                    <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span>Adjust Stock</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer"
+                                    onClick={() => handleSingleQR(item)}
+                                  >
+                                    <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span>Print QR Label</span>
+                                  </DropdownMenuItem>
 
                                   <DropdownMenuSeparator />
 
@@ -1260,104 +1298,191 @@ export function InventoryTable({
         {/* ── CUSTOM STOCK ADJUSTMENT DIALOG ── */}
         {stockAdjustItem && (
           <Dialog open={!!stockAdjustItem} onOpenChange={(open) => !open && setStockAdjustItem(null)}>
-            <DialogContent className="max-w-md rounded-2xl p-6">
-              <DialogHeader>
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4 text-primary" />
-                  Adjust Stock Quantity
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Update inventory levels for <strong>{stockAdjustItem.name}</strong>. Current level:{' '}
-                  <span className="font-bold text-foreground">
-                    {stockAdjustItem.stock} {stockAdjustItem.unit || 'pcs'}
-                  </span>
-                  .
-                </DialogDescription>
-              </DialogHeader>
+            <DialogContent className="w-[95vw] sm:max-w-xl p-0 rounded-2xl gap-0 border-border/80 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col [&>button:last-child]:hidden">
+              {/* ── MODAL HEADER ── */}
+              <DialogHeader className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md shrink-0 text-left sticky top-0 z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-2xl bg-sidebar/10 border border-sidebar/20 text-sidebar dark:text-blue-400 flex items-center justify-center shrink-0 shadow-2xs">
+                      <Boxes className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <DialogTitle className="text-base font-bold font-headline tracking-tight text-foreground flex items-center gap-2 flex-wrap">
+                        <span>Adjust Stock Quantity</span>
+                        {stockAdjustItem.inventoryCode && (
+                          <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/70 shrink-0">
+                            {stockAdjustItem.inventoryCode}
+                          </span>
+                        )}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                        <span>Update inventory levels for <strong className="text-foreground">{stockAdjustItem.name}</strong>.</span>
+                        <span className="block text-muted-foreground mt-0.5">
+                          Current level: <strong className="text-foreground font-semibold">{stockAdjustItem.stock} {stockAdjustItem.unit || 'pcs'}</strong>
+                        </span>
+                      </DialogDescription>
+                    </div>
+                  </div>
 
-              <div className="space-y-4 py-2">
-                {/* Action Selector: Stock In vs Stock Out */}
-                <div className="grid grid-cols-2 gap-2">
                   <Button
                     type="button"
-                    variant={adjustAction === 'Stock In' ? 'default' : 'outline'}
-                    className={`rounded-xl text-xs h-9 gap-1.5 ${adjustAction === 'Stock In' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
-                      }`}
-                    onClick={() => setAdjustAction('Stock In')}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStockAdjustItem(null)}
+                    className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
+                    title="Close modal"
                   >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                    Stock In (Add)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={adjustAction === 'Stock Out' ? 'default' : 'outline'}
-                    className={`rounded-xl text-xs h-9 gap-1.5 ${adjustAction === 'Stock Out' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''
-                      }`}
-                    onClick={() => setAdjustAction('Stock Out')}
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                    Stock Out (Deduct)
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
                   </Button>
                 </div>
+              </DialogHeader>
 
-                {/* Quantity Input */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Quantity to {adjustAction === 'Stock In' ? 'Add' : 'Deduct'}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      value={adjustQuantity}
-                      onChange={(e) => setAdjustQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="rounded-xl h-9 text-xs"
-                    />
-                    <div className="flex gap-1">
-                      {[1, 5, 10].map((qty) => (
-                        <Button
-                          key={qty}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-9 px-2 text-xs rounded-xl"
-                          onClick={() => setAdjustQuantity(qty)}
-                        >
-                          +{qty}
-                        </Button>
-                      ))}
+              {/* ── FORM BODY ── */}
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+                {/* 1. Action Type Selection */}
+                <div className="space-y-2.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-headline">
+                    Adjustment Type
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAdjustAction('Stock In')}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl border font-bold text-xs transition-all cursor-pointer shadow-2xs",
+                        adjustAction === 'Stock In'
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
+                          : "bg-slate-50/50 dark:bg-muted/30 border-slate-200/90 dark:border-border text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <ArrowUp className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Stock In (Add)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdjustAction('Stock Out')}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl border font-bold text-xs transition-all cursor-pointer shadow-2xs",
+                        adjustAction === 'Stock Out'
+                          ? "bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-xs"
+                          : "bg-slate-50/50 dark:bg-muted/30 border-slate-200/90 dark:border-border text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <ArrowDown className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Stock Out (Deduct)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Quantity & Presets */}
+                <div className="space-y-2.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-headline">
+                    Quantity &amp; Amount
+                  </span>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <span>Quantity to {adjustAction === 'Stock In' ? 'Add' : 'Deduct'}</span>
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="flex items-center gap-2 sm:gap-2.5 w-full">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={adjustQuantity}
+                        onChange={(e) => setAdjustQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        className="h-10 text-xs font-bold rounded-xl bg-slate-50/50 dark:bg-muted/30 border-slate-200/90 dark:border-border focus:bg-background transition-all shadow-2xs flex-1 min-w-0"
+                      />
+                      <div className="flex gap-1.5 shrink-0">
+                        {[1, 5, 10].map((qty) => (
+                          <button
+                            key={qty}
+                            type="button"
+                            onClick={() => setAdjustQuantity(qty)}
+                            className={cn(
+                              "h-10 px-3 sm:px-3.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-2xs shrink-0",
+                              adjustQuantity === qty
+                                ? "bg-sidebar text-white border-sidebar"
+                                : "bg-slate-50/50 dark:bg-muted/30 border-slate-200/90 dark:border-border text-foreground hover:bg-muted"
+                            )}
+                          >
+                            +{qty}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Optional Note / Reason */}
+                {/* 3. Live Impact Preview Box */}
+                <div className="rounded-2xl border border-slate-200/90 dark:border-border/70 bg-slate-50/50 dark:bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-sidebar/10 text-sidebar dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <Activity className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+                      Stock Level Impact
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-2.5 text-center">
+                    <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-card border border-border/60 shadow-2xs min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold truncate">Current</p>
+                      <p className="text-xs sm:text-sm font-black text-foreground mt-0.5 font-mono truncate">
+                        {stockAdjustItem.stock} <span className="text-[10px] font-normal text-muted-foreground">{stockAdjustItem.unit || 'pcs'}</span>
+                      </p>
+                    </div>
+                    <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-card border border-border/60 shadow-2xs min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold truncate">Adjustment</p>
+                      <p className={cn("text-xs sm:text-sm font-black mt-0.5 font-mono truncate", adjustAction === 'Stock In' ? 'text-emerald-600' : 'text-amber-600')}>
+                        {adjustAction === 'Stock In' ? '+' : '-'}{adjustQuantity} <span className="text-[10px] font-normal text-muted-foreground">{stockAdjustItem.unit || 'pcs'}</span>
+                      </p>
+                    </div>
+                    <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-card border border-border/60 shadow-2xs min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold truncate">Projected</p>
+                      <p className="text-xs sm:text-sm font-black text-foreground mt-0.5 font-mono truncate">
+                        {Math.max(0, adjustAction === 'Stock In' ? stockAdjustItem.stock + adjustQuantity : stockAdjustItem.stock - adjustQuantity)}{' '}
+                        <span className="text-[10px] font-normal text-muted-foreground">{stockAdjustItem.unit || 'pcs'}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Audit Note */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Reason / Audit Note (Optional)</Label>
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <span>Reason / Audit Note</span>
+                    <span className="text-muted-foreground font-normal text-[10px]">(Optional)</span>
+                  </Label>
                   <Input
                     placeholder="e.g. Shipment arrival, Sunday service use, Damaged replacement..."
                     value={adjustNote}
                     onChange={(e) => setAdjustNote(e.target.value)}
-                    className="rounded-xl h-9 text-xs"
+                    className="h-10 text-xs rounded-xl bg-slate-50/50 dark:bg-muted/30 border-slate-200/90 dark:border-border focus:bg-background transition-all shadow-2xs"
                   />
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0">
+              {/* ── MODAL FOOTER ── */}
+              <div className="p-4 sm:p-5 pt-3 border-t border-border/70 bg-muted/20 flex flex-row items-center justify-end gap-2.5 shrink-0">
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setStockAdjustItem(null)}
-                  className="rounded-xl text-xs h-9"
+                  className="rounded-xl text-xs h-10 px-4 font-semibold border-slate-200/90 dark:border-border cursor-pointer hover:bg-muted shrink-0"
                   disabled={isAdjusting}
                 >
                   Cancel
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleCustomStockAdjust}
-                  className="rounded-xl text-xs h-9 font-bold"
+                  className="rounded-xl text-xs h-10 px-5 font-bold bg-sidebar hover:bg-sidebar/90 text-white shadow-xs cursor-pointer gap-1.5 shrink-0"
                   disabled={isAdjusting}
                 >
-                  {isAdjusting ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                  Confirm {adjustAction}
+                  {isAdjusting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  <span>Confirm {adjustAction}</span>
                 </Button>
-              </DialogFooter>
+              </div>
             </DialogContent>
           </Dialog>
         )}

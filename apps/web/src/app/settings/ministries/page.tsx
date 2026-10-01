@@ -126,28 +126,11 @@ function MinistryForm({ ministry, workers, departments, onSave, onClose }: {
             </div>
             <div>
               <p className="text-xs font-bold text-foreground">Ministry Leadership</p>
-              <p className="text-[11px] text-muted-foreground">Assign designated leaders for this ministry.</p>
+              <p className="text-[11px] text-muted-foreground">Assign designated head for this ministry.</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-muted-foreground">Leader</Label>
-              <Select value={formData.leaderId || "none"} onValueChange={v => set("leaderId", v === "none" ? "" : v)}>
-                <SelectTrigger className="h-10 rounded-xl border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
-                  <SelectValue placeholder="Select a leader" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border border-border shadow-xl max-h-56">
-                  <SelectItem value="none" className="text-xs font-medium cursor-pointer text-muted-foreground">None</SelectItem>
-                  {sorted.map(w => (
-                    <SelectItem key={w.id} value={w.id} className="text-xs font-medium cursor-pointer">
-                      {w.firstName} {w.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="pt-1">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-muted-foreground">Ministry Head</Label>
               <Select value={formData.headId || "none"} onValueChange={v => set("headId", v === "none" ? "" : v)}>
@@ -191,20 +174,20 @@ function MinistryForm({ ministry, workers, departments, onSave, onClose }: {
 // ── Appoint Dialog ──────────────────────────────────────────────────────────────
 function AppointDialog({ ministry, workers, onSave, onClose, type = "approver" }: {
   ministry: Ministry; workers: Worker[];
-  onSave: (id: string, userId: string | null, type: "approver" | "assigner" | "head") => void;
-  onClose: () => void; type?: "approver" | "assigner" | "head";
+  onSave: (id: string, userId: string | null, type: "approver" | "head") => void;
+  onClose: () => void; type?: "approver" | "head";
 }) {
-  const init = type === "approver" ? (ministry.approverId || "none") : type === "assigner" ? (ministry.mealStubAssignerId || "none") : (ministry.headId || "none");
+  const init = type === "approver" ? (ministry.approverId || "none") : (ministry.headId || "none");
   const [sel, setSel] = useState<string>(init);
   const sorted = [...workers].sort((a, b) => a.firstName.localeCompare(b.firstName));
-  const label = type === "approver" ? "Approver" : type === "assigner" ? "Meal Stub Assigner" : "Ministry Head";
+  const label = type === "approver" ? "Approver" : "Ministry Head";
 
   return (
     <div className="space-y-6">
       <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
-            {type === "assigner" ? <Utensils className="h-5 w-5" /> : <UserCog className="h-5 w-5" />}
+            <UserCog className="h-5 w-5" />
           </div>
           <div>
             <DialogTitle className="text-xl font-bold font-headline text-foreground">
@@ -317,7 +300,7 @@ export default function MinistryManagementPage() {
   const [detailsMinistry, setDetailsMinistry] = useState<Ministry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Ministry | null>(null);
   const [appointOpen, setAppointOpen] = useState(false);
-  const [appointType, setAppointType] = useState<"approver" | "assigner" | "head">("approver");
+  const [appointType, setAppointType] = useState<"approver" | "head">("approver");
   const [appointTarget, setAppointTarget] = useState<Ministry | null>(null);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<"all" | Department>("all");
@@ -342,11 +325,11 @@ export default function MinistryManagementPage() {
     } catch { toast({ variant: "destructive", title: "Save Failed" }); }
   };
 
-  const handleSaveAppointed = async (ministryId: string, userId: string | null, type: "approver" | "assigner" | "head") => {
+  const handleSaveAppointed = async (ministryId: string, userId: string | null, type: "approver" | "head") => {
     try {
-      const field = type === "approver" ? "approverId" : type === "assigner" ? "mealStubAssignerId" : "headId";
+      const field = type === "approver" ? "approverId" : "headId";
       await updateMinistry({ id: ministryId, data: { [field]: userId === null ? "" : userId } });
-      const label = type === "approver" ? "Approver" : type === "assigner" ? "Meal Stub Assigner" : "Ministry Head";
+      const label = type === "approver" ? "Approver" : "Ministry Head";
       toast({ title: `${label} Updated` });
       setAppointOpen(false);
     } catch { toast({ variant: "destructive", title: "Update Failed" }); }
@@ -472,7 +455,6 @@ export default function MinistryManagementPage() {
           ) : filteredMinistries.map(ministry => {
             const head = getWorker(ministry.headId);
             const approver = getWorker(ministry.approverId);
-            const assigner = getWorker(ministry.mealStubAssignerId);
             const memberCount = (workers || []).filter(w => w.majorMinistryId === ministry.id || w.minorMinistryId === ministry.id).length;
             const weeklyPool = (ministry as any).mealStubWeeklyLimit || 0;
 
@@ -499,7 +481,6 @@ export default function MinistryManagementPage() {
                         {canManageMinistries && <DropdownMenuItem onClick={() => { setSelectedMinistry(ministry); setFormOpen(true); }}><Edit className="mr-2 h-3.5 w-3.5" /> Edit</DropdownMenuItem>}
                         <DropdownMenuItem onClick={() => { setAppointTarget(ministry); setAppointType("head"); setAppointOpen(true); }}><Users className="mr-2 h-3.5 w-3.5" /> Appoint Head</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setAppointTarget(ministry); setAppointType("approver"); setAppointOpen(true); }}><UserCog className="mr-2 h-3.5 w-3.5" /> Appoint Approver</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setAppointTarget(ministry); setAppointType("assigner"); setAppointOpen(true); }}><Utensils className="mr-2 h-3.5 w-3.5" /> Appoint Assigner</DropdownMenuItem>
                         {canManageMinistries && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(ministry)}><Trash2 className="mr-2 h-3.5 w-3.5" /> Delete</DropdownMenuItem>}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -524,20 +505,12 @@ export default function MinistryManagementPage() {
                   )}
                 </div>
 
-                {/* Approver + Assigner */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5">
-                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
-                      <UserCog className="h-3 w-3" /> Approver
-                    </p>
-                    <p className="font-semibold text-foreground truncate">{approver ? `${approver.firstName} ${approver.lastName}` : "—"}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5">
-                    <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
-                      <Utensils className="h-3 w-3" /> Assigner
-                    </p>
-                    <p className="font-semibold text-foreground truncate">{assigner ? `${assigner.firstName} ${assigner.lastName}` : "—"}</p>
-                  </div>
+                {/* Approver */}
+                <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5 text-xs">
+                  <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
+                    <UserCog className="h-3 w-3" /> Approver
+                  </p>
+                  <p className="font-semibold text-foreground truncate">{approver ? `${approver.firstName} ${approver.lastName}` : "—"}</p>
                 </div>
 
                 {/* Members + Weekly pool */}
@@ -595,8 +568,6 @@ export default function MinistryManagementPage() {
             const m = detailsMinistry;
             const head = getWorker(m.headId);
             const approver = getWorker(m.approverId);
-            const assigner = getWorker(m.mealStubAssignerId);
-            const leader = getWorker(m.leaderId);
             const members = (workers || []).filter(w => w.majorMinistryId === m.id || w.minorMinistryId === m.id);
             return (
               <div className="flex flex-col gap-5">
@@ -615,7 +586,7 @@ export default function MinistryManagementPage() {
                 {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
 
                 <div className="grid grid-cols-2 gap-3">
-                  {[{ label: "Ministry Head", w: head }, { label: "Leader", w: leader }, { label: "Approver", w: approver }, { label: "Meal Assigner", w: assigner }].map(({ label, w }) => (
+                  {[{ label: "Ministry Head", w: head }, { label: "Approver", w: approver }].map(({ label, w }) => (
                     <div key={label} className="rounded-xl border border-border/60 bg-muted/20 p-3">
                       <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mb-1.5">{label}</p>
                       {w ? <div className="flex items-center gap-2"><WorkerInitials name={`${w.firstName} ${w.lastName}`} /><p className="text-xs font-semibold text-foreground truncate">{w.firstName} {w.lastName}</p></div>

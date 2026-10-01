@@ -608,26 +608,26 @@ export function BorrowingsPanel() {
             <div className="overflow-x-auto hidden md:block">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider pl-4 bg-sidebar">
+                  <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40 whitespace-nowrap">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider pl-4 bg-sidebar whitespace-nowrap min-w-[170px]">
                       Item Details
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap min-w-[130px]">
                       Borrower
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap min-w-[100px]">
                       Borrowed Date
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap min-w-[125px]">
                       Due Date / Schedule
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap min-w-[85px]">
                       Status
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap min-w-[130px] max-w-[180px]">
                       Condition / Notes
                     </TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-4 bg-sidebar">
+                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-8 bg-sidebar whitespace-nowrap w-24 sticky right-0 z-20 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.15)]">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -783,12 +783,12 @@ export function BorrowingsPanel() {
                           </TableCell>
 
                           {/* 7. Actions */}
-                          <TableCell className="py-3 text-right pr-4">
+                          <TableCell className="py-3 text-right pr-8 w-24 sticky right-0 z-10 bg-card group-hover:bg-slate-50 dark:group-hover:bg-muted/40 shadow-[-8px_0_12px_-4px_rgba(0,0,0,0.06)]">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
                                   type="button"
-                                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                  className="p-1.5 mr-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </button>

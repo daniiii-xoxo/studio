@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useRoles } from "@/hooks/use-roles";
@@ -8,10 +8,19 @@ import { useMinistries } from "@/hooks/use-ministries";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkers } from "@/hooks/use-workers";
-import { LoaderCircle, ArrowLeft, ArrowRight, User, Building2, FileText, ClipboardCheck, CheckCircle2 } from "lucide-react";
+import { LoaderCircle, ArrowLeft, ArrowRight, User, Building2, FileText, ClipboardCheck, CheckCircle2, Briefcase } from "lucide-react";
 import { createWorkerWithAuth, createApproval as createApprovalSql } from "@/actions/db";
 import { useAuditLog } from "@/hooks/use-audit-log";
-import { Input } from "@studio/ui";
+import {
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+} from "@studio/ui";
 import { cn } from "@/lib/utils";
 import type { Worker } from "@studio/types";
 
@@ -97,9 +106,76 @@ export default function NewWorkerPage() {
   const { logAction } = useAuditLog();
   const { roles, isLoading: rolesLoading } = useRoles();
   const { ministries, isLoading: ministriesLoading } = useMinistries();
-  const { workerProfile, canManageWorkers, isLoading: userRoleLoading } = useUserRole();
+  const { workerProfile, canManageWorkers, isSuperAdmin, canManageRoles, isLoading: userRoleLoading } = useUserRole();
+
+  const isAdmin = isSuperAdmin || canManageRoles;
 
   const isLoading = rolesLoading || ministriesLoading || userRoleLoading;
+
+  const groupedMinistries = useMemo(() => {
+    const groups: Record<string, typeof ministries> = {};
+    ministries.forEach((m) => {
+      const dept = m.department || "Other";
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(m);
+    });
+    return groups;
+  }, [ministries]);
+
+  const availableRoleCards = useMemo(() => {
+    const allCards = [
+      {
+        id: "worker",
+        label: "WORKER",
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+          </svg>
+        ),
+        activeBorder: "border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/20",
+        activeBg: "bg-gradient-to-b from-indigo-500/12 via-indigo-500/5 to-transparent dark:from-indigo-500/20 dark:via-indigo-500/10 dark:to-transparent",
+        iconBoxActive: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700/80 shadow-xs",
+        iconBoxDefault: "bg-indigo-500/10 text-indigo-500/70 dark:text-indigo-400/70 border-indigo-200/50 dark:border-indigo-800/40",
+        activeText: "text-indigo-600 dark:text-indigo-400 font-extrabold",
+        checkBg: "bg-indigo-600 dark:bg-indigo-500 text-white",
+      },
+      {
+        id: "ministry_head",
+        label: "MINISTRY HEAD",
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+          </svg>
+        ),
+        activeBorder: "border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/20",
+        activeBg: "bg-gradient-to-b from-emerald-500/12 via-emerald-500/5 to-transparent dark:from-emerald-500/20 dark:via-emerald-500/10 dark:to-transparent",
+        iconBoxActive: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/80 shadow-xs",
+        iconBoxDefault: "bg-emerald-500/10 text-emerald-500/70 dark:text-emerald-400/70 border-emerald-200/50 dark:border-emerald-800/40",
+        activeText: "text-emerald-600 dark:text-emerald-400 font-extrabold",
+        checkBg: "bg-emerald-600 dark:bg-emerald-500 text-white",
+      },
+      {
+        id: "admin",
+        label: "ADMIN",
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+        activeBorder: "border-orange-500 dark:border-orange-400 ring-2 ring-orange-500/20",
+        activeBg: "bg-gradient-to-b from-orange-500/12 via-orange-500/5 to-transparent dark:from-orange-950/20 dark:via-orange-950/10 dark:to-transparent",
+        iconBoxActive: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700/80 shadow-xs",
+        iconBoxDefault: "bg-orange-500/10 text-orange-500/70 dark:text-orange-400/70 border-orange-200/50 dark:border-orange-800/40",
+        activeText: "text-orange-600 dark:text-orange-400 font-extrabold",
+        checkBg: "bg-orange-600 dark:bg-orange-500 text-white",
+      },
+    ];
+
+    if (isAdmin) {
+      return allCards;
+    }
+    return allCards.filter((c) => c.id === "worker");
+  }, [isAdmin]);
 
   const [step, setStep] = useState(1);
 
@@ -115,9 +191,37 @@ export default function NewWorkerPage() {
   const [roleId, setRoleId]               = useState("");
   const [majorMinistryId, setMajorMinistryId] = useState("");
   const [minorMinistryId, setMinorMinistryId] = useState("");
-  const [employmentType, setEmploymentType]   = useState("");
+  const [employmentType, setEmploymentType]   = useState("Full-Time");
   const [startDate, setStartDate]             = useState("");
   const [status, setStatus]               = useState("Pending Approval");
+
+  // Auto-select role based on permissions
+  useEffect(() => {
+    if (roles.length > 0) {
+      const workerRole = roles.find(r => r.name.toLowerCase().includes("worker") || r.id === "worker") || roles[0];
+      if (!isAdmin) {
+        if (workerRole && roleId !== workerRole.id) {
+          setRoleId(workerRole.id);
+        }
+      } else if (!roleId && workerRole) {
+        setRoleId(workerRole.id);
+      }
+    }
+  }, [roles, roleId, isAdmin]);
+
+  // Auto-select first ministry when loaded
+  useEffect(() => {
+    if (!majorMinistryId && ministries.length > 0) {
+      const firstDept = Object.keys(groupedMinistries)[0];
+      const mins = groupedMinistries[firstDept];
+      const firstSorted = mins && mins.length > 0
+        ? [...mins].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))[0]
+        : ministries[0];
+      if (firstSorted) {
+        setMajorMinistryId(firstSorted.id);
+      }
+    }
+  }, [ministries, groupedMinistries, majorMinistryId]);
 
   // Form state — Step 3: Additional Information
   const [remarks, setRemarks]             = useState("");
@@ -238,36 +342,8 @@ export default function NewWorkerPage() {
                     <p className="text-sm font-medium text-foreground mb-3">
                       Choose a role <span className="text-red-500">*</span>
                     </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        {
-                          id: "worker", label: "WORKER",
-                          icon: (
-                            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="#6366f1" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                            </svg>
-                          ),
-                          color: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",
-                        },
-                        {
-                          id: "ministry_head", label: "MINISTRY HEAD",
-                          icon: (
-                            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="#10b981" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                            </svg>
-                          ),
-                          color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
-                        },
-                        {
-                          id: "admin", label: "ADMIN",
-                          icon: (
-                            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="#f97316" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          ),
-                          color: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800",
-                        },
-                      ].map(card => {
+                    <div className={cn("grid gap-3.5", availableRoleCards.length === 1 ? "grid-cols-1 w-full" : "grid-cols-1 sm:grid-cols-3")}>
+                      {availableRoleCards.map(card => {
                         const role = roles.find(r => r.name.toLowerCase().includes(card.id.replace("_", " ")) || r.id === card.id);
                         const isSelected = roleId === (role?.id || card.id);
                         return (
@@ -276,16 +352,20 @@ export default function NewWorkerPage() {
                             type="button"
                             onClick={() => setRoleId(role?.id || card.id)}
                             className={cn(
-                              "flex flex-col items-center justify-center gap-3 py-6 rounded-2xl border-2 transition-all cursor-pointer",
+                              "relative w-full flex flex-col items-center justify-center text-center gap-3 py-6 px-6 rounded-2xl border-2 transition-colors shadow-xs",
+                              availableRoleCards.length === 1 ? "cursor-default" : "cursor-pointer",
                               isSelected
-                                ? "border-primary bg-primary/5 shadow-sm"
-                                : `${card.color} hover:border-primary/40`
+                                ? `${card.activeBorder} ${card.activeBg}`
+                                : "border-border/60 bg-card"
                             )}
                           >
-                            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", card.color)}>
+                            {/* Icon box */}
+                            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center border", isSelected ? card.iconBoxActive : card.iconBoxDefault)}>
                               {card.icon}
                             </div>
-                            <span className={cn("text-xs font-black tracking-widest", isSelected ? "text-primary" : "text-muted-foreground")}>
+
+                            {/* Text */}
+                            <span className={cn("text-xs tracking-widest uppercase text-center", isSelected ? card.activeText : "font-bold text-muted-foreground")}>
                               {card.label}
                             </span>
                           </button>
@@ -297,21 +377,49 @@ export default function NewWorkerPage() {
                   {/* Ministry, Worker type, Start date */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
                     <Field label="Ministry" required>
-                      <select value={majorMinistryId} onChange={e => setMajorMinistryId(e.target.value)}
-                        className="h-10 rounded-xl border border-border/60 bg-background px-3 text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
-                        <option value="">Select ministry</option>
-                        {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                      </select>
+                      <Select
+                        value={majorMinistryId}
+                        onValueChange={(v) => {
+                          setMajorMinistryId(v);
+                          setMinorMinistryId("");
+                        }}
+                      >
+                        <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background text-sm">
+                          <SelectValue placeholder="Select ministry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(groupedMinistries).map(([dept, mins]) => (
+                            <SelectGroup key={dept}>
+                              <SelectLabel className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
+                                {dept}
+                              </SelectLabel>
+                              {[...mins]
+                                .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))
+                                .map((m) => (
+                                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                                    {m.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </Field>
                     <Field label="Worker type" required>
-                      <select value={employmentType} onChange={e => setEmploymentType(e.target.value)}
-                        className="h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
-                        <option value="">Select type</option>
-                        <option value="Full-Time">Full-Time</option>
-                        <option value="Part-Time">Part-Time</option>
-                        <option value="Volunteer">Volunteer</option>
-                        <option value="On-Call">On-Call</option>
-                      </select>
+                      <Select
+                        value={employmentType}
+                        onValueChange={(v) => setEmploymentType(v)}
+                      >
+                        <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background text-sm">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Full-Time">Full-Time</SelectItem>
+                          <SelectItem value="Part-Time">Part-Time</SelectItem>
+                          <SelectItem value="Volunteer">Volunteer</SelectItem>
+                          <SelectItem value="On-Call">On-Call</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Field>
                     <Field label="Start date" required>
                       <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
@@ -385,9 +493,8 @@ export default function NewWorkerPage() {
                       ["Email", email], ["Phone", phone],
                       ["Birth Date", birthDate || "—"], ["Address", address || "—"],
                       ["Role", roles.find(r => r.id === roleId)?.name || "—"],
-                      ["Major Ministry", ministries.find(m => m.id === majorMinistryId)?.name || "—"],
-                      ["Minor Ministry", ministries.find(m => m.id === minorMinistryId)?.name || "—"],
-                      ["Employment Type", employmentType], ["Status", status],
+                      ["Ministry", ministries.find(m => m.id === majorMinistryId)?.name || "—"],
+                      ["Worker Type", employmentType], ["Status", status],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between px-4 py-2.5">
                         <span className="text-xs font-semibold text-muted-foreground">{label}</span>

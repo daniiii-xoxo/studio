@@ -46,14 +46,21 @@ import { cn } from "@/lib/utils";
 
 export default function MyQRCodePage() {
   const { user } = useAuthStore();
-  const { workerProfile, allRoles, isLoading: roleLoading } = useUserRole();
+  const { workerProfile, allRoles, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const { ministries } = useMinistries();
   const { toast } = useToast();
 
-  const roleName =
-    allRoles?.find((r: any) => r.id === workerProfile?.roleId)?.name ||
-    workerProfile?.roleId ||
-    "Member";
+  const isUUID = (str?: string | null) =>
+    str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()) : false;
+
+  const roleName = isSuperAdmin
+    ? "Administrator"
+    : (workerProfile as any)?.role?.name ||
+      (workerProfile as any)?.roles?.[0]?.role?.name ||
+      allRoles?.find((r: any) => r.id === workerProfile?.roleId)?.name ||
+      (!isUUID(workerProfile?.roleId) && workerProfile?.roleId) ||
+      (workerProfile as any)?.role ||
+      "General Member";
 
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isConfirmRegenOpen, setIsConfirmRegenOpen] = useState(false);
@@ -220,7 +227,7 @@ export default function MyQRCodePage() {
                   </h3>
                   <div className="flex items-center justify-center gap-2 flex-wrap">
                     <Badge className="bg-sidebar text-white hover:bg-sidebar/90 text-[11px] font-semibold px-2.5 py-0.5 rounded-md capitalize">
-                      {workerProfile?.roleId || "Member"}
+                      {roleName}
                     </Badge>
                     {workerProfile?.workerId && (
                       <span className="text-xs font-mono text-muted-foreground bg-white dark:bg-card border border-slate-200/80 dark:border-border px-2 py-0.5 rounded-md shadow-2xs">
@@ -299,8 +306,8 @@ export default function MyQRCodePage() {
                     <Shield className="h-3.5 w-3.5 text-primary" />
                     <span>Assigned Role</span>
                   </div>
-                  <p className="text-sm font-semibold text-foreground capitalize">
-                    {workerProfile?.roleId || "General Member"}
+                  <p className="text-sm font-semibold text-foreground">
+                    {roleName}
                   </p>
                 </div>
 
@@ -320,7 +327,7 @@ export default function MyQRCodePage() {
                     <span>Worker Identifier</span>
                   </div>
                   <p className="text-sm font-mono font-semibold text-foreground">
-                    {workerProfile?.workerId || activeUserId.slice(0, 12)}
+                    {workerProfile?.workerId || (workerProfile?.biometricsId ? `W-${String(workerProfile.biometricsId).padStart(4, "0")}` : "Not Assigned")}
                   </p>
                 </div>
               </div>
@@ -347,39 +354,49 @@ export default function MyQRCodePage() {
 
       {/* Confirmation Dialog for Regenerating QR Code */}
       <Dialog open={isConfirmRegenOpen} onOpenChange={setIsConfirmRegenOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-headline font-bold text-lg flex items-center gap-2 text-destructive">
-              <RefreshCw className="h-5 w-5" />
+        <DialogContent className="max-w-sm rounded-2xl p-6 text-center shadow-card-dark border border-border/60">
+          {/* Top Circular Badge Icon */}
+          <div className="w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-2 bg-primary/10 text-primary border border-primary/20 shadow-2xs">
+            <RefreshCw className={cn("h-6 w-6 text-primary", isRegenerating && "animate-spin")} />
+          </div>
+
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-base font-bold text-center text-foreground font-headline">
               Regenerate QR Identification?
             </DialogTitle>
-            <DialogDescription className="text-xs leading-relaxed text-muted-foreground pt-2">
+            <DialogDescription className="text-xs text-center text-muted-foreground mt-1 leading-relaxed">
               Regenerating your QR token will immediately invalidate your current QR code and any previously printed identification cards. You will need to use or print the new QR code.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-end pt-4">
+
+          {/* Action Buttons */}
+          <DialogFooter className="flex flex-row gap-2.5 sm:justify-center mt-5">
             <Button
+              type="button"
               variant="outline"
-              size="sm"
-              onClick={() => setIsConfirmRegenOpen(false)}
               disabled={isRegenerating}
-              className="rounded-xl text-xs font-semibold"
+              className="flex-1 rounded-xl text-xs h-9 font-semibold cursor-pointer border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-muted text-foreground shadow-2xs"
+              onClick={() => setIsConfirmRegenOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              variant="default"
-              size="sm"
-              onClick={refreshCodes}
+              type="button"
               disabled={isRegenerating}
-              className="rounded-xl text-xs font-semibold bg-sidebar hover:bg-sidebar/90 text-white"
+              className="flex-1 rounded-xl text-xs h-9 font-bold cursor-pointer bg-sidebar hover:bg-sidebar/90 text-white shadow-xs transition-all active:scale-[0.99] inline-flex items-center justify-center gap-1.5"
+              onClick={refreshCodes}
             >
               {isRegenerating ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Updating...</span>
+                </>
               ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>Yes, Regenerate</span>
+                </>
               )}
-              Yes, Regenerate
             </Button>
           </DialogFooter>
         </DialogContent>

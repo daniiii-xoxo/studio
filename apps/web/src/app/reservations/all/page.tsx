@@ -885,31 +885,31 @@ export default function AllReservationsPage() {
                             />
                           </div>
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[11%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center whitespace-nowrap">
                           ID
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[18%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left whitespace-nowrap">
                           Requester
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[18%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap">
                           Floor / Room
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[14%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap">
                           Date
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[15%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap">
                           Time
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center w-[6%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center whitespace-nowrap">
                           Pax
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[10%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center whitespace-nowrap">
                           Status
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[10%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center whitespace-nowrap">
                           Created
                         </TableHead>
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[6%]">
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center whitespace-nowrap">
                           Actions
                         </TableHead>
                       </TableRow>
@@ -983,7 +983,7 @@ export default function AllReservationsPage() {
                             </TableCell>
 
                             {/* Floor / Room */}
-                            <TableCell className="py-3.5 px-4 align-middle">
+                            <TableCell className="py-3.5 px-4 align-middle whitespace-nowrap">
                               <div>
                                 <p className="text-xs text-foreground font-semibold">
                                   {room?.name || "Sapphire"}
@@ -995,34 +995,34 @@ export default function AllReservationsPage() {
                             </TableCell>
 
                             {/* Date */}
-                            <TableCell className="py-3.5 px-4 align-middle text-xs text-foreground font-medium">
+                            <TableCell className="py-3.5 px-4 align-middle text-xs text-foreground font-medium whitespace-nowrap">
                               {format(startTime, "MMMM d, yyyy")}
                             </TableCell>
 
                             {/* Time */}
-                            <TableCell className="py-3.5 px-4 align-middle text-xs text-muted-foreground font-medium">
+                            <TableCell className="py-3.5 px-4 align-middle text-xs text-muted-foreground font-medium whitespace-nowrap">
                               {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
                             </TableCell>
 
                             {/* Pax */}
-                            <TableCell className="py-3.5 px-3 text-center align-middle text-xs font-bold text-foreground">
+                            <TableCell className="py-3.5 px-3 text-center align-middle text-xs font-bold text-foreground whitespace-nowrap">
                               {booking.pax || 0}
                             </TableCell>
 
                             {/* Status */}
-                            <TableCell className="py-3.5 px-4 text-center align-middle">
+                            <TableCell className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
                               {isApproved ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                   Approved
                                 </span>
                               ) : isPending ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                   Pending
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 whitespace-nowrap">
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                                   {booking.status}
                                 </span>
@@ -1030,7 +1030,7 @@ export default function AllReservationsPage() {
                             </TableCell>
 
                             {/* Created Date */}
-                            <TableCell className="py-3.5 px-4 text-center align-middle text-xs text-muted-foreground font-medium">
+                            <TableCell className="py-3.5 px-4 text-center align-middle text-xs text-muted-foreground font-medium whitespace-nowrap">
                               {format(createdDate, "MMM d, yyyy")}
                             </TableCell>
 

@@ -81,12 +81,8 @@ export function BatchMinistrySheet({
       </SheetHeader>
       <div className="py-4 space-y-4">
         <div className="space-y-2">
-          <Label>Major Ministry</Label>
-          <MinistrySelect value={major} onChange={setMajor} keepLabel="Keep current major ministry" />
-        </div>
-        <div className="space-y-2">
-          <Label>Minor Ministry</Label>
-          <MinistrySelect value={minor} onChange={setMinor} keepLabel="Keep current minor ministry" />
+          <Label>Ministry</Label>
+          <MinistrySelect value={major} onChange={setMajor} keepLabel="Keep current ministry" />
         </div>
       </div>
       <SheetFooter>

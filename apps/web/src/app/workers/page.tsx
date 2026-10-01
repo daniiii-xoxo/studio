@@ -19,7 +19,7 @@ import {
   Trash2, ArrowRightLeft, X, Ticket, Search, SlidersHorizontal,
   ShieldCheck, UserCog, GraduationCap,
 } from "lucide-react";
-import { subDays, formatDistanceToNow } from "date-fns";
+import { subDays, formatDistanceToNow, format } from "date-fns";
 import { getWeeklyWeekdayCount, getSundayCount } from "@studio/ui";
 import { Checkbox } from "@studio/ui";
 import {
@@ -39,7 +39,6 @@ import { useMealStubs } from "@/hooks/use-meal-stubs";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useAuditLog } from "@/hooks/use-audit-log";
-import { useImpersonation } from "@/hooks/use-impersonation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { useApprovals } from "@/hooks/use-approvals";
 import {
@@ -67,7 +66,7 @@ function WorkerInitials({ name, avatarUrl }: { name: string; avatarUrl?: string 
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     : name.slice(0, 2).toUpperCase();
   return (
-    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-[11px] font-black shrink-0">
+    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-[10px] font-black shrink-0">
       {init}
     </span>
   );
@@ -76,19 +75,22 @@ function WorkerInitials({ name, avatarUrl }: { name: string; avatarUrl?: string 
 function StatusBadge({ status }: { status: string }) {
   if (status === "Active")
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+        Active
       </span>
     );
   if (status === "Inactive")
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-800">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Inactive
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-800 whitespace-nowrap">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+        Inactive
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{status}
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+      {status}
     </span>
   );
 }
@@ -96,10 +98,10 @@ function StatusBadge({ status }: { status: string }) {
 function RoleBadge({ role }: { role: string }) {
   const lower = role.toLowerCase();
   if (lower.includes("admin"))
-    return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800">{role}</span>;
+    return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800 whitespace-nowrap">{role}</span>;
   if (lower.includes("head") || lower.includes("pastor") || lower.includes("ministry"))
-    return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">{role}</span>;
-  return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-muted text-muted-foreground border border-border/60">{role}</span>;
+    return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">{role}</span>;
+  return <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-muted/60 text-muted-foreground border border-slate-200/80 dark:border-border whitespace-nowrap shadow-2xs">{role}</span>;
 }
 
 function StatCard({ label, value, icon: Icon, accentColor, iconClass, iconBgClass }: {
@@ -137,9 +139,7 @@ const formatWorkerId = (id: string | null | undefined) => {
 export default function WorkersPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuthStore();
   const { workerProfile, canManageWorkers, isSuperAdmin, allRoles, isLoading: isRoleLoading } = useUserRole();
-  const { startImpersonation } = useImpersonation();
   const { logAction } = useAuditLog();
   const { isMealStubAssigner, canManageAllMealStubs } = useUserRole();
 
@@ -241,7 +241,7 @@ export default function WorkersPage() {
       "Phone": w.phone || "",
       "Role": getWorkerRoleLabel(w),
       "Ministry": ministries.find(m => m.id === w.majorMinistryId)?.name || "",
-      "Employment Type": w.employmentType || "",
+      "Worker Type": w.employmentType || "",
       "Status": w.status,
       "Registered": w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
     }));
@@ -266,11 +266,6 @@ export default function WorkersPage() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed", description: error.message });
     }
-  };
-
-  const handleImpersonate = (worker: Worker) => {
-    toast({ title: "Impersonation Started", description: `Viewing as ${worker.firstName} ${worker.lastName}.` });
-    startImpersonation(worker.id);
   };
 
   const handleDelete = (worker: Worker) => {
@@ -686,28 +681,28 @@ export default function WorkersPage() {
                       />
                     </div>
                   </th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
                     Worker {sortField === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
                     Worker ID {sortField === "workerId" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
+                  <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
                     Status {sortField === "status" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </th>
-                  <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
+                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
+                  <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {workersLoading ? (
-                  <tr><td colSpan={10} className="py-16 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></td></tr>
+                  <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></td></tr>
                 ) : displayedWorkers.length === 0 ? (
-                  <tr><td colSpan={10} className="py-16 text-center text-sm text-muted-foreground">No workers found.</td></tr>
+                  <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium">No workers found.</td></tr>
                 ) : displayedWorkers.map(worker => {
                   const ministry = ministries.find(m => m.id === worker.majorMinistryId);
                   const isSelected = selectedWorkerIds.includes(worker.id);
@@ -717,7 +712,10 @@ export default function WorkersPage() {
                   return (
                     <tr
                       key={worker.id}
-                      className={cn("border-b border-border/30 transition-colors", isSelected ? "bg-primary/5" : "hover:bg-muted/20")}
+                      className={cn(
+                        "border-b border-gray-100 dark:border-border/60 transition-colors cursor-pointer",
+                        isSelected ? "bg-primary/5" : "hover:bg-slate-50/70 dark:hover:bg-muted/30"
+                      )}
                     >
                       <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
                         <div className="flex items-center justify-center">
@@ -728,40 +726,40 @@ export default function WorkersPage() {
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
                           <div>
                             <p className="text-sm font-semibold text-foreground leading-tight">{worker.firstName} {worker.lastName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate max-w-[160px]">{worker.email}</p>
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[160px] font-normal">{worker.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-xs font-mono text-muted-foreground whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-xs font-mono text-muted-foreground whitespace-nowrap font-medium">
                         {formatWorkerId(worker.workerId)}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <RoleBadge role={roleLabel} />
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
                         {ministry?.name || "—"}
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
                         {worker.employmentType || "—"}
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
                         {worker.phone || "—"}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5 text-center whitespace-nowrap">
                         <StatusBadge status={worker.status} />
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
-                        {registeredDate ? registeredDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
+                        {registeredDate ? format(registeredDate, "MMM d, yyyy") : "—"}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3.5 text-center" onClick={e => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
@@ -772,11 +770,6 @@ export default function WorkersPage() {
                             <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
                               <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
                             </DropdownMenuItem>
-                            {worker.id !== user?.uid && (
-                              <DropdownMenuItem onSelect={() => setTimeout(() => handleImpersonate(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
-                                <LogIn className="h-4 w-4 text-muted-foreground" /> Impersonate
-                              </DropdownMenuItem>
-                            )}
                             <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker), 100)} className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10">
                               <Trash2 className="h-4 w-4 text-destructive" /> Delete
                             </DropdownMenuItem>
@@ -885,15 +878,8 @@ export default function WorkersPage() {
                   <p className="text-sm text-foreground">{ministries.find(m => m.id === selectedWorkerForDetails.majorMinistryId)?.name || "—"}</p>
                 </div>
 
-                {selectedWorkerForDetails.minorMinistryId && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Secondary Ministry</p>
-                    <p className="text-sm text-foreground">{ministries.find(m => m.id === selectedWorkerForDetails.minorMinistryId)?.name || "—"}</p>
-                  </div>
-                )}
-
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employment Type</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Worker Type</p>
                   <p className="text-sm text-foreground">{selectedWorkerForDetails.employmentType || "—"}</p>
                 </div>
 
@@ -910,7 +896,7 @@ export default function WorkersPage() {
                 {selectedWorkerForDetails.createdAt && (
                   <div className="space-y-1">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registered</p>
-                    <p className="text-sm text-foreground">
+                    <p className="text-sm text-foreground whitespace-nowrap">
                       {new Date(selectedWorkerForDetails.createdAt as any).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </p>
                   </div>

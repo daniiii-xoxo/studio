@@ -17,6 +17,7 @@ import {
   ExternalLink,
   QrCode,
   UserCog,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   SidebarGroup,
@@ -184,7 +185,7 @@ const allNavItems: NavItem[] = [
       { href: "/reports?tab=attendance",   label: "Attendance" },
       { href: "/reports?tab=meal-stubs",   label: "Meal Stub Claims" },
       { href: "/reports?tab=allocations",  label: "Allocations" },
-      { href: "/reports?tab=reservations", label: "Reservations" },
+      { href: "/reports?tab=reservations", label: "Room Reservations" },
     ],
   },
   {
@@ -203,7 +204,7 @@ const allNavItems: NavItem[] = [
   },
   {
     href: "/settings",
-    icon: Settings,
+    icon: SlidersHorizontal,
     label: "Configuration",
   },
 ];
@@ -528,10 +529,10 @@ export function Nav({
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {/* Divider Line between Configuration and My Settings - with extra margin to push My Settings down */}
+      {/* Divider Line between Configuration and Settings - with extra margin to push Settings down */}
       <div className="h-[1px] bg-white/15 mx-3.5 mt-4 mb-2" />
 
-      {/* My Settings with Sub-Items - Lower position with padding */}
+      {/* Settings with Sub-Items - Lower position with padding */}
       <SidebarGroup className="p-1.5 pt-1">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0.5">
@@ -541,11 +542,11 @@ export function Nav({
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton
                       isActive={pathname.startsWith("/my-settings")}
-                      tooltip={{ children: "My Settings" }}
+                      tooltip={{ children: "Settings" }}
                       className="rounded-xl py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
                     >
-                      <UserCog className="size-[19px]" />
-                      <span>My Settings</span>
+                      <Settings className="size-[19px]" />
+                      <span>Settings</span>
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -585,8 +586,8 @@ export function Nav({
                       className="rounded-xl justify-between w-full py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
                     >
                       <div className="flex items-center gap-2.5">
-                        <UserCog className="size-[19px]" />
-                        <span>My Settings</span>
+                        <Settings className="size-[19px]" />
+                        <span>Settings</span>
                       </div>
                       <ChevronRight className="size-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>

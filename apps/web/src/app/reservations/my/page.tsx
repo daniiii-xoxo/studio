@@ -435,12 +435,12 @@ export default function MyReservationsPage() {
                         </TableCell>
 
                         {/* Date */}
-                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-700 dark:text-gray-300 font-medium">
+                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">
                           {format(startTime, "MMMM d, yyyy")}
                         </TableCell>
 
                         {/* Time */}
-                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                           {format(startTime, "h:mm a")} -{" "}
                           {format(endTime, "h:mm a")}
                         </TableCell>

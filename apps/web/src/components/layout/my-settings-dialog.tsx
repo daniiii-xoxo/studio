@@ -86,7 +86,7 @@ export function MySettingsDialog({ open, onOpenChange }: MySettingsDialogProps) 
         {/* Header with blue toolbar style - matching room reservation */}
         <DialogHeader className="px-6 pt-6 pb-5 shrink-0 bg-sidebar border-b border-sidebar-border/40">
           <DialogTitle className="text-2xl font-bold font-headline text-white">
-            My Settings
+            Settings
           </DialogTitle>
           <DialogDescription className="text-sm text-white/70 mt-1">
             Manage your account settings and preferences

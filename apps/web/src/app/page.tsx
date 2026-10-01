@@ -26,7 +26,7 @@ export default function LandingPage() {
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showCenterFeedback, setShowCenterFeedback] = useState(false);
-  
+
   // Hero Background Images Auto-Slideshow (crossfades smoothly every 3.5 seconds)
   const heroBackgrounds = [
     "/cog-bg1.jpg",
@@ -47,7 +47,7 @@ export default function LandingPage() {
     }, 3500);
     return () => clearInterval(interval);
   }, [currentSlide, heroBackgrounds.length]);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const feedbackTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -58,7 +58,7 @@ export default function LandingPage() {
     if (videoRef.current) {
       if (currentSlide === 1) {
         videoRef.current.currentTime = 0; // Restart from the beginning!
-        videoRef.current.play().catch(() => {});
+        videoRef.current.play().catch(() => { });
         setIsPlaying(true);
       } else {
         videoRef.current.pause();
@@ -74,7 +74,7 @@ export default function LandingPage() {
       if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
 
       if (videoRef.current.paused) {
-        videoRef.current.play().catch(() => {});
+        videoRef.current.play().catch(() => { });
         setIsPlaying(true);
         // Hide feedback after 1.2s when playing
         feedbackTimeout.current = setTimeout(() => {
@@ -95,7 +95,7 @@ export default function LandingPage() {
     if (videoRef.current) {
       videoRef.current.muted = nextMuted;
       if (!nextMuted && videoRef.current.paused) {
-        videoRef.current.play().catch(() => {});
+        videoRef.current.play().catch(() => { });
         setIsPlaying(true);
       }
     }
@@ -208,19 +208,17 @@ export default function LandingPage() {
         {/* ============================================================ */}
         {/* BACKGROUND MEDIA SLIDER                                      */}
         {/* ============================================================ */}
-        
+
         {/* Slide 0: High-Res Church Image Carousel (Cross-fades automatically) */}
         <div
-          className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${
-            currentSlide === 0 ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
+          className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${currentSlide === 0 ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            }`}
         >
           {heroBackgrounds.map((bgUrl, index) => (
             <div
               key={bgUrl}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                currentBgIndex === index ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${currentBgIndex === index ? "opacity-100" : "opacity-0 pointer-events-none"
+                }`}
             >
               <Image
                 src={bgUrl}
@@ -239,9 +237,8 @@ export default function LandingPage() {
         {/* Slide 1: Pristine Full-Screen Church Video (Direct MP4) */}
         <div
           onClick={togglePlay}
-          className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out bg-black overflow-hidden cursor-pointer ${
-            currentSlide === 1 ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
+          className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out bg-black overflow-hidden cursor-pointer ${currentSlide === 1 ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            }`}
         >
           <video
             ref={videoRef}
@@ -260,11 +257,10 @@ export default function LandingPage() {
           {/* CENTER PLAY / PAUSE BUTTON OVERLAY (Appears on click & pause) */}
           {/* ============================================================ */}
           <div
-            className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-300 ${
-              !isPlaying || showCenterFeedback
+            className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-300 ${!isPlaying || showCenterFeedback
                 ? "opacity-100 scale-100"
                 : "opacity-0 scale-90"
-            }`}
+              }`}
           >
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition-transform transform hover:scale-105">
               {isPlaying ? (
@@ -279,7 +275,7 @@ export default function LandingPage() {
         {/* ============================================================ */}
         {/* SLIDER NAVIGATION BUTTONS (Right & Left Circular Controls)   */}
         {/* ============================================================ */}
-        
+
         {/* Right Next Button */}
         <div className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30">
           <button
@@ -309,11 +305,10 @@ export default function LandingPage() {
           <div className="absolute bottom-16 sm:bottom-20 right-6 sm:right-10 z-30 animate-in fade-in zoom-in-95 duration-300">
             <button
               onClick={toggleAudio}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full backdrop-blur-md border shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer ${
-                isMuted
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full backdrop-blur-md border shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer ${isMuted
                   ? "bg-black/60 hover:bg-black/80 text-white/80 border-white/20"
                   : "bg-blue-600/80 hover:bg-blue-600 text-white border-blue-400/50 ring-2 ring-blue-500/30"
-              }`}
+                }`}
               title={isMuted ? "Unmute Video Audio" : "Mute Video Audio"}
               aria-label="Audio Controls"
             >
@@ -339,9 +334,8 @@ export default function LandingPage() {
               e.stopPropagation();
               setCurrentSlide(0);
             }}
-            className={`transition-all duration-300 rounded-full cursor-pointer ${
-              currentSlide === 0 ? "w-8 h-2.5 bg-white shadow-md" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/70"
-            }`}
+            className={`transition-all duration-300 rounded-full cursor-pointer ${currentSlide === 0 ? "w-8 h-2.5 bg-white shadow-md" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/70"
+              }`}
             aria-label="Slide 1 Photo"
           />
           <button
@@ -349,9 +343,8 @@ export default function LandingPage() {
               e.stopPropagation();
               setCurrentSlide(1);
             }}
-            className={`transition-all duration-300 rounded-full cursor-pointer ${
-              currentSlide === 1 ? "w-8 h-2.5 bg-white shadow-md" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/70"
-            }`}
+            className={`transition-all duration-300 rounded-full cursor-pointer ${currentSlide === 1 ? "w-8 h-2.5 bg-white shadow-md" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/70"
+              }`}
             aria-label="Slide 2 Video"
           />
         </div>
@@ -360,14 +353,13 @@ export default function LandingPage() {
         {/* HERO CONTENT (Visible on Slide 0, smoothly hides on Slide 1) */}
         {/* ============================================================ */}
         <div
-          className={`relative z-10 max-w-6xl mx-auto text-center flex flex-col items-center px-2 transition-all duration-700 ease-in-out ${
-            currentSlide === 0
+          className={`relative z-10 max-w-6xl mx-auto text-center flex flex-col items-center px-2 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all duration-700 ease-in-out ${currentSlide === 0
               ? "opacity-100 translate-y-0 pointer-events-auto"
               : "opacity-0 translate-y-8 pointer-events-none"
-          }`}
+            }`}
         >
           {/* Main Church Logo */}
-          <div className="relative w-32 h-32 sm:w-44 sm:h-44 md:w-48 md:h-48 mb-5 sm:mb-6 drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)]">
+          <div className="relative w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 mb-5 sm:mb-6 drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)]">
             <Image
               src="/church-logo.png"
               alt="COG Logo"
@@ -456,18 +448,17 @@ export default function LandingPage() {
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                   />
-                  
+
                   {/* Dark subtle vignette on image */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
 
                   {/* Top Badge */}
                   <div className="absolute top-3 left-3 z-10">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-sm ${
-                        service.isLive
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-sm ${service.isLive
                           ? "bg-red-600 text-white"
                           : "bg-slate-900/80 text-white border border-white/20"
-                      }`}
+                        }`}
                     >
                       {service.isLive && (
                         <span className="w-2 h-2 rounded-full bg-white animate-ping" />

@@ -29,7 +29,7 @@ import { getWorkerEmail } from "@/actions/legacy-auth";
 import { LandingNav } from "@/components/landing/landing-nav";
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<"email" | "worker">("email");
+  const [mode, setMode] = useState<"email" | "worker">("worker");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -188,41 +188,43 @@ export default function LoginPage() {
         <div className="absolute inset-0 shadow-[inset_0_0_120px_60px_rgba(0,0,0,0.5)]" />
       </div>
 
-      <Card className="relative z-10 mx-auto max-w-md w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.9),0_0_80px_rgba(0, 0, 0, 0.9)] backdrop-blur-xl bg-black/10 border border-black/20 dark:bg-black/5 dark:border-black/10">
-        <CardHeader className="space-y-4 text-center">
+      <Card className="relative z-10 mx-auto max-w-[470px] w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.9),0_0_80px_rgba(0, 0, 0, 0.9)] backdrop-blur-xl bg-black/15 border border-black/20 dark:bg-black/10 dark:border-black/10 animate-in fade-in zoom-in-95 slide-in-from-bottom-6 duration-700 ease-out">
+        <CardHeader className="space-y-2.5 text-center pt-7 pb-3 px-8">
           <div className="flex justify-center items-center">
-            <Image src="/church-logo.png" alt="COG Logo" width={80} height={80} className="rounded-sm drop-shadow-[0_4px_8px_rgba(0, 0, 0, 0.9)]" />
+            <Image src="/church-logo.png" alt="COG Logo" width={78} height={78} className="rounded-sm drop-shadow-[0_4px_8px_rgba(0, 0, 0, 0.9)]" />
           </div>
           <CardTitle className="font-headline text-2xl text-white">COG App</CardTitle>
-          <CardDescription className="text-white/90">
-            {mode === "email" ? "Enter your email and password" : "Enter your Worker ID and password"}
+          <CardDescription className="text-white/90 text-sm">
+            {mode === "email" ? "Enter your Email and Password" : "Enter your Worker ID and Password"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
+        <CardContent className="px-8 pb-7">
+          <div className="grid gap-3.5">
             {/* Mode toggle */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={mode === "email" ? "default" : "outline"}
-                onClick={() => handleModeSwitch("email")}
-                disabled={isSigningIn}
-              >
-                Email Login
-              </Button>
+            <div className="grid grid-cols-2 gap-2.5">
               <Button
                 type="button"
                 variant={mode === "worker" ? "default" : "outline"}
                 onClick={() => handleModeSwitch("worker")}
                 disabled={isSigningIn}
+                className="h-10"
               >
                 Worker ID Login
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "email" ? "default" : "outline"}
+                onClick={() => handleModeSwitch("email")}
+                disabled={isSigningIn}
+                className="h-10"
+              >
+                Email Login
               </Button>
             </div>
 
             {/* Identifier */}
             <div className="grid gap-2">
-              <Label htmlFor="identifier" className="text-white">{mode === "email" ? "Email" : "Worker ID"}</Label>
+              <Label htmlFor="identifier" className="text-white text-sm font-medium">{mode === "email" ? "Email" : "Worker ID"}</Label>
               <Input
                 id="identifier"
                 type={mode === "email" ? "email" : "text"}
@@ -232,19 +234,20 @@ export default function LoginPage() {
                 onChange={(e) => setIdentifier(e.target.value)}
                 disabled={isSigningIn}
                 onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
+                className="h-10"
               />
             </div>
 
             {/* Password */}
             <div className="grid gap-2">
               <div className="flex items-center">
-                <Label htmlFor="password" className="text-white">Password</Label>
+                <Label htmlFor="password" className="text-white text-sm font-medium">Password</Label>
                 {mode === "email" && (
                   <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
                     <DialogTrigger asChild>
                       <button
                         type="button"
-                        className="ml-auto inline-block text-sm underline text-white/90 hover:text-white transition-colors"
+                        className="ml-auto inline-block text-xs sm:text-sm underline text-white/90 hover:text-white transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -288,7 +291,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isSigningIn}
                   onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
-                  className="pr-10"
+                  className="pr-10 h-10"
                 />
                 <button
                   type="button"
@@ -301,18 +304,17 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn || isGoogleSigningIn}>
+            <Button onClick={handleSignIn} className="w-full h-10 mt-2 font-medium text-sm" disabled={isSigningIn || isGoogleSigningIn}>
               {isSigningIn ? <LoaderCircle className="animate-spin" /> : "Login"}
             </Button>
 
             {/* Divider */}
-            <div className="relative my-1 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/20" />
-              </div>
-              <span className="relative bg-black/40 px-2.5 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wider text-white/70 backdrop-blur-md">
+            <div className="relative my-2 flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/20" />
+              <span className="bg-black/40 px-3 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider text-white/70 backdrop-blur-md shrink-0 border border-white/10">
                 Or continue with
               </span>
+              <div className="h-px flex-1 bg-white/20" />
             </div>
 
             {/* Google Sign-in Button */}
@@ -348,8 +350,6 @@ export default function LoginPage() {
               {isGoogleSigningIn ? "Connecting to Google..." : "Sign in with Google"}
             </Button>
           </div>
-
-
         </CardContent>
       </Card>
     </div>

@@ -126,11 +126,11 @@ export default function MyVenuePage() {
                             <CardContent className="space-y-3">
                                 {/* Date & time */}
                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1.5">
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap">
                                         <CalendarDays className="h-3.5 w-3.5" />
                                         {format(new Date(booking.start), "PPP")}
                                     </span>
-                                    <span className="flex items-center gap-1.5">
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap">
                                         <Clock className="h-3.5 w-3.5" />
                                         {format(new Date(booking.start), "p")} –{" "}
                                         {format(new Date(booking.end), "p")}

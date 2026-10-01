@@ -151,11 +151,11 @@ function RequestDetailPanel({
                     <p className="font-medium text-foreground">{request.booking.title}</p>
                     <p>{request.booking.room?.name ?? "Unknown room"}</p>
                     <div className="flex flex-wrap gap-3">
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 whitespace-nowrap">
                             <CalendarDays className="h-3.5 w-3.5" />
                             {format(new Date(request.booking.start), "PPP")}
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 whitespace-nowrap">
                             <Clock className="h-3.5 w-3.5" />
                             {format(new Date(request.booking.start), "p")} –{" "}
                             {format(new Date(request.booking.end), "p")}

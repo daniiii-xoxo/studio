@@ -151,7 +151,7 @@ export function ReservationDetailsSheet({
                 <Label className="text-[11px] font-semibold text-muted-foreground">Date</Label>
                 <div className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 flex items-center gap-2 font-medium text-foreground">
                   <CalendarIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate">{format(startTime, "MMM d, yyyy")}</span>
+                  <span className="truncate whitespace-nowrap">{format(startTime, "MMM d, yyyy")}</span>
                 </div>
               </div>
 
@@ -159,7 +159,7 @@ export function ReservationDetailsSheet({
                 <Label className="text-[11px] font-semibold text-muted-foreground">Schedule Time</Label>
                 <div className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 flex items-center gap-2 font-medium text-foreground">
                   <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate font-mono">
+                  <span className="truncate font-mono whitespace-nowrap">
                     {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
                   </span>
                 </div>
