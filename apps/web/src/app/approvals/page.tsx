@@ -107,12 +107,21 @@ function StatCard({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ApprovalsPage() {
-  const { canManageApprovals, canApproveAllRequests, canApproveRoomReservation, workerProfile, isLoading: isRoleLoading, isSuperAdmin } = useUserRole();
+  const {
+    canManageApprovals,
+    canApproveAllRequests,
+    canApproveRoomReservation,
+    workerProfile,
+    isLoading: isRoleLoading,
+    isSuperAdmin,
+    myMinistryIds: userRoleMinistryIds,
+    isMinistryHead: userIsMinistryHead,
+  } = useUserRole();
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
 
   const { approvals: requests, isLoading: approvalsLoading } = useApprovals();
   const { workers, isLoading: workersLoading } = useWorkers();
-  const { ministries, isLoading: ministriesLoading } = useMinistries();
+  const { ministries, allMinistries, isLoading: ministriesLoading } = useMinistries();
   const { updateStatus, isUpdating } = useApprovalMutations();
 
   const isLoading = isRoleLoading || approvalsLoading || workersLoading || ministriesLoading;
@@ -123,13 +132,14 @@ export default function ApprovalsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ action: "Approved" | "Rejected"; ids: string[] } | null>(null);
 
-  // Role logic (unchanged from original)
+  // Role logic
   const filteredRequests = useMemo(() => {
     let results = [...(requests || [])] as ApprovalRequest[];
-    const myMinistryIds = ministries
-      ?.filter(m => m.headId === workerProfile?.id || m.approverId === workerProfile?.id)
-      .map(m => m.id) ?? [];
-    const isMinistryHead = myMinistryIds.length > 0;
+    const explicitHeadIds = (ministries || allMinistries || [])
+      .filter(m => m.headId === workerProfile?.id || m.approverId === workerProfile?.id)
+      .map(m => m.id);
+    const myMinistryIds = Array.from(new Set([...explicitHeadIds, ...(userRoleMinistryIds || [])]));
+    const isMinistryHead = Boolean(userIsMinistryHead || myMinistryIds.length > 0);
     const isAdmin = isSuperAdmin || canApproveAllRequests;
 
     results = results.filter(r => {
@@ -140,8 +150,16 @@ export default function ApprovalsPage() {
       const requesterWorker = workers?.find(w => w.id === r.workerId);
       const workerInMyMinistry = requesterWorker
         ? myMinistryIds.includes(requesterWorker.majorMinistryId ?? "") ||
-          myMinistryIds.includes(requesterWorker.minorMinistryId ?? "")
+          myMinistryIds.includes(requesterWorker.minorMinistryId ?? "") ||
+          (Array.isArray((requesterWorker as any).assignedMinistryIds) &&
+            (requesterWorker as any).assignedMinistryIds.some((mid: string) => myMinistryIds.includes(mid)))
         : false;
+
+      const ministryChangeInMyMinistry =
+        (Boolean(r.newMajorId) && myMinistryIds.includes(r.newMajorId!)) ||
+        (Boolean(r.oldMajorId) && myMinistryIds.includes(r.oldMajorId!)) ||
+        (Boolean(r.newMinorId) && myMinistryIds.includes(r.newMinorId!)) ||
+        (Boolean(r.oldMinorId) && myMinistryIds.includes(r.oldMinorId!));
 
       if (r.type === "Room Booking") {
         if (r.status === "Pending Ministry Approval") {
@@ -159,8 +177,7 @@ export default function ApprovalsPage() {
       if (r.type === "New Worker" || r.type === "Ministry Change" || r.type === "Profile Update") {
         if (!isMinistryHead) return false;
         // Show only if the worker being registered/changed belongs to the ministry head's ministry
-        // If workerId can't be resolved yet (new worker not in cache), show pending ones submitted by ministry head themselves
-        if (workerInMyMinistry) return true;
+        if (workerInMyMinistry || ministryChangeInMyMinistry) return true;
         if (!requesterWorker && r.status?.startsWith("Pending")) {
           // Worker may not be in the list yet — allow if JL submitted it and it's pending
           return r.requester === `${workerProfile?.firstName} ${workerProfile?.lastName}`;
@@ -169,7 +186,7 @@ export default function ApprovalsPage() {
       }
 
       // For any other type, show to ministry heads only if it concerns their ministry
-      return isMinistryHead && workerInMyMinistry;
+      return isMinistryHead && (workerInMyMinistry || ministryChangeInMyMinistry);
     });
 
     if (searchTerm) {
@@ -475,8 +492,9 @@ export default function ApprovalsPage() {
                   ) : (
                     filteredRequests.map(req => {
                       const worker = workers?.find(w => w.id === req.workerId);
-                      const ministry = worker
-                        ? ministries?.find(m => m.id === worker.majorMinistryId)
+                      const targetMinistryId = worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                      const ministry = targetMinistryId
+                        ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
                         : null;
                       const reqId = req.id || "";
                       const isSelected = selectedIds.has(reqId);
@@ -579,7 +597,10 @@ export default function ApprovalsPage() {
                 const isPending = req.status.startsWith("Pending");
                 const reqDate = req.date ? new Date(req.date as any) : null;
                 const worker = workers?.find(w => w.id === req.workerId);
-                const ministry = worker ? ministries?.find(m => m.id === worker.majorMinistryId) : null;
+                const targetMinistryId = worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                const ministry = targetMinistryId
+                  ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
+                  : null;
                 return (
                   <div
                     key={req.id}

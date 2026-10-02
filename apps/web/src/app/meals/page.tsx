@@ -140,7 +140,7 @@ function StatCard({
 // ------------------------------------------------------------
 function MealsPageContent() {
   const { user } = useAuthStore();
-  const { canViewMealStubs, canManageAllMealStubs, isMealStubAssigner, workerProfile, isLoading: isRoleLoading, isMinistryHead, myMinistryIds } = useUserRole();
+  const { canViewMealStubs, canManageAllMealStubs, isMealStubAssigner, workerProfile, isLoading: isRoleLoading, isMinistryHead, myMinistryIds, isSuperAdmin } = useUserRole();
   const { toast } = useToast();
   const { playSuccess, playError } = useMealAudio();
   const searchParams = useSearchParams();
@@ -227,10 +227,12 @@ function MealsPageContent() {
   }, [user, updateWorker, toast]);
 
   const assignerMinistries = useMemo(() => {
-    if (!workerProfile || !ministries) return [];
-    return ministries.filter(m => m.mealStubAssignerId === workerProfile.id || m.headId === workerProfile.id);
-  }, [workerProfile, ministries]);
-  const isAssigner = assignerMinistries.length > 0;
+    if (!ministries) return [];
+    if (isSuperAdmin) return ministries;
+    if (!workerProfile) return [];
+    return ministries.filter(m => m.mealStubAssignerId === workerProfile.id || m.headId === workerProfile.id || myMinistryIds.includes(m.id));
+  }, [workerProfile, ministries, isSuperAdmin, myMinistryIds]);
+  const isAssigner = isSuperAdmin || isMinistryHead || assignerMinistries.length > 0;
 
   const ministryWorkers = useMemo(() => {
     if (!allWorkers) return [];

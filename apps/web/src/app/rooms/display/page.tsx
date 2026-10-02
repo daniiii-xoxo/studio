@@ -64,7 +64,7 @@ function RoomDisplayContent() {
   });
   const { data: workers, isLoading: workersLoading } = useQuery({
     queryKey: ["workers"],
-    queryFn: getWorkers,
+    queryFn: () => getWorkers(),
   });
 
   const todaysBookings =
@@ -134,7 +134,7 @@ function RoomDisplayContent() {
     : "";
 
   const getUserName = (userId: string) => {
-    const user = workers?.find((w) => w.id === userId);
+    const user = (workers as any[])?.find((w: any) => w.id === userId);
     return user ? `${user.firstName} ${user.lastName}` : userId;
   };
 

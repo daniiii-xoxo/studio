@@ -21,11 +21,27 @@ export const venueBookingKeys = {
 // Hooks
 // ---------------------------------------------------------------------------
 
+import { useUserRole } from '@/hooks/use-user-role';
+
 /** Fetch all venue bookings. */
-export function useVenueBookings() {
+export function useVenueBookings(filters?: { ministryIds?: string[]; actorId?: string }) {
+    const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+    const actorId = filters?.actorId || workerProfile?.id;
+    let effectiveMinistryIds = filters?.ministryIds;
+    if (!isSuperAdmin) {
+        if (!myMinistryIds || myMinistryIds.length === 0) {
+            effectiveMinistryIds = ['__NONE__'];
+        } else if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+            effectiveMinistryIds = effectiveMinistryIds.filter(id => myMinistryIds.includes(id));
+            if (effectiveMinistryIds.length === 0) effectiveMinistryIds = ['__NONE__'];
+        } else {
+            effectiveMinistryIds = myMinistryIds;
+        }
+    }
+
     const { data, isLoading, error } = useQuery({
-        queryKey: venueBookingKeys.all,
-        queryFn: getVenueBookings,
+        queryKey: [...venueBookingKeys.all, actorId, effectiveMinistryIds],
+        queryFn: () => getVenueBookings({ ministryIds: effectiveMinistryIds, actorId }),
     });
 
     return {

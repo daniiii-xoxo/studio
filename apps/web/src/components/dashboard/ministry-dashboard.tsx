@@ -38,7 +38,11 @@ export function MinistryDashboard() {
             const requester = allWorkers.find(w => w.id === req.workerId);
             if (!requester) return false;
 
-            return myMinistryIds.includes(requester.majorMinistryId) || myMinistryIds.includes(requester.minorMinistryId);
+            return (
+                myMinistryIds.includes(requester.majorMinistryId) ||
+                myMinistryIds.includes(requester.minorMinistryId) ||
+                (Array.isArray(requester.assignedMinistryIds) && requester.assignedMinistryIds.some((id: string) => myMinistryIds.includes(id)))
+            );
         });
     }, [allApprovals, allWorkers, myMinistryIds, isSuperAdmin]);
 

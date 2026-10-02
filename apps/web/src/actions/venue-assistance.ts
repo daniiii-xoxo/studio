@@ -558,6 +558,29 @@ export async function respondToAssistanceRequest(
 
     if (!request) throw new Error('Assistance request not found.');
 
+    // Security check: verify responder belongs to the ministry or is admin
+    const responder = await prisma.worker.findUnique({
+        where: { id: responderId },
+        include: { role: true, roles: { include: { role: true } } },
+    });
+    const isAdmin =
+        responder?.email === 'admin@admin.com' ||
+        responder?.email === 'admin@system.com' ||
+        responder?.role?.isSuperAdmin === true ||
+        responder?.roles?.some(r => r.role?.isSuperAdmin === true) ||
+        responder?.roleId === 'admin';
+
+    if (!isAdmin) {
+        const ministry = await prisma.ministry.findUnique({ where: { id: request.ministryId } });
+        const isAuthorized =
+            ministry?.headId === responderId ||
+            ministry?.approverId === responderId ||
+            responder?.majorMinistryId === request.ministryId;
+        if (!isAuthorized) {
+            throw new Error('Unauthorized: You can only respond to assistance requests for your assigned ministry.');
+        }
+    }
+
     const beforeStatus = request.status;
 
     // Update each item
@@ -808,6 +831,7 @@ export interface CommandCenterFilters {
     ministryId?: string;
     dateFrom?: Date;
     dateTo?: Date;
+    actorId?: string;
 }
 
 /**
@@ -816,11 +840,28 @@ export interface CommandCenterFilters {
 export async function getCommandCenterData(filters: CommandCenterFilters = {}) {
     const where: Record<string, unknown> = {};
 
+    let allowedIds: string[] | null = null;
+    if (filters.actorId) {
+        const { getActorMinistryAccess } = await import('@/actions/db');
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = access.allowedMinistryIds;
+            if (allowedIds.length === 0) return [];
+        }
+    }
+
     if (filters.status) {
         where.status = filters.status;
     }
 
-    if (filters.ministryId) {
+    if (allowedIds !== null) {
+        if (filters.ministryId) {
+            if (!allowedIds.includes(filters.ministryId)) return [];
+            where.ministryId = filters.ministryId;
+        } else {
+            where.ministryId = { in: allowedIds };
+        }
+    } else if (filters.ministryId) {
         where.ministryId = filters.ministryId;
     }
 
@@ -873,10 +914,35 @@ export async function updateVenueAssistanceSetting(slaDays: number, actorId: str
 // ---------------------------------------------------------------------------
 
 /** Get all venue bookings with room and assistance request summaries. */
-export async function getVenueBookings() {
+export async function getVenueBookings(filters?: { ministryIds?: string[]; actorId?: string }) {
+    let allowedIds: string[] | null = null;
+    if (filters?.actorId) {
+        const { getActorMinistryAccess } = await import('@/actions/db');
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) return [];
+        }
+    } else if (filters?.ministryIds && filters.ministryIds.length > 0) {
+        allowedIds = filters.ministryIds;
+    }
+
+    const where: any = {};
+    if (allowedIds !== null) {
+        where.OR = [
+            { assistanceRequests: { some: { ministryId: { in: allowedIds } } } },
+            { worker: { majorMinistryId: { in: allowedIds } } },
+            { worker: { minorMinistryId: { in: allowedIds } } },
+        ];
+    }
+
     return prisma.venueBooking.findMany({
+        where,
         include: {
             room: true,
+            worker: true,
             assistanceRequests: { include: { items: true } },
         },
         orderBy: { start: 'desc' },
@@ -896,7 +962,36 @@ export async function getMyVenueBookings(workerProfileId: string) {
 }
 
 /** Get a single venue booking with full assistance request details. */
-export async function getVenueBooking(bookingId: string) {
+export async function getVenueBooking(bookingId: string, actorId?: string) {
+    if (actorId) {
+        const { getActorMinistryAccess } = await import('@/actions/db');
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            const booking = await prisma.venueBooking.findUnique({
+                where: { id: bookingId },
+                include: {
+                    room: true,
+                    worker: true,
+                    assistanceRequests: {
+                        include: {
+                            items: true,
+                            auditLogs: { orderBy: { createdAt: 'asc' } },
+                        },
+                    },
+                },
+            });
+            if (!booking) return null;
+            const isAllowed =
+                (booking.worker?.majorMinistryId && access.allowedMinistryIds.includes(booking.worker.majorMinistryId)) ||
+                (booking.worker?.minorMinistryId && access.allowedMinistryIds.includes(booking.worker.minorMinistryId)) ||
+                booking.assistanceRequests.some(r => access.allowedMinistryIds!.includes(r.ministryId));
+            if (!isAllowed) {
+                return null;
+            }
+            return booking;
+        }
+    }
+
     return prisma.venueBooking.findUnique({
         where: { id: bookingId },
         include: {

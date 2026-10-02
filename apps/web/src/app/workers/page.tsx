@@ -55,6 +55,7 @@ import { BatchMealStubSheet } from "@/components/workers/batch-meal-stub-sheet";
 import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
 import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { cn } from "@/lib/utils";
+import { cleanPhoneNumber } from "@/lib/validation";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -140,7 +141,7 @@ const formatWorkerId = (id: string | null | undefined) => {
 export default function WorkersPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { workerProfile, canManageWorkers, isSuperAdmin, allRoles, isLoading: isRoleLoading } = useUserRole();
+  const { workerProfile, canManageWorkers, isSuperAdmin, isMinistryHead, myMinistryIds, allRoles, isLoading: isRoleLoading } = useUserRole();
   const { logAction } = useAuditLog();
   const { isMealStubAssigner, canManageAllMealStubs } = useUserRole();
   const isMobile = useIsMobile();
@@ -182,6 +183,13 @@ export default function WorkersPage() {
   });
 
   const { ministries, isLoading: ministriesLoading } = useMinistries();
+  const availableMinistries = useMemo(() => {
+    if (isSuperAdmin) return ministries;
+    if (isMinistryHead && myMinistryIds?.length > 0) {
+      return ministries.filter(m => myMinistryIds.includes(m.id));
+    }
+    return ministries;
+  }, [isSuperAdmin, isMinistryHead, myMinistryIds, ministries]);
   const { roles, isLoading: rolesLoading } = useRoles();
   const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
   const { mealStubs: allMealStubs } = useMealStubs({ dateFrom: thirtyDaysAgo });
@@ -363,7 +371,8 @@ export default function WorkersPage() {
             const nw = newWorkers[index] as any;
             if (!nw.firstName || !nw.lastName || !nw.email) continue;
             const workerId = String(100000 + (allWorkers?.length || 0) + index).slice(-6);
-            const created = await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone: nw.phone || "", roleId: nw.roleId || "viewer", status: nw.status || "Pending Approval", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
+            const phone = cleanPhoneNumber(nw.phone || "");
+            const created = await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone, roleId: nw.roleId || "viewer", status: nw.status || "Pending Approval", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
             importedCount++;
             if ((nw.status || "Pending Approval") === "Pending Approval") {
               approvalCount++;
@@ -596,19 +605,26 @@ export default function WorkersPage() {
             {/* Filter Dropdowns (Right side) */}
             <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
               {/* Ministry Filter */}
-              <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
-                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                  <SelectValue placeholder="All Ministries" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                  {ministries?.map(m => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isSuperAdmin || availableMinistries.length > 1 ? (
+                <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                    <SelectValue placeholder="All Ministries" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
+                    {availableMinistries.map(m => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : availableMinistries.length === 1 ? (
+                <div className="h-10 px-3.5 flex items-center gap-1.5 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 text-xs font-semibold text-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  <span className="truncate max-w-[150px]">{availableMinistries[0].name}</span>
+                </div>
+              ) : null}
 
               {/* Status & Role Filter Dropdown */}
               <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
@@ -840,7 +856,7 @@ export default function WorkersPage() {
 
       <Sheet open={isBatchMoveSheetOpen} onOpenChange={setIsBatchMoveSheetOpen}>
         <SheetContent className="sm:max-w-lg">
-          <BatchMinistrySheet selectedCount={selectedWorkerIds.length} ministries={ministries} onSave={handleBatchMove} onClose={() => setIsBatchMoveSheetOpen(false)} />
+          <BatchMinistrySheet selectedCount={selectedWorkerIds.length} ministries={availableMinistries} onSave={handleBatchMove} onClose={() => setIsBatchMoveSheetOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -954,7 +970,7 @@ export default function WorkersPage() {
           if (!open) setEditingWorker(null);
         }}
         roles={roles}
-        ministries={ministries}
+        ministries={availableMinistries}
         canManage={canManageWorkers}
         isSuperAdmin={isSuperAdmin}
         currentWorkerProfile={workerProfile}

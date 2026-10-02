@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { updateBooking } from "@/actions/db";
 import { useToast } from "@/hooks/use-toast";
 import { toJsDate } from "@/lib/utils";
+import { isValidEmail } from "@/lib/validation";
 import type { Booking, Ministry, Worker } from "@studio/types";
 import { LoaderCircle } from "lucide-react";
 
@@ -74,6 +75,25 @@ export function EditReservationDialog({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!requesterName.trim() || !purpose.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Required Fields Missing",
+        description: "Please enter both requester name and purpose.",
+      });
+      return;
+    }
+
+    if (email.trim() && !isValidEmail(email.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Address",
+        description: "Please enter a valid email format.",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {

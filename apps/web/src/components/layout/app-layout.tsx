@@ -68,15 +68,15 @@ const ImpersonationBanner = () => {
   const { impersonatedWorkerId, stopImpersonation } = useImpersonation();
   const { workerProfile, allRoles, isMinistryHead } = useUserRole();
 
-  const { data: allMinistries } = useQuery({
+  const { data: allMinistries } = useQuery<any[]>({
     queryKey: ["ministries"],
-    queryFn: getMinistries,
+    queryFn: () => getMinistries(),
     enabled: !!impersonatedWorkerId,
   });
 
   const { data: c2sGroups } = useQuery({
     queryKey: ["c2s-groups"],
-    queryFn: getC2SGroups,
+    queryFn: () => getC2SGroups(),
     enabled: !!impersonatedWorkerId,
   });
 

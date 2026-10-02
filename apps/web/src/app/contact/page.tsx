@@ -17,6 +17,7 @@ import {
 import { Button, Input, Textarea, Label } from "@studio/ui";
 import { useToast } from "@/hooks/use-toast";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -28,11 +29,29 @@ export default function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !message) {
+    if (!name.trim() || !email.trim() || !message.trim()) {
       toast({
         variant: "destructive",
         title: "Required Fields",
         description: "Please enter your name, email, and message.",
+      });
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Address",
+        description: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    if (phone.trim() && !isValidPhilippineNumber(phone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Contact Number",
+        description: "Phone number must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
       });
       return;
     }
@@ -281,9 +300,11 @@ export default function ContactPage() {
                 <Input
                   id="contact-phone"
                   type="tel"
-                  placeholder="+63 900 000 0000"
+                  inputMode="numeric"
+                  maxLength={11}
+                  placeholder="09171234567"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(cleanPhoneNumber(e.target.value))}
                   className="h-12 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
                 />
               </div>

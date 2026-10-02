@@ -23,6 +23,7 @@ export type Worker = {
     avatarUrl: string;
     majorMinistryId: string;
     minorMinistryId: string;
+    assignedMinistryIds?: string[];
     employmentType?: 'Full-Time' | 'On-Call' | 'Volunteer' | string | null;
     birthDate?: string | null;
     address?: string | null;

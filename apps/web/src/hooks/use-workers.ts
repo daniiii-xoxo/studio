@@ -12,6 +12,8 @@ import {
     createWorkerWithAuth
 } from '@/actions/db';
 
+import { useUserRole } from '@/hooks/use-user-role';
+
 export function useWorkers(params: {
     page?: number;
     limit?: number;
@@ -20,19 +22,35 @@ export function useWorkers(params: {
     ministryIds?: string[];
     sortField?: string;
     sortDir?: 'asc' | 'desc';
+    actorId?: string;
     enabled?: boolean;
 } = {}) {
+    const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
     const queryClient = useQueryClient();
     const { enabled = true, ...queryParams } = params;
 
+    const actorId = params.actorId || workerProfile?.id;
+    let effectiveMinistryIds = params.ministryIds;
+    if (!isSuperAdmin) {
+        if (!myMinistryIds || myMinistryIds.length === 0) {
+            effectiveMinistryIds = ['__NONE__'];
+        } else if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+            effectiveMinistryIds = effectiveMinistryIds.filter(id => myMinistryIds.includes(id));
+            if (effectiveMinistryIds.length === 0) effectiveMinistryIds = ['__NONE__'];
+        } else {
+            effectiveMinistryIds = myMinistryIds;
+        }
+    }
+
     const { data, isLoading, error } = useQuery({
-        queryKey: ['workers', queryParams],
+        queryKey: ['workers', { ...queryParams, actorId, ministryIds: effectiveMinistryIds }],
         queryFn: () => getPaginatedWorkers(queryParams.page, queryParams.limit, {
             search: queryParams.search,
             searchMode: queryParams.searchMode,
-            ministryIds: queryParams.ministryIds,
+            ministryIds: effectiveMinistryIds,
             sortField: queryParams.sortField,
             sortDir: queryParams.sortDir,
+            actorId,
         }),
         enabled: enabled,
         staleTime: 30_000,
@@ -97,10 +115,24 @@ export function useWorkers(params: {
     };
 }
 
-export function useWorkerStats(ministryIds?: string[]) {
+export function useWorkerStats(ministryIds?: string[], actorId?: string) {
+    const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+    const effectiveActorId = actorId || workerProfile?.id;
+    let effectiveMinistryIds = ministryIds;
+    if (!isSuperAdmin) {
+        if (!myMinistryIds || myMinistryIds.length === 0) {
+            effectiveMinistryIds = ['__NONE__'];
+        } else if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+            effectiveMinistryIds = effectiveMinistryIds.filter(id => myMinistryIds.includes(id));
+            if (effectiveMinistryIds.length === 0) effectiveMinistryIds = ['__NONE__'];
+        } else {
+            effectiveMinistryIds = myMinistryIds;
+        }
+    }
+
     return useQuery({
-        queryKey: ['worker-stats', ministryIds],
-        queryFn: () => getWorkerStats(ministryIds),
-        staleTime: 60_000, // stats can be slightly stale
+        queryKey: ['worker-stats', effectiveMinistryIds, effectiveActorId],
+        queryFn: () => getWorkerStats(effectiveMinistryIds, effectiveActorId),
+        staleTime: 60_000,
     });
 }

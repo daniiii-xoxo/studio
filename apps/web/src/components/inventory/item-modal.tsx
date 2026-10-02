@@ -206,6 +206,14 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
       setError('Please select a category');
       return;
     }
+    if (formData.stock !== undefined && formData.stock < 0) {
+      setError('Current stock cannot be negative');
+      return;
+    }
+    if (formData.minStock !== undefined && formData.minStock < 0) {
+      setError('Minimum stock alert threshold cannot be negative');
+      return;
+    }
 
     setSubmitting(true);
     setError('');

@@ -48,7 +48,7 @@ import {
 const ITEMS_PER_PAGE = 6;
 
 export default function MasterviewPage() {
-  const { canViewScheduleMasterview, isLoading: roleLoading } = useUserRole();
+  const { canViewScheduleMasterview, workerProfile, isSuperAdmin, myMinistryIds, isLoading: roleLoading } = useUserRole();
   const router = useRouter();
 
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
@@ -69,13 +69,13 @@ export default function MasterviewPage() {
   });
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ["bookings"],
-    queryFn: () => getBookings(),
+    queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers"],
-    queryFn: getWorkers,
+    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: venueElements, isLoading: venueElementsLoading } = useQuery({

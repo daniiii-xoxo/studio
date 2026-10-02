@@ -38,6 +38,7 @@ import { WorkerActivityLog } from "./worker-activity-log";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuditLog } from "@/hooks/use-audit-log";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 import {
   updateWorker as updateWorkerSql,
   createApproval as createApprovalSql,
@@ -191,6 +192,24 @@ export function EditWorkerDialog({
         variant: "destructive",
         title: "Required Fields Missing",
         description: "Please enter both first name and last name.",
+      });
+      return;
+    }
+
+    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Address",
+        description: "Please enter a valid email format.",
+      });
+      return;
+    }
+
+    if (formData.phone?.trim() && !isValidPhilippineNumber(formData.phone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Contact Number",
+        description: "Phone number must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
       });
       return;
     }
@@ -492,11 +511,14 @@ export function EditWorkerDialog({
                     </Label>
                     <Input
                       id="edit-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={11}
                       value={formData.phone || ""}
                       onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
+                        setFormData({ ...formData, phone: cleanPhoneNumber(e.target.value) })
                       }
-                      placeholder="e.g. 0917-123-4567"
+                      placeholder="09171234567"
                       className="h-9 text-xs rounded-xl"
                     />
                   </div>

@@ -27,12 +27,45 @@ export default function EditWorkerPage() {
 
   const { roles, isLoading: rolesLoading } = useRoles();
   const { ministries, isLoading: ministriesLoading } = useMinistries();
-  const { workerProfile, canManageWorkers, isSuperAdmin, isLoading: userRoleLoading } = useUserRole();
+  const { workerProfile, canManageWorkers, isSuperAdmin, myMinistryIds, isLoading: userRoleLoading } = useUserRole();
 
   useEffect(() => {
+    if (userRoleLoading) return;
     if (id) {
       getWorkerById(id)
         .then((data) => {
+          if (!data) {
+            router.push("/workers");
+            return;
+          }
+          if (!isSuperAdmin) {
+            if (!myMinistryIds || myMinistryIds.length === 0) {
+              toast({
+                variant: "destructive",
+                title: "Unauthorized",
+                description: "No ministry assignment available to edit workers.",
+              });
+              router.push("/workers");
+              return;
+            }
+            const wMajor = (data as any).majorMinistryId;
+            const wMinor = (data as any).minorMinistryId;
+            const wAssigned = (data as any).assignedMinistryIds || [];
+            const hasAccess =
+              myMinistryIds.includes(wMajor) ||
+              myMinistryIds.includes(wMinor) ||
+              (Array.isArray(wAssigned) && wAssigned.some((mid: string) => myMinistryIds.includes(mid)));
+
+            if (!hasAccess) {
+              toast({
+                variant: "destructive",
+                title: "Unauthorized",
+                description: "You cannot edit a worker outside your assigned ministry.",
+              });
+              router.push("/workers");
+              return;
+            }
+          }
           setWorker(data as any);
         })
         .catch((err) => {
@@ -47,7 +80,7 @@ export default function EditWorkerPage() {
           setIsFetchingWorker(false);
         });
     }
-  }, [id, router, toast]);
+  }, [id, router, toast, isSuperAdmin, myMinistryIds, userRoleLoading]);
 
   const handleSave = async (workerData: Partial<Worker>, roleIds: string[]) => {
     if (!worker || !id) return;

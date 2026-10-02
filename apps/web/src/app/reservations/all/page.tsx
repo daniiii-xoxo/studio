@@ -88,7 +88,7 @@ import type { Booking, Room, Area, VenueElement, Ministry, Worker } from "@studi
 const ITEMS_PER_PAGE = 10;
 
 export default function AllReservationsPage() {
-  const { canApproveRoomReservation, isLoading: roleLoading } = useUserRole();
+  const { canApproveRoomReservation, workerProfile, isSuperAdmin, myMinistryIds, isLoading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -106,8 +106,8 @@ export default function AllReservationsPage() {
 
   // Queries
   const { data: allBookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ["bookings"],
-    queryFn: () => getBookings(),
+    queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: rooms } = useQuery({
@@ -131,8 +131,8 @@ export default function AllReservationsPage() {
   });
 
   const { data: workers } = useQuery({
-    queryKey: ["workers"],
-    queryFn: getWorkers,
+    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const isLoading = roleLoading || bookingsLoading;
@@ -306,7 +306,7 @@ export default function AllReservationsPage() {
   ) => {
     setIsProcessing(true);
     try {
-      await updateBooking(bookingId, { status: newStatus });
+      await updateBooking(bookingId, { status: newStatus }, workerProfile?.id);
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: `Reservation ${newStatus}`,
@@ -336,7 +336,7 @@ export default function AllReservationsPage() {
     setDeleteBookingId(null);
     setIsProcessing(true);
     try {
-      await deleteBooking(bookingId);
+      await deleteBooking(bookingId, workerProfile?.id);
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       setSelectedIds((prev) => prev.filter((id) => id !== bookingId));
       toast({
@@ -361,7 +361,7 @@ export default function AllReservationsPage() {
     setIsProcessing(true);
     try {
       await Promise.all(
-        selectedIds.map((id) => updateBooking(id, { status: "Approved" }))
+        selectedIds.map((id) => updateBooking(id, { status: "Approved" }, workerProfile?.id))
       );
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
@@ -386,7 +386,7 @@ export default function AllReservationsPage() {
     setIsProcessing(true);
     try {
       await Promise.all(
-        selectedIds.map((id) => updateBooking(id, { status: "Rejected" }))
+        selectedIds.map((id) => updateBooking(id, { status: "Rejected" }, workerProfile?.id))
       );
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({

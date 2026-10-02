@@ -1,5 +1,7 @@
 "use server";
 
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '@studio/database/prisma';
 import { revalidatePath } from 'next/cache';
 import { NotificationService } from '@/services/notification-service';
@@ -44,6 +46,109 @@ function mapMinistryForClient(ministry: any) {
         ...ministry,
         department: DEPARTMENT_CODE_TO_NAME[departmentCode] || 'Discipleship',
         departmentCode,
+    };
+}
+
+/**
+ * Resolves the ministry access level for an actor on the server side.
+ * - Super admin: { isSuperAdmin: true, isMinistryHead: false, allowedMinistryIds: null }
+ * - Ministry head: { isSuperAdmin: false, isMinistryHead: true, allowedMinistryIds: string[] }
+ * - Worker / other: { isSuperAdmin: false, isMinistryHead: false, allowedMinistryIds: string[] }
+ */
+export async function getActorMinistryAccess(actorId?: string): Promise<{
+    isSuperAdmin: boolean;
+    isMinistryHead: boolean;
+    allowedMinistryIds: string[] | null;
+}> {
+    if (!actorId) {
+        return { isSuperAdmin: false, isMinistryHead: false, allowedMinistryIds: null };
+    }
+
+    const actor = await prisma.worker.findUnique({
+        where: { id: actorId },
+        include: {
+            role: true,
+            roles: { include: { role: true } },
+        },
+    });
+
+    if (!actor) {
+        return { isSuperAdmin: false, isMinistryHead: false, allowedMinistryIds: [] };
+    }
+
+    const superAdminEmails = new Set(['admin@admin.com', 'admin@system.com', 'pacleb@gmail.com']);
+    const isSuperAdmin =
+        superAdminEmails.has(actor.email?.toLowerCase() ?? '') ||
+        actor.role?.isSuperAdmin === true ||
+        actor.roles?.some(r => r.role?.isSuperAdmin === true) ||
+        actor.roleId === 'admin' ||
+        actor.role?.id === 'admin';
+
+    if (isSuperAdmin) {
+        return { isSuperAdmin: true, isMinistryHead: false, allowedMinistryIds: null };
+    }
+
+    // Pool all actual assigned ministries for this user (Workers and Heads alike)
+    const ministryIds = new Set<string>();
+
+    // 1. Leadership / staff assignments on Ministry records
+    const ministries = await prisma.ministry.findMany({
+        where: {
+            OR: [
+                { headId: actor.id },
+                { approverId: actor.id },
+                { leaderId: actor.id },
+                { schedulerId: actor.id },
+                { mealStubAssignerId: actor.id },
+            ],
+        },
+        select: { id: true, headId: true, approverId: true },
+    });
+
+    for (const m of ministries) {
+        if (m.id) ministryIds.add(m.id);
+    }
+
+    const isExplicitHeadOrApprover = ministries.some(m => m.headId === actor.id || m.approverId === actor.id);
+
+    // 2. Profile major and minor ministries
+    if (actor.majorMinistryId && actor.majorMinistryId.trim() !== '') {
+        ministryIds.add(actor.majorMinistryId.trim());
+    }
+    if (actor.minorMinistryId && actor.minorMinistryId.trim() !== '') {
+        ministryIds.add(actor.minorMinistryId.trim());
+    }
+
+    // 3. Multi-ministry assignments in assignedMinistryIds
+    try {
+        const rawRes = await prisma.$queryRaw<Array<{ assignedMinistryIds: string[] | null }>>`
+            SELECT "assignedMinistryIds" FROM "Worker" WHERE id = ${actor.id} LIMIT 1
+        `;
+        if (rawRes && rawRes.length > 0 && Array.isArray(rawRes[0]?.assignedMinistryIds)) {
+            for (const mid of rawRes[0].assignedMinistryIds) {
+                if (mid && mid.trim() !== '') ministryIds.add(mid.trim());
+            }
+        }
+    } catch {
+        if (Array.isArray((actor as any).assignedMinistryIds)) {
+            for (const mid of (actor as any).assignedMinistryIds) {
+                if (mid && mid.trim() !== '') ministryIds.add(mid.trim());
+            }
+        }
+    }
+
+    // Check role name for Ministry Head
+    const roleName = (actor.role?.name || '').toLowerCase();
+    const hasHeadRole =
+        roleName.includes('head') ||
+        actor.roles?.some(r => (r.role?.name || '').toLowerCase().includes('head'));
+
+    const isMinistryHead = isExplicitHeadOrApprover || Boolean(hasHeadRole);
+
+    return {
+        isSuperAdmin: false,
+        isMinistryHead,
+        allowedMinistryIds: Array.from(ministryIds),
     };
 }
 
@@ -188,8 +293,65 @@ export async function deleteRole(id: string) {
 
 // --- Workers ---
 
-export async function getWorkers() {
+export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: string } | any) {
+    const where: any = {};
+
+    if (filters?.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            const effectiveIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter((id: string) => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+
+            if (effectiveIds.length === 0) {
+                return [];
+            }
+            let extraIds: string[] = [];
+            try {
+                const rawMatches = await prisma.$queryRaw<Array<{ id: string }>>`
+                    SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${effectiveIds}::text[]
+                `;
+                extraIds = rawMatches.map(r => r.id);
+            } catch {}
+
+            where.OR = [
+                { majorMinistryId: { in: effectiveIds } },
+                { minorMinistryId: { in: effectiveIds } },
+                ...(extraIds.length > 0 ? [{ id: { in: extraIds } }] : []),
+            ];
+        } else if (filters.ministryIds && filters.ministryIds.length > 0) {
+            let extraIds: string[] = [];
+            try {
+                const rawMatches = await prisma.$queryRaw<Array<{ id: string }>>`
+                    SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
+                `;
+                extraIds = rawMatches.map(r => r.id);
+            } catch {}
+
+            where.OR = [
+                { majorMinistryId: { in: filters.ministryIds } },
+                { minorMinistryId: { in: filters.ministryIds } },
+                ...(extraIds.length > 0 ? [{ id: { in: extraIds } }] : []),
+            ];
+        }
+    } else if (filters?.ministryIds && filters.ministryIds.length > 0) {
+        let extraIds: string[] = [];
+        try {
+            const rawMatches = await prisma.$queryRaw<Array<{ id: string }>>`
+                SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
+            `;
+            extraIds = rawMatches.map(r => r.id);
+        } catch {}
+
+        where.OR = [
+            { majorMinistryId: { in: filters.ministryIds } },
+            { minorMinistryId: { in: filters.ministryIds } },
+            ...(extraIds.length > 0 ? [{ id: { in: extraIds } }] : []),
+        ];
+    }
+
     return await prisma.worker.findMany({
+        where,
         include: {
             role: true,
             roles: { include: { role: true } },
@@ -207,26 +369,23 @@ export async function getPaginatedWorkers(
         ministryIds?: string[];
         sortField?: string;
         sortDir?: 'asc' | 'desc';
+        actorId?: string;
     } = {}
 ) {
-    const where: any = {};
-    if (filters.ministryIds && filters.ministryIds.length > 0) {
-        where.OR = [
-            { majorMinistryId: { in: filters.ministryIds } },
-            { minorMinistryId: { in: filters.ministryIds } }
-        ];
-    }
-    if (filters.search) {
-        const q = filters.search.trim();
-        const mode = filters.searchMode || 'workerId';
-        where.AND = [{
-            OR: mode === 'workerId'
-                ? [{ workerId: { contains: q, mode: 'insensitive' } }]
-                : [
-                    { firstName: { contains: q, mode: 'insensitive' } },
-                    { lastName: { contains: q, mode: 'insensitive' } },
-                ]
-        }];
+    let effectiveMinistryIds = filters.ministryIds;
+
+    if (filters.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+                effectiveMinistryIds = effectiveMinistryIds.filter(id => access.allowedMinistryIds!.includes(id));
+            } else {
+                effectiveMinistryIds = access.allowedMinistryIds;
+            }
+            if (effectiveMinistryIds.length === 0) {
+                return { total: 0, workers: [], page, limit, totalPages: 0 };
+            }
+        }
     }
 
     const sortField = filters.sortField || 'workerId';
@@ -250,12 +409,13 @@ export async function getPaginatedWorkers(
     const queryParams: any[] = [];
     let paramIdx = 1;
 
-    if (filters.ministryIds && filters.ministryIds.length > 0) {
-        const ids = filters.ministryIds;
+    if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+        const ids = effectiveMinistryIds;
         const majorPlaceholders = ids.map(() => `$${paramIdx++}`).join(', ');
         const minorPlaceholders = ids.map(() => `$${paramIdx++}`).join(', ');
-        conditions.push(`("majorMinistryId" IN (${majorPlaceholders}) OR "minorMinistryId" IN (${minorPlaceholders}))`);
-        queryParams.push(...ids, ...ids);
+        const arrayPlaceholder = `$${paramIdx++}`;
+        conditions.push(`("majorMinistryId" IN (${majorPlaceholders}) OR "minorMinistryId" IN (${minorPlaceholders}) OR ("assignedMinistryIds" IS NOT NULL AND "assignedMinistryIds" && ${arrayPlaceholder}::text[]))`);
+        queryParams.push(...ids, ...ids, ids);
     }
 
     if (filters.search) {
@@ -281,7 +441,7 @@ export async function getPaginatedWorkers(
         ),
         prisma.$queryRawUnsafe<any[]>(
             `SELECT id, "workerId", "firstName", "lastName", email, phone, "roleId", status,
-                    "avatarUrl", "majorMinistryId", "minorMinistryId", "employmentType",
+                    "avatarUrl", "majorMinistryId", "minorMinistryId", "assignedMinistryIds", "employmentType",
                     "passwordChangeRequired", "qrToken", "createdAt"
              FROM "Worker"
              ${whereClause}
@@ -295,12 +455,28 @@ export async function getPaginatedWorkers(
     return { total, workers, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
-export async function getWorkerStats(ministryIds?: string[]) {
+export async function getWorkerStats(ministryIds?: string[], actorId?: string) {
+    let effectiveMinistryIds = ministryIds;
+
+    if (actorId) {
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
+                effectiveMinistryIds = effectiveMinistryIds.filter(id => access.allowedMinistryIds!.includes(id));
+            } else {
+                effectiveMinistryIds = access.allowedMinistryIds;
+            }
+            if (effectiveMinistryIds.length === 0) {
+                return { total: 0, active: 0, inactive: 0, secondary: 0, ministryStats: [] };
+            }
+        }
+    }
+
     const where: any = {};
-    if (ministryIds && ministryIds.length > 0) {
+    if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {
         where.OR = [
-            { majorMinistryId: { in: ministryIds } },
-            { minorMinistryId: { in: ministryIds } }
+            { majorMinistryId: { in: effectiveMinistryIds } },
+            { minorMinistryId: { in: effectiveMinistryIds } }
         ];
     }
 
@@ -314,19 +490,19 @@ export async function getWorkerStats(ministryIds?: string[]) {
 
     let ministryStats: { ministryId: string; total: number; active: number; inactive: number; secondary: number }[] = [];
 
-    if (ministryIds?.length) {
+    if (effectiveMinistryIds?.length) {
         const [allW, activeW] = await prisma.$transaction([
             prisma.worker.findMany({
-                where: { OR: [{ majorMinistryId: { in: ministryIds } }, { minorMinistryId: { in: ministryIds } }] },
+                where: { OR: [{ majorMinistryId: { in: effectiveMinistryIds } }, { minorMinistryId: { in: effectiveMinistryIds } }] },
                 select: { majorMinistryId: true, minorMinistryId: true, status: true },
             }),
             prisma.worker.findMany({
-                where: { OR: [{ majorMinistryId: { in: ministryIds } }, { minorMinistryId: { in: ministryIds } }], status: 'Active' },
+                where: { OR: [{ majorMinistryId: { in: effectiveMinistryIds } }, { minorMinistryId: { in: effectiveMinistryIds } }], status: 'Active' },
                 select: { majorMinistryId: true, minorMinistryId: true },
             }),
         ]);
 
-        ministryStats = ministryIds.map(id => {
+        ministryStats = effectiveMinistryIds.map(id => {
             const mw = allW.filter((w: any) => w.majorMinistryId === id || w.minorMinistryId === id);
             const ma = activeW.filter((w: any) => w.majorMinistryId === id || w.minorMinistryId === id);
             return { ministryId: id, total: mw.length, active: ma.length, inactive: mw.length - ma.length, secondary: 0 };
@@ -336,9 +512,28 @@ export async function getWorkerStats(ministryIds?: string[]) {
     return { total, active, inactive, secondary, ministryStats };
 }
 
+async function attachWorkerAssignedMinistries(worker: any) {
+    if (!worker) return null;
+    if (!worker.assignedMinistryIds) {
+        try {
+            const raw = await prisma.$queryRaw<Array<{ assignedMinistryIds: string[] | null }>>`
+                SELECT "assignedMinistryIds" FROM "Worker" WHERE id = ${worker.id} LIMIT 1
+            `;
+            if (raw && raw.length > 0 && Array.isArray(raw[0]?.assignedMinistryIds)) {
+                worker.assignedMinistryIds = raw[0].assignedMinistryIds;
+            } else {
+                worker.assignedMinistryIds = [];
+            }
+        } catch {
+            worker.assignedMinistryIds = [];
+        }
+    }
+    return worker;
+}
+
 export async function getWorkerById(id: string) {
     try {
-        return await prisma.worker.findUnique({
+        const worker = await prisma.worker.findUnique({
             where: { id },
             include: {
                 role: true,
@@ -353,18 +548,20 @@ export async function getWorkerById(id: string) {
                 },
             },
         });
+        return await attachWorkerAssignedMinistries(worker);
     } catch {
         // Fallback if rolePermissions table doesn't exist yet
-        return await prisma.worker.findUnique({
+        const worker = await prisma.worker.findUnique({
             where: { id },
             include: { role: true },
         });
+        return await attachWorkerAssignedMinistries(worker);
     }
 }
 
 export async function getWorkerByEmail(email: string) {
     try {
-        return await prisma.worker.findUnique({
+        const worker = await prisma.worker.findUnique({
             where: { email },
             include: {
                 role: true,
@@ -379,11 +576,13 @@ export async function getWorkerByEmail(email: string) {
                 },
             },
         });
+        return await attachWorkerAssignedMinistries(worker);
     } catch {
-        return await prisma.worker.findUnique({
+        const worker = await prisma.worker.findUnique({
             where: { email },
             include: { role: true },
         });
+        return await attachWorkerAssignedMinistries(worker);
     }
 }
 
@@ -400,11 +599,12 @@ export async function createWorker(data: any) {
 
 export async function createWorkerWithAuth(data: any, roleIds: string[], assignedBy?: string) {
     const supabaseAdmin = getSupabaseAdminClient();
+    const defaultPassword = "COGDASMA2026";
     
     // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: "Password123",
+      email: data.email?.trim(),
+      password: defaultPassword,
       email_confirm: true,
       user_metadata: {
         firstName: data.firstName,
@@ -420,7 +620,28 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
     }
 
     // Now create in DB
-    const { roleId, role, roles, approvals, attendanceRecords, bookings, venueBookings, InventoryBorrowing, InventoryLog, mealStubs, legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt, ...dbData } = data;
+    const { 
+        roleId, role, roles, approvals, attendanceRecords, bookings, 
+        venueBookings, InventoryBorrowing, InventoryLog, mealStubs, 
+        legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt, 
+        emergencyName, emergencyPhone, startDate,
+        ...dbData 
+    } = data;
+
+    // Format startYear and startMonth if startDate is provided
+    if (startDate && typeof startDate === 'string') {
+        const parts = startDate.split('-');
+        if (parts.length >= 2) {
+            dbData.startYear = parts[0];
+            dbData.startMonth = parts[1];
+        }
+    }
+
+    // Append emergency contact into remarks if present
+    if (emergencyName || emergencyPhone) {
+        const emergencyPart = `Emergency Contact: ${emergencyName || 'N/A'}${emergencyPhone ? ` (${emergencyPhone})` : ''}`;
+        dbData.remarks = dbData.remarks ? `${dbData.remarks}\n${emergencyPart}` : emergencyPart;
+    }
     
     const workerData = {
         ...dbData,
@@ -439,9 +660,299 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
     if (roleIds && roleIds.length > 0) {
         await assignRolesToWorker(worker.id, roleIds, assignedBy);
     }
+
+    // Look up ministry name and department
+    let ministryName = "N/A";
+    let departmentName = "";
+    if (data.majorMinistryId) {
+        try {
+            const min = await prisma.ministry.findUnique({
+                where: { id: data.majorMinistryId },
+                include: { department: true }
+            });
+            if (min) {
+                ministryName = min.name;
+                departmentName = min.department?.name || "";
+            }
+        } catch (e) {
+            console.error("Failed to fetch ministry info for welcome email:", e);
+        }
+    }
+
+    // Look up role name
+    let roleName = "Worker";
+    const primaryRoleId = (roleIds && roleIds.length > 0) ? roleIds[0] : data.roleId;
+    if (primaryRoleId) {
+        try {
+            const roleRecord = await prisma.role.findUnique({
+                where: { id: primaryRoleId }
+            });
+            if (roleRecord) {
+                roleName = roleRecord.name;
+            }
+        } catch (e) {
+            console.error("Failed to fetch role info for welcome email:", e);
+        }
+    }
+
+    // Look up registeredBy user if assignedBy is provided
+    let registeredByName = "";
+    if (assignedBy) {
+        try {
+            const assigner = await prisma.worker.findUnique({
+                where: { id: assignedBy },
+                select: { firstName: true, lastName: true },
+            });
+            if (assigner) {
+                registeredByName = `${assigner.firstName} ${assigner.lastName}`.trim();
+            }
+        } catch (e) {
+            console.error("Failed to fetch assigner info for welcome email:", e);
+        }
+    }
+
+    // Send welcome email with worker's details and credentials
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const loginUrl = `${appUrl}/login`;
+
+    let emailSent = false;
+    let emailErrorMsg: string | null = null;
+
+    const logoPath = path.resolve(process.cwd(), 'apps/web/public/cog-logo.png');
+    const hasLogo = fs.existsSync(logoPath);
+    const attachments = hasLogo
+        ? [{ filename: 'cog-logo.png', path: logoPath, cid: 'coglogo' }]
+        : undefined;
+
+    try {
+        const sendResult = await EmailService.sendEmail({
+            to: data.email.trim(),
+            subject: `Welcome to COG App - Your Account Credentials & Registration Details`,
+            attachments,
+            html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Church of God Dasmariñas</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+          
+          <!-- Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 32px 32px 28px; text-align: center;">
+              ${hasLogo ? `
+              <div style="margin-bottom: 12px;">
+                <img src="cid:coglogo" alt="COG Logo" width="68" height="68" style="display: inline-block; border-radius: 50%; background-color: #ffffff; padding: 4px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);" />
+              </div>` : ''}
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase;">
+                Church of God Dasmariñas
+              </h1>
+              <p style="margin: 6px 0 0; color: #bfdbfe; font-size: 14px; font-weight: 500;">
+                COG App — Worker Account Registration
+              </p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 32px 32px 24px;">
+              <h2 style="margin: 0 0 12px; color: #0f172a; font-size: 20px; font-weight: 700;">
+                Welcome to the Ministry, ${data.firstName}!
+              </h2>
+              <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6;">
+                Your worker account has been created by your Ministry Head / Administrator in the COG App portal. Below are your account login credentials and registered profile details.
+              </p>
+
+              <!-- Credentials Box -->
+              <table role="presentation" width="100%" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; margin-bottom: 28px; border-collapse: separate;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e40af; margin-bottom: 12px;">
+                      Your Login Credentials
+                    </div>
+                    <table role="presentation" width="100%" style="font-size: 14px; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #64748b; width: 140px; font-weight: 500;">Login Portal:</td>
+                        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+                          <a href="${loginUrl}" style="color: #2563eb; text-decoration: underline;">${loginUrl}</a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Email:</td>
+                        <td style="padding: 5px 0; color: #0f172a; font-weight: 600; font-family: monospace;">${data.email}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Worker ID:</td>
+                        <td style="padding: 5px 0; color: #0f172a; font-weight: 600; font-family: monospace;">${worker.workerId || 'Pending'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Default Password:</td>
+                        <td style="padding: 5px 0;">
+                          <span style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-family: monospace; font-size: 14px; letter-spacing: 0.05em;">
+                            ${defaultPassword}
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin: 12px 0 0; font-size: 12px; color: #64748b; font-style: italic;">
+                      Note: You can log in using either your email or your Worker ID with the default password above.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <table role="presentation" width="100%" style="margin-bottom: 32px;">
+                <tr>
+                  <td align="center">
+                    <a href="${loginUrl}" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 12px 32px; border-radius: 10px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);">
+                      Log In to COG App &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Profile Details -->
+              <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                Registered Worker Information
+              </div>
+
+              <table role="presentation" width="100%" style="border-collapse: collapse; font-size: 13px; margin-bottom: 24px;">
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; width: 38%; font-weight: 500;">Full Name</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${data.firstName} ${data.lastName}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Assigned Role</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${roleName}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Ministry</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${ministryName}</td>
+                </tr>
+                ${departmentName ? `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Department</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${departmentName}</td>
+                </tr>` : ''}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Worker Type</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${data.employmentType || 'Volunteer'}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Mobile Number</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${data.phone || 'N/A'}</td>
+                </tr>
+                ${data.birthDate ? `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Birth Date</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${data.birthDate}</td>
+                </tr>` : ''}
+                ${data.address ? `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Address</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${data.address}</td>
+                </tr>` : ''}
+                ${startDate ? `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Start Date</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${startDate}</td>
+                </tr>` : ''}
+                ${(emergencyName || emergencyPhone) ? `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Emergency Contact</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${emergencyName || 'N/A'}${emergencyPhone ? ` (${emergencyPhone})` : ''}</td>
+                </tr>` : ''}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Account Status</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">
+                    <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; ${data.status === 'Active' ? 'background-color: #dcfce7; color: #15803d;' : 'background-color: #fef3c7; color: #b45309;'}">
+                      ${data.status || 'Pending Approval'}
+                    </span>
+                  </td>
+                </tr>
+                ${registeredByName ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Registered By</td>
+                  <td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${registeredByName}</td>
+                </tr>` : ''}
+              </table>
+
+              <!-- Next Steps Notice -->
+              <div style="background-color: #f8fafc; border-radius: 8px; padding: 14px; font-size: 12px; color: #64748b; line-height: 1.5; border: 1px solid #e2e8f0;">
+                <strong style="color: #334155;">Next Steps:</strong>
+                <ol style="margin: 6px 0 0; padding-left: 18px;">
+                  <li>Log in to the portal using your email and default password: <code style="background-color: #e2e8f0; padding: 2px 4px; border-radius: 4px; color: #0f172a; font-weight: bold;">COGDASMA2026</code>.</li>
+                  <li>Coordinate with your Ministry Head for orientation and schedules.</li>
+                </ol>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f1f5f9; padding: 20px 32px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; font-size: 12px; color: #64748b;">
+                Church of God Dasmariñas • COG App Management System
+              </p>
+              <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">
+                This is an automated notification. Please do not reply directly to this email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+            `,
+            text: `
+Welcome to Church of God Dasmariñas!
+
+Your worker account has been created in COG App.
+
+LOGIN CREDENTIALS:
+- Portal URL: ${loginUrl}
+- Email: ${data.email}
+- Worker ID: ${worker.workerId || 'Pending'}
+- Default Password: ${defaultPassword}
+
+REGISTERED INFORMATION:
+- Name: ${data.firstName} ${data.lastName}
+- Role: ${roleName}
+- Ministry: ${ministryName}${departmentName ? ` (${departmentName})` : ''}
+- Worker Type: ${data.employmentType || 'Volunteer'}
+- Mobile: ${data.phone || 'N/A'}
+${data.birthDate ? `- Birth Date: ${data.birthDate}\n` : ''}${data.address ? `- Address: ${data.address}\n` : ''}${startDate ? `- Start Date: ${startDate}\n` : ''}${(emergencyName || emergencyPhone) ? `- Emergency Contact: ${emergencyName || 'N/A'}${emergencyPhone ? ` (${emergencyPhone})` : ''}\n` : ''}- Status: ${data.status || 'Pending Approval'}
+${registeredByName ? `- Registered By: ${registeredByName}\n` : ''}
+
+Next Steps:
+1. Log in at ${loginUrl} using your email and default password: ${defaultPassword}
+2. Coordinate with your Ministry Head for orientation and schedules.
+            `.trim(),
+        });
+        emailSent = true;
+        console.log(`[createWorkerWithAuth] Welcome email sent successfully to ${data.email}`);
+    } catch (emailError: any) {
+        emailErrorMsg = emailError?.message || String(emailError);
+        console.error(`[createWorkerWithAuth] Failed to send welcome email to ${data.email}:`, emailError);
+    }
     
     revalidatePath('/workers');
-    return worker;
+    return {
+        ...worker,
+        emailSent,
+        emailError: emailErrorMsg,
+    };
 }
 
 export async function updateWorker(id: string, data: any) {
@@ -455,7 +966,7 @@ export async function updateWorker(id: string, data: any) {
     } = data;
 
     // roleId may not exist in DB yet — use raw update to handle it gracefully
-    const { roleId, ...dataWithoutRoleId } = safeData;
+    const { roleId, assignedMinistryIds, ...dataWithoutRoleId } = safeData;
 
     const updateData: any = { ...dataWithoutRoleId };
     if (roleId !== undefined) updateData.roleId = roleId;
@@ -464,6 +975,15 @@ export async function updateWorker(id: string, data: any) {
         where: { id },
         data: updateData,
     });
+
+    if (Array.isArray(assignedMinistryIds)) {
+        await prisma.$executeRawUnsafe(
+            `UPDATE "Worker" SET "assignedMinistryIds" = $1::text[] WHERE id = $2`,
+            assignedMinistryIds,
+            id
+        ).catch((e) => console.error('Failed to update assignedMinistryIds:', e));
+    }
+
     revalidatePath('/workers');
     return worker;
 }
@@ -514,15 +1034,95 @@ export async function createApproval(data: any) {
     return approval;
 }
 
-export async function getApprovals() {
-    return await prisma.approvalRequest.findMany({
+export async function getApprovals(filters?: { ministryIds?: string[]; actorId?: string }) {
+    let allowedIds: string[] | null = null;
+
+    if (filters?.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) {
+                return [];
+            }
+        }
+    } else if (filters?.ministryIds && filters.ministryIds.length > 0) {
+        allowedIds = filters.ministryIds;
+    }
+
+    const approvals = await prisma.approvalRequest.findMany({
+        include: {
+            worker: true,
+        },
         orderBy: {
             date: 'desc',
         },
     });
+
+    if (allowedIds === null) {
+        return approvals;
+    }
+
+    // Resolve reservation IDs to their booking ministryId
+    const reservationIds = approvals.map(a => a.reservationId).filter(Boolean) as string[];
+    const bookings = reservationIds.length > 0
+        ? await prisma.booking.findMany({
+            where: { id: { in: reservationIds } },
+            select: { id: true, ministryId: true },
+        })
+        : [];
+    const bookingMinistryMap = new Map(bookings.map(b => [b.id, b.ministryId]));
+
+    return approvals.filter(app => {
+        const workerMajor = app.worker?.majorMinistryId;
+        const workerMinor = app.worker?.minorMinistryId;
+        const bookingMinistry = app.reservationId ? bookingMinistryMap.get(app.reservationId) : null;
+
+        return (
+            (workerMajor && allowedIds!.includes(workerMajor)) ||
+            (workerMinor && allowedIds!.includes(workerMinor)) ||
+            (bookingMinistry && allowedIds!.includes(bookingMinistry)) ||
+            (app.oldMajorId && allowedIds!.includes(app.oldMajorId)) ||
+            (app.newMajorId && allowedIds!.includes(app.newMajorId))
+        );
+    });
 }
 
-export async function updateApproval(id: string, data: any) {
+export async function updateApproval(id: string, data: any, actorId?: string) {
+    if (actorId) {
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            const currentApproval = await prisma.approvalRequest.findUnique({
+                where: { id },
+                include: { worker: true },
+            });
+            if (!currentApproval) {
+                throw new Error('Approval request not found');
+            }
+
+            let bookingMinistry: string | null = null;
+            if (currentApproval.reservationId) {
+                const b = await prisma.booking.findUnique({
+                    where: { id: currentApproval.reservationId },
+                    select: { ministryId: true },
+                });
+                bookingMinistry = b?.ministryId || null;
+            }
+
+            const isAllowed =
+                (currentApproval.worker?.majorMinistryId && access.allowedMinistryIds.includes(currentApproval.worker.majorMinistryId)) ||
+                (currentApproval.worker?.minorMinistryId && access.allowedMinistryIds.includes(currentApproval.worker.minorMinistryId)) ||
+                (bookingMinistry && access.allowedMinistryIds.includes(bookingMinistry)) ||
+                (currentApproval.oldMajorId && access.allowedMinistryIds.includes(currentApproval.oldMajorId)) ||
+                (currentApproval.newMajorId && access.allowedMinistryIds.includes(currentApproval.newMajorId));
+
+            if (!isAllowed) {
+                throw new Error('Unauthorized: You can only approve or modify requests for your assigned ministry.');
+            }
+        }
+    }
+
     const approval = await prisma.approvalRequest.update({
         where: { id },
         data,
@@ -571,8 +1171,26 @@ export async function updateApproval(id: string, data: any) {
 
 // --- Ministries ---
 
-export async function getMinistries() {
+export async function getMinistries(actorId?: string | any): Promise<any[]> {
+    const effectiveActorId = typeof actorId === 'string' ? actorId : undefined;
+    let allowedIds: string[] | null = null;
+    if (effectiveActorId) {
+        const access = await getActorMinistryAccess(effectiveActorId);
+        if (!access.isSuperAdmin) {
+            allowedIds = access.allowedMinistryIds;
+            if (allowedIds && allowedIds.length === 0) {
+                return [];
+            }
+        }
+    }
+
+    const where: any = {};
+    if (allowedIds !== null) {
+        where.id = { in: allowedIds };
+    }
+
     const ministries = await prisma.ministry.findMany({
+        where,
         include: {
             department: true,
         },
@@ -676,6 +1294,8 @@ export async function getBookings(filters: {
     dateTo?: Date | string;
     roomId?: string;
     status?: string;
+    ministryIds?: string[];
+    actorId?: string;
 } = {}) {
     const where: any = {};
     if (filters.workerProfileId) {
@@ -692,6 +1312,39 @@ export async function getBookings(filters: {
             ...(filters.dateFrom ? { gte: new Date(filters.dateFrom) } : {}),
             ...(filters.dateTo ? { lte: new Date(filters.dateTo) } : {}),
         };
+    }
+
+    let allowedIds: string[] | null = null;
+
+    if (filters.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) {
+                return [];
+            }
+        }
+    } else if (filters.ministryIds && filters.ministryIds.length > 0) {
+        allowedIds = filters.ministryIds;
+    }
+
+    if (allowedIds !== null) {
+        where.OR = [
+            { ministryId: { in: allowedIds } },
+            {
+                AND: [
+                    { OR: [{ ministryId: '' }, { ministryId: 'none' }] },
+                    {
+                        OR: [
+                            { worker: { majorMinistryId: { in: allowedIds } } },
+                            { worker: { minorMinistryId: { in: allowedIds } } },
+                        ],
+                    },
+                ],
+            },
+        ];
     }
 
     return await prisma.booking.findMany({
@@ -724,6 +1377,16 @@ export async function createBooking(data: any) {
     if (!workerProfileId) throw new Error('workerProfileId is required to create a booking');
     if (!roomId) throw new Error('roomId is required to create a booking');
 
+    const access = await getActorMinistryAccess(workerProfileId);
+    if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+        if (access.allowedMinistryIds.length === 0) {
+            throw new Error('No ministry assignment available to create a reservation.');
+        }
+        if (rest.ministryId && !access.allowedMinistryIds.includes(rest.ministryId)) {
+            throw new Error('Unauthorized: cannot create a booking for another ministry.');
+        }
+    }
+
     if (rest.start) {
         const startDate = new Date(rest.start);
         if (startDate < new Date()) {
@@ -741,34 +1404,79 @@ export async function createBooking(data: any) {
         const booking = await prisma.booking.create({
             data: { ...cleanRest, workerProfileId, roomId },
         });
-        revalidatePath('/reservations');
-        revalidatePath('/dashboard');
+        try {
+            revalidatePath('/reservations');
+            revalidatePath('/dashboard');
+        } catch {}
         return booking;
     } catch (err: any) {
+        if (err.message?.includes('Unauthorized') || err.message?.includes('No ministry assignment')) {
+            throw err;
+        }
         console.error('[createBooking] Prisma error:', err);
         throw new Error(`Failed to create booking: ${err.message || 'Unknown error'}`);
     }
 }
 
-export async function updateBooking(id: string, data: any) {
+export async function updateBooking(id: string, data: any, actorId?: string) {
+    if (actorId) {
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            const existing = await prisma.booking.findUnique({
+                where: { id },
+                include: { worker: true },
+            });
+            if (!existing) throw new Error('Booking not found');
+            const bookingMinId = existing.ministryId || existing.worker?.majorMinistryId;
+            if (!bookingMinId || !access.allowedMinistryIds.includes(bookingMinId)) {
+                throw new Error('Unauthorized to modify bookings for another ministry');
+            }
+        }
+    }
+
     const booking = await prisma.booking.update({
         where: { id },
         data,
     });
-    revalidatePath('/reservations');
-    revalidatePath('/dashboard');
+    try {
+        revalidatePath('/reservations');
+        revalidatePath('/dashboard');
+    } catch {}
     return booking;
 }
 
-export async function deleteBooking(id: string) {
+export async function deleteBooking(id: string, actorId?: string) {
+    if (actorId) {
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            const existing = await prisma.booking.findUnique({
+                where: { id },
+                include: { worker: true },
+            });
+            if (!existing) throw new Error('Booking not found');
+            const bookingMinId = existing.ministryId || existing.worker?.majorMinistryId;
+            if (!bookingMinId || !access.allowedMinistryIds.includes(bookingMinId)) {
+                throw new Error('Unauthorized to delete bookings for another ministry');
+            }
+        }
+    }
+
     await prisma.booking.delete({ where: { id } });
-    revalidatePath('/reservations');
-    revalidatePath('/dashboard');
+    try {
+        revalidatePath('/reservations');
+        revalidatePath('/dashboard');
+    } catch {}
 }
 
 // --- Meal Stubs ---
 
-export async function getMealStubs(filters: { workerId?: string; dateFrom?: Date | string; dateTo?: Date | string } = {}) {
+export async function getMealStubs(filters: {
+    workerId?: string;
+    dateFrom?: Date | string;
+    dateTo?: Date | string;
+    ministryIds?: string[];
+    actorId?: string;
+} = {}) {
     const where: any = {};
     if (filters.workerId) where.workerId = filters.workerId;
     if (filters.dateFrom || filters.dateTo) {
@@ -778,8 +1486,36 @@ export async function getMealStubs(filters: { workerId?: string; dateFrom?: Date
         };
     }
 
+    let allowedIds: string[] | null = null;
+
+    if (filters.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) {
+                return [];
+            }
+        }
+    } else if (filters.ministryIds && filters.ministryIds.length > 0) {
+        allowedIds = filters.ministryIds;
+    }
+
+    if (allowedIds !== null) {
+        where.worker = {
+            OR: [
+                { majorMinistryId: { in: allowedIds } },
+                { minorMinistryId: { in: allowedIds } },
+            ],
+        };
+    }
+
     return await prisma.mealStub.findMany({
         where,
+        include: {
+            worker: true,
+        },
         orderBy: {
             date: 'desc',
         },
@@ -819,13 +1555,44 @@ export async function deleteMealStub(id: string) {
 
 // --- Attendance ---
 
-export async function getAttendanceRecords(filters: { workerProfileId?: string; dateFrom?: Date | string; dateTo?: Date | string } = {}) {
+export async function getAttendanceRecords(filters: {
+    workerProfileId?: string;
+    dateFrom?: Date | string;
+    dateTo?: Date | string;
+    ministryIds?: string[];
+    actorId?: string;
+} = {}) {
     const where: any = {};
     if (filters.workerProfileId) where.workerProfileId = filters.workerProfileId;
     if (filters.dateFrom || filters.dateTo) {
         where.time = {
             ...(filters.dateFrom ? { gte: new Date(filters.dateFrom) } : {}),
             ...(filters.dateTo ? { lte: new Date(filters.dateTo) } : {}),
+        };
+    }
+
+    let allowedIds: string[] | null = null;
+
+    if (filters.actorId) {
+        const access = await getActorMinistryAccess(filters.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = filters.ministryIds && filters.ministryIds.length > 0
+                ? filters.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) {
+                return [];
+            }
+        }
+    } else if (filters.ministryIds && filters.ministryIds.length > 0) {
+        allowedIds = filters.ministryIds;
+    }
+
+    if (allowedIds !== null) {
+        where.worker = {
+            OR: [
+                { majorMinistryId: { in: allowedIds } },
+                { minorMinistryId: { in: allowedIds } },
+            ],
         };
     }
 
@@ -1247,8 +2014,37 @@ export async function createScanLog(data: any) {
 
 // --- C2S ---
 
-export async function getC2SGroups() {
+export async function getC2SGroups(params?: { ministryIds?: string[]; actorId?: string }) {
+    let allowedIds: string[] | null = null;
+    if (params?.actorId) {
+        const access = await getActorMinistryAccess(params.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = params.ministryIds && params.ministryIds.length > 0
+                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) return [];
+        }
+    } else if (params?.ministryIds && params.ministryIds.length > 0) {
+        allowedIds = params.ministryIds;
+    }
+
+    const where: any = {};
+    if (allowedIds !== null) {
+        const workers = await prisma.worker.findMany({
+            where: {
+                OR: [
+                    { majorMinistryId: { in: allowedIds } },
+                    { minorMinistryId: { in: allowedIds } },
+                ],
+            },
+            select: { id: true },
+        });
+        const mentorIds = workers.map(w => w.id);
+        where.mentorId = { in: mentorIds };
+    }
+
     return await prisma.c2SGroup.findMany({
+        where,
         include: {
             mentees: true,
         },
@@ -1258,8 +2054,37 @@ export async function getC2SGroups() {
     });
 }
 
-export async function getC2SMentees() {
+export async function getC2SMentees(params?: { ministryIds?: string[]; actorId?: string }) {
+    let allowedIds: string[] | null = null;
+    if (params?.actorId) {
+        const access = await getActorMinistryAccess(params.actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            allowedIds = params.ministryIds && params.ministryIds.length > 0
+                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                : access.allowedMinistryIds;
+            if (allowedIds.length === 0) return [];
+        }
+    } else if (params?.ministryIds && params.ministryIds.length > 0) {
+        allowedIds = params.ministryIds;
+    }
+
+    const where: any = {};
+    if (allowedIds !== null) {
+        const workers = await prisma.worker.findMany({
+            where: {
+                OR: [
+                    { majorMinistryId: { in: allowedIds } },
+                    { minorMinistryId: { in: allowedIds } },
+                ],
+            },
+            select: { id: true },
+        });
+        const mentorIds = workers.map(w => w.id);
+        where.mentorId = { in: mentorIds };
+    }
+
     return await prisma.c2SMentee.findMany({
+        where,
         include: {
             group: true,
         },
@@ -1366,6 +2191,8 @@ export async function getC2SDevotionRecords(params?: {
     mentorId?: string;
     groupId?: string;
     clusterName?: string;
+    ministryIds?: string[];
+    actorId?: string;
 }) {
     try {
         const where: any = {};
@@ -1377,6 +2204,39 @@ export async function getC2SDevotionRecords(params?: {
         }
         if (params?.clusterName && params.clusterName !== 'all') {
             where.clusterName = params.clusterName;
+        }
+
+        let allowedIds: string[] | null = null;
+        if (params?.actorId) {
+            const access = await getActorMinistryAccess(params.actorId);
+            if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+                allowedIds = params.ministryIds && params.ministryIds.length > 0
+                    ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                    : access.allowedMinistryIds;
+                if (allowedIds.length === 0) return [];
+            }
+        } else if (params?.ministryIds && params.ministryIds.length > 0) {
+            allowedIds = params.ministryIds;
+        }
+
+        if (allowedIds !== null) {
+            const workers = await prisma.worker.findMany({
+                where: {
+                    OR: [
+                        { majorMinistryId: { in: allowedIds } },
+                        { minorMinistryId: { in: allowedIds } },
+                    ],
+                },
+                select: { id: true },
+            });
+            const mentorIds = workers.map(w => w.id);
+            if (params?.mentorId) {
+                if (!mentorIds.includes(params.mentorId)) {
+                    return [];
+                }
+            } else {
+                where.mentorId = { in: mentorIds };
+            }
         }
 
         const records = await prisma.c2SDevotionRecord.findMany({

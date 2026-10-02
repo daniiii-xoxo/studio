@@ -22,6 +22,7 @@ import {
 import { useAuthStore } from "@studio/store";
 import { supabase } from "@studio/database";
 import { useToast } from "@/hooks/use-toast";
+import { isValidEmail } from "@/lib/validation";
 
 interface MySettingsDialogProps {
   open: boolean;
@@ -34,6 +35,9 @@ export function MySettingsDialog({ open, onOpenChange }: MySettingsDialogProps) 
   
   const [activeTab, setActiveTab] = useState("password");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [issueTitle, setIssueTitle] = useState("");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
 
   const handleChangePassword = async () => {
     if (!user?.email) return;
@@ -326,17 +330,25 @@ export function MySettingsDialog({ open, onOpenChange }: MySettingsDialogProps) 
                 {/* Report Form Card */}
                 <div className="bg-card rounded-2xl border border-border/60 p-6 shadow-sm space-y-5">
                   <div className="space-y-2.5">
-                    <Label htmlFor="issue-title" className="text-sm font-semibold text-foreground">Issue Title</Label>
+                    <Label htmlFor="issue-title" className="text-sm font-semibold text-foreground">
+                      Issue Title <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="issue-title"
                       placeholder="Brief description of the problem"
+                      value={issueTitle}
+                      onChange={(e) => setIssueTitle(e.target.value)}
                       className="text-sm h-11 rounded-xl border-border/60"
                     />
                   </div>
                   <div className="space-y-2.5">
-                    <Label htmlFor="issue-description" className="text-sm font-semibold text-foreground">Description</Label>
+                    <Label htmlFor="issue-description" className="text-sm font-semibold text-foreground">
+                      Description <span className="text-destructive">*</span>
+                    </Label>
                     <textarea
                       id="issue-description"
+                      value={issueDescription}
+                      onChange={(e) => setIssueDescription(e.target.value)}
                       className="flex min-h-[140px] w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                       placeholder="Please describe the problem in detail..."
                     />
@@ -347,16 +359,36 @@ export function MySettingsDialog({ open, onOpenChange }: MySettingsDialogProps) 
                       id="contact-email"
                       type="email"
                       placeholder="Your email for follow-up"
-                      defaultValue={user?.email || ""}
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
                       className="text-sm h-11 rounded-xl border-border/60"
                     />
                   </div>
                   <Button
                     onClick={() => {
+                      if (!issueTitle.trim() || !issueDescription.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Required Fields Missing",
+                          description: "Please fill in both the issue title and description.",
+                        });
+                        return;
+                      }
+                      if (contactEmail.trim() && !isValidEmail(contactEmail.trim())) {
+                        toast({
+                          variant: "destructive",
+                          title: "Invalid Email",
+                          description: "Please provide a valid email format for follow-up.",
+                        });
+                        return;
+                      }
                       toast({
                         title: "Report Submitted",
-                        description: "Thank you for your feedback. We'll look into this issue.",
+                        description: "Thank you for your feedback. We'll look into this issue promptly.",
                       });
+                      setIssueTitle("");
+                      setIssueDescription("");
+                      setContactEmail("");
                       onOpenChange(false);
                     }}
                     className="w-full text-sm font-semibold h-11 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white shadow-xs"

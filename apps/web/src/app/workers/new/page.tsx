@@ -22,6 +22,7 @@ import {
   SelectLabel,
 } from "@studio/ui";
 import { cn } from "@/lib/utils";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 import type { Worker } from "@studio/types";
 
 // ── Step definitions ──────────────────────────────────────────────────────────
@@ -236,12 +237,36 @@ export default function NewWorkerPage() {
     if (!firstName.trim()) { toast({ variant: "destructive", title: "First name is required" }); return false; }
     if (!lastName.trim())  { toast({ variant: "destructive", title: "Last name is required" }); return false; }
     if (!email.trim())     { toast({ variant: "destructive", title: "Email is required" }); return false; }
+    if (!isValidEmail(email.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Address",
+        description: "Please enter a valid email format (e.g., name@example.com).",
+      });
+      return false;
+    }
     if (!phone.trim())     { toast({ variant: "destructive", title: "Mobile number is required" }); return false; }
+    if (!isValidPhilippineNumber(phone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Contact Number",
+        description: "Mobile number must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
+      });
+      return false;
+    }
     return true;
   };
 
   const handleNext = () => {
     if (step === 1 && !validateStep1()) return;
+    if (step === 3 && emergencyPhone.trim() && !isValidPhilippineNumber(emergencyPhone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Emergency Phone",
+        description: "Emergency phone must be exactly 11 digits starting with 09 (e.g. 09171234567).",
+      });
+      return;
+    }
     setStep(s => Math.min(4, s + 1));
   };
 
@@ -249,16 +274,56 @@ export default function NewWorkerPage() {
 
   const handleSubmit = async () => {
     if (!validateStep1()) { setStep(1); return; }
+    if (emergencyPhone.trim() && !isValidPhilippineNumber(emergencyPhone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Emergency Phone",
+        description: "Emergency phone must be exactly 11 digits starting with 09 (e.g. 09171234567).",
+      });
+      setStep(3);
+      return;
+    }
     setSaving(true);
     try {
       const workerId = String(20000 + Math.floor(Math.random() * 10000)).padStart(6, "0");
-      const data = { firstName, lastName, email, phone, birthDate, address, majorMinistryId, minorMinistryId, roleId: roleId || "viewer", employmentType, status, workerId, avatarUrl: "", remarks, isSeniorPastor, isPastor };
-      const newWorker = await createWorkerWithAuth(data, roleId ? [roleId] : [], workerProfile?.id);
+      const data = { 
+        firstName, 
+        lastName, 
+        email: email.trim(), 
+        phone: phone.trim(), 
+        birthDate, 
+        address, 
+        majorMinistryId, 
+        minorMinistryId, 
+        roleId: roleId || "viewer", 
+        employmentType, 
+        status, 
+        workerId, 
+        avatarUrl: "", 
+        remarks, 
+        isSeniorPastor, 
+        isPastor,
+        startDate,
+        emergencyName,
+        emergencyPhone,
+      };
+      const newWorker: any = await createWorkerWithAuth(data, roleId ? [roleId] : [], workerProfile?.id);
       await logAction("Created Worker", "Workers", `Created worker: ${firstName} ${lastName}`, newWorker.id, `${firstName} ${lastName}`);
       if (status === "Pending Approval") {
         await createApprovalSql({ requester: `${workerProfile?.firstName} ${workerProfile?.lastName}`, type: "New Worker", details: `New worker registration for ${firstName} ${lastName}.`, status: "Pending", workerId: newWorker.id });
       }
-      toast({ title: "Worker Added", description: `${firstName} ${lastName} has been added successfully.` });
+      if (newWorker.emailSent) {
+        toast({ 
+          title: "Worker Registered & Email Sent", 
+          description: `${firstName} ${lastName} added. Credentials and details sent to ${email}.` 
+        });
+      } else {
+        toast({ 
+          variant: "destructive",
+          title: "Worker Added (Email Failed to Send)", 
+          description: `Worker was saved, but email could not be sent: ${newWorker.emailError || "Invalid Resend API Key"}.` 
+        });
+      }
       router.push("/workers");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Save Failed", description: error.message || "Could not save worker profile." });
@@ -324,7 +389,15 @@ export default function NewWorkerPage() {
                     <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
                   </Field>
                   <Field label="Mobile number" required>
-                    <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={11}
+                      placeholder="09171234567"
+                      value={phone}
+                      onChange={e => setPhone(cleanPhoneNumber(e.target.value))}
+                      className="h-10 rounded-xl border-border/60 bg-background"
+                    />
                   </Field>
                   <Field label="Birth date">
                     <Input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
@@ -384,8 +457,8 @@ export default function NewWorkerPage() {
                           setMinorMinistryId("");
                         }}
                       >
-                        <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background text-sm">
-                          <SelectValue placeholder="Select ministry" />
+                        <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background text-sm" disabled={ministries.length === 0}>
+                          <SelectValue placeholder={ministries.length === 0 ? "No ministry assignment available" : "Select ministry"} />
                         </SelectTrigger>
                         <SelectContent>
                           {Object.entries(groupedMinistries).map(([dept, mins]) => (
@@ -478,7 +551,15 @@ export default function NewWorkerPage() {
                       <Input value={emergencyName} onChange={e => setEmergencyName(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
                     </Field>
                     <Field label="Emergency contact phone">
-                      <Input type="tel" value={emergencyPhone} onChange={e => setEmergencyPhone(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={11}
+                        placeholder="09171234567"
+                        value={emergencyPhone}
+                        onChange={e => setEmergencyPhone(cleanPhoneNumber(e.target.value))}
+                        className="h-10 rounded-xl border-border/60 bg-background"
+                      />
                     </Field>
                   </div>
                 </div>
@@ -487,6 +568,20 @@ export default function NewWorkerPage() {
               {step === 4 && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">Please review the information before submitting.</p>
+                  
+                  {/* Credential Notification Banner */}
+                  <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3.5 flex items-start gap-3">
+                    <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <p className="font-semibold text-foreground">Worker Login & Email Dispatch</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        The worker will be initialized with the default password <code className="px-1.5 py-0.5 rounded bg-muted font-mono font-bold text-foreground">COGDASMA2026</code>. An email with all their registration details and login credentials will be automatically sent to <strong className="text-foreground">{email}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="rounded-xl border border-border/60 bg-muted/30 divide-y divide-border/40">
                     {[
                       ["First Name", firstName], ["Last Name", lastName],
@@ -494,7 +589,10 @@ export default function NewWorkerPage() {
                       ["Birth Date", birthDate || "—"], ["Address", address || "—"],
                       ["Role", roles.find(r => r.id === roleId)?.name || "—"],
                       ["Ministry", ministries.find(m => m.id === majorMinistryId)?.name || "—"],
-                      ["Worker Type", employmentType], ["Status", status],
+                      ["Worker Type", employmentType], ["Start Date", startDate || "—"],
+                      ["Emergency Contact", emergencyName ? `${emergencyName}${emergencyPhone ? ` (${emergencyPhone})` : ''}` : "—"],
+                      ["Status", status],
+                      ["Default Password", "COGDASMA2026"],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between px-4 py-2.5">
                         <span className="text-xs font-semibold text-muted-foreground">{label}</span>

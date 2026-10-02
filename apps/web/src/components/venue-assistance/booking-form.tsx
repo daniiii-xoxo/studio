@@ -125,7 +125,7 @@ export function BookingForm({ workerProfileId, onSubmit, isSubmitting = false }:
 
     // ── Data fetching ─────────────────────────────────────────────────────────
     const { data: allRooms = [] } = useQuery({ queryKey: ["rooms"], queryFn: getRooms });
-    const { data: allMinistries = [] } = useQuery({ queryKey: ["ministries"], queryFn: getMinistries });
+    const { data: allMinistries = [] } = useQuery<any[]>({ queryKey: ["ministries"], queryFn: () => getMinistries() });
     const { data: roomConfigs = [] } = useQuery({
         queryKey: ["assistanceConfigs", "room", roomId],
         queryFn: () => getAssistanceConfigsForRoom(roomId),

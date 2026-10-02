@@ -120,14 +120,16 @@ const fmtId = (id: string | null | undefined) => {
 
 // ── Attendance Tab ────────────────────────────────────────────────────────────
 function AttendanceTab() {
+  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
 
-  const { data: workers } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
-  const { data: ministries } = useQuery({ queryKey: ["ministries"], queryFn: getMinistries });
+  const { data: workers } = useQuery({ queryKey: ["workers", actorId], queryFn: () => getWorkers({ actorId }) });
+  const { data: ministries } = useQuery({ queryKey: ["ministries", actorId], queryFn: () => getMinistries(actorId) });
   const { data: attendance, isLoading } = useQuery({
-    queryKey: ["attendance-report-month"],
-    queryFn: () => getAttendanceRecords({ dateFrom: monthStart, dateTo: monthEnd }),
+    queryKey: ["attendance-report-month", actorId],
+    queryFn: () => getAttendanceRecords({ dateFrom: monthStart, dateTo: monthEnd, actorId }),
   });
 
   const [search, setSearch] = useState("");
@@ -559,15 +561,17 @@ function AttendanceTab() {
 
 // ── Meal Stub Claims Tab ──────────────────────────────────────────────────────
 function MealStubClaimsTab() {
+  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
 
   const { data: mealstubs, isLoading } = useQuery({
-    queryKey: ["mealstubs-report"],
-    queryFn: () => getMealStubs({ dateFrom: monthStart, dateTo: monthEnd }),
+    queryKey: ["mealstubs-report", actorId],
+    queryFn: () => getMealStubs({ dateFrom: monthStart, dateTo: monthEnd, actorId }),
   });
-  const { data: workers } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
-  const { data: ministries } = useQuery({ queryKey: ["ministries"], queryFn: getMinistries });
+  const { data: workers } = useQuery({ queryKey: ["workers", actorId], queryFn: () => getWorkers({ actorId }) });
+  const { data: ministries } = useQuery({ queryKey: ["ministries", actorId], queryFn: () => getMinistries(actorId) });
 
   const [search, setSearch] = useState("");
   const [ministryFilter, setMinistryFilter] = useState("all");
@@ -875,14 +879,16 @@ function MealStubClaimsTab() {
 
 // ── Allocations Tab ───────────────────────────────────────────────────────────
 function AllocationsTab() {
+  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
 
-  const { data: workers, isLoading: wL } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
-  const { data: ministries, isLoading: mL } = useQuery({ queryKey: ["ministries"], queryFn: getMinistries });
+  const { data: workers, isLoading: wL } = useQuery({ queryKey: ["workers", actorId], queryFn: () => getWorkers({ actorId }) });
+  const { data: ministries, isLoading: mL } = useQuery({ queryKey: ["ministries", actorId], queryFn: () => getMinistries(actorId) });
   const { data: mealstubs, isLoading: msL } = useQuery({
-    queryKey: ["mealstubs-alloc"],
-    queryFn: () => getMealStubs({ dateFrom: monthStart, dateTo: monthEnd }),
+    queryKey: ["mealstubs-alloc", actorId],
+    queryFn: () => getMealStubs({ dateFrom: monthStart, dateTo: monthEnd, actorId }),
   });
 
   const [search, setSearch] = useState("");
@@ -1156,14 +1162,16 @@ function AllocationsTab() {
 
 // ── Reservations Tab ──────────────────────────────────────────────────────────
 function ReservationsTab() {
+  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
-  const { data: workers } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
+  const { data: workers } = useQuery({ queryKey: ["workers", actorId], queryFn: () => getWorkers({ actorId }) });
   const { data: rooms } = useQuery({ queryKey: ["rooms"], queryFn: getRooms });
-  const { data: ministries } = useQuery({ queryKey: ["ministries"], queryFn: getMinistries });
+  const { data: ministries } = useQuery({ queryKey: ["ministries", actorId], queryFn: () => getMinistries(actorId) });
   const { data: reservations, isLoading } = useQuery({
-    queryKey: ["bookings-report"],
-    queryFn: () => getBookings({ dateFrom: monthStart, dateTo: monthEnd }),
+    queryKey: ["bookings-report", actorId],
+    queryFn: () => getBookings({ dateFrom: monthStart, dateTo: monthEnd, actorId }),
   });
 
   const [search, setSearch] = useState("");
@@ -1171,10 +1179,10 @@ function ReservationsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const getWorkerName = useCallback((id: string) => { const w = workers?.find(x => x.id === id); return w ? `${w.firstName} ${w.lastName}` : "Unknown"; }, [workers]);
+  const getWorkerName = useCallback((id: string) => { const w = (workers as any[])?.find((x: any) => x.id === id); return w ? `${w.firstName} ${w.lastName}` : "Unknown"; }, [workers]);
   const getRoomName = useCallback((id: string) => rooms?.find(r => r.id === id)?.name ?? "Unknown", [rooms]);
   const getWorkerMinistry = useCallback((wId: string) => {
-    const w = workers?.find(x => x.id === wId);
+    const w = (workers as any[])?.find((x: any) => x.id === wId);
     if (!w) return null;
     return (ministries as any[] || []).find(m => m.id === w.majorMinistryId);
   }, [workers, ministries]);

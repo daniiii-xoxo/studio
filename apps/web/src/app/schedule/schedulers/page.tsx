@@ -33,7 +33,7 @@ export default function SchedulersPage() {
 
     const assignMutation = useMutation({
         mutationFn: ({ ministryId, workerId }: { ministryId: string; workerId: string | null }) =>
-            assignMinistryScheduler(ministryId, workerId),
+            assignMinistryScheduler(ministryId, workerId, workerProfile?.id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['ministry-schedulers'] });
             toast({ title: "Scheduler updated" });

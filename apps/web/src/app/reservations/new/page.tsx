@@ -43,7 +43,7 @@ import type { Room, Area, Ministry, VenueElement } from "@studio/types";
 
 export default function NewReservationPage() {
   const { user } = useAuthStore();
-  const { workerProfile, isSuperAdmin, isLoading: roleLoading } = useUserRole();
+  const { workerProfile, isSuperAdmin, isMinistryHead, myMinistryIds, isLoading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -83,12 +83,14 @@ export default function NewReservationPage() {
       setEmail(workerProfile.email || user?.email || "");
       if (workerProfile.majorMinistryId) {
         setMinistryId(workerProfile.majorMinistryId);
+      } else if (myMinistryIds && myMinistryIds.length > 0) {
+        setMinistryId(myMinistryIds[0]);
       }
     } else if (user) {
       setRequesterName(user.email?.split("@")[0] || "System Admin");
       setEmail(user.email || "admin@gmail.com");
     }
-  }, [workerProfile, user]);
+  }, [workerProfile, user, myMinistryIds]);
 
   // Data fetching
   const { data: rooms } = useQuery({
@@ -105,6 +107,14 @@ export default function NewReservationPage() {
     queryKey: ["ministries"],
     queryFn: getMinistries,
   });
+
+  const availableMinistries = useMemo(() => {
+    if (isSuperAdmin) return ministries;
+    if (isMinistryHead && myMinistryIds && myMinistryIds.length > 0) {
+      return (ministries as any[])?.filter((m) => myMinistryIds.includes(m.id));
+    }
+    return ministries;
+  }, [isSuperAdmin, isMinistryHead, myMinistryIds, ministries]);
 
   const { data: venueElements } = useQuery({
     queryKey: ["venue-elements"],
@@ -497,7 +507,7 @@ export default function NewReservationPage() {
                     <SelectValue placeholder="Administration" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ministries?.map((m) => (
+                    {availableMinistries?.map((m: any) => (
                       <SelectItem key={m.id} value={m.id} className="text-xs">
                         {m.name}
                       </SelectItem>

@@ -36,14 +36,14 @@ export function UserNav() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const { data: allMinistries } = useQuery({
+  const { data: allMinistries } = useQuery<any[]>({
     queryKey: ["ministries"],
-    queryFn: getMinistries,
+    queryFn: () => getMinistries(),
   });
 
   const { data: c2sGroups } = useQuery({
     queryKey: ["c2s-groups"],
-    queryFn: getC2SGroups,
+    queryFn: () => getC2SGroups(),
   });
 
   const handleLogout = async () => {

@@ -20,6 +20,8 @@ import { Mail } from "lucide-react";
 import type { Worker, Role, Ministry } from "@studio/types";
 import { WorkerActivityLog } from "./worker-activity-log";
 import { assignRolesToWorker } from "@/actions/db";
+import { useToast } from "@/hooks/use-toast";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 
 interface WorkerFormProps {
   worker: Partial<Worker> | null;
@@ -40,6 +42,7 @@ export function WorkerForm({
   onResetPassword,
   canManage,
 }: WorkerFormProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<Partial<Worker>>({
     firstName: "",
     lastName: "",
@@ -171,6 +174,33 @@ export function WorkerForm({
   );
 
   const handleSave = async () => {
+    if (!formData.firstName?.trim() || !formData.lastName?.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Required Fields Missing",
+        description: "Please enter both first name and last name.",
+      });
+      return;
+    }
+
+    if (formData.email?.trim() && !isValidEmail(formData.email.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email Address",
+        description: "Please enter a valid email format.",
+      });
+      return;
+    }
+
+    if (formData.phone?.trim() && !isValidPhilippineNumber(formData.phone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Contact Number",
+        description: "Phone number must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
+      });
+      return;
+    }
+
     // Keep legacy roleId in sync with first selected role
     const primaryRoleId = roleIds[0] ?? "viewer";
     const dataToSave: Partial<Worker> = {
@@ -198,7 +228,16 @@ export function WorkerForm({
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="phone" className="text-right">Phone</Label>
-        <Input id="phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="col-span-3" />
+        <Input
+          id="phone"
+          type="tel"
+          inputMode="numeric"
+          maxLength={11}
+          placeholder="09171234567"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: cleanPhoneNumber(e.target.value) })}
+          className="col-span-3"
+        />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="birthDate" className="text-right">Date of Birth</Label>

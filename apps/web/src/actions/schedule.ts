@@ -408,7 +408,16 @@ export async function removeWorkerFromWorshipSlot(id: string) {
 
 // ── Scheduler Assignment ──────────────────────────────────────────────────────
 
-export async function assignMinistryScheduler(ministryId: string, workerId: string | null) {
+export async function assignMinistryScheduler(ministryId: string, workerId: string | null, actorId?: string) {
+    if (actorId) {
+        const { getActorMinistryAccess } = await import('@/actions/db');
+        const access = await getActorMinistryAccess(actorId);
+        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+            if (!access.allowedMinistryIds.includes(ministryId)) {
+                throw new Error('Unauthorized: cannot assign a scheduler to a ministry outside your assigned ministries.');
+            }
+        }
+    }
     await (prisma.ministry as any).update({
         where: { id: ministryId },
         data: { schedulerId: workerId },

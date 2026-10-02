@@ -288,7 +288,7 @@ function ImportDialogContent({ onImport, onClose }: { onImport: (csv: string) =>
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function MinistryManagementPage() {
   const { canManageMinistries, canAppointApprovers, workerProfile, isLoading: isRoleLoading } = useUserRole();
-  const { ministries, isLoading: ministriesLoading, createMinistry, updateMinistry, deleteMinistry } = useMinistries();
+  const { ministries, isLoading: ministriesLoading, createMinistry, updateMinistry, deleteMinistry } = useMinistries({ all: true });
   const { workers, isLoading: workersLoading } = useWorkers({ limit: 999999 });
   const { toast } = useToast();
   const { logAction } = useAuditLog();

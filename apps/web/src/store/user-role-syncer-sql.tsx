@@ -104,9 +104,9 @@ export function UserRoleSyncerSQL() {
     !!user && !areRolesLoading && (!allRoles || allRoles.length === 0);
 
   // ── 5. Ministries ─────────────────────────────────────────────────────────
-  const { data: allMinistries, isLoading: areMinistriesLoading } = useQuery({
+  const { data: allMinistries, isLoading: areMinistriesLoading } = useQuery<any[]>({
     queryKey: ["ministries"],
-    queryFn: getMinistries,
+    queryFn: () => getMinistries(),
     enabled: !!user,
   });
 
@@ -130,8 +130,11 @@ export function UserRoleSyncerSQL() {
   }, [user, allMinistries, effectiveProfile]);
 
   const isMinistryHead = useMemo(() => {
-    if (!user || !allMinistries || !effectiveProfile) return false;
-    return allMinistries.some((m: any) => m.headId === effectiveProfile.id);
+    if (!user || !effectiveProfile) return false;
+    const roleName = ((effectiveProfile.role?.name || '') + ' ' + (effectiveProfile.roles?.map((r: any) => r.role?.name || '').join(' ') || '')).toLowerCase();
+    const hasHeadRole = roleName.includes('head') || roleName.includes('coordinator');
+    const isExplicitHead = allMinistries?.some((m: any) => m.headId === effectiveProfile.id);
+    return Boolean(isExplicitHead || hasHeadRole);
   }, [user, allMinistries, effectiveProfile]);
 
   const isMinistryApprover = useMemo(() => {
@@ -140,10 +143,42 @@ export function UserRoleSyncerSQL() {
   }, [user, allMinistries, effectiveProfile]);
 
   const myMinistryIds = useMemo(() => {
-    if (!user || !allMinistries || !effectiveProfile) return [];
-    return allMinistries
-      .filter((m: any) => m.headId === effectiveProfile.id || m.approverId === effectiveProfile.id)
-      .map((m: any) => m.id);
+    if (!user || !effectiveProfile) return [];
+    const ids = new Set<string>();
+
+    // 1. Explicit leadership / staff assignments on Ministry records
+    if (allMinistries && allMinistries.length > 0) {
+      for (const m of allMinistries) {
+        if (
+          m.headId === effectiveProfile.id ||
+          m.approverId === effectiveProfile.id ||
+          m.leaderId === effectiveProfile.id ||
+          m.schedulerId === effectiveProfile.id ||
+          m.mealStubAssignerId === effectiveProfile.id
+        ) {
+          if (m.id) ids.add(m.id);
+        }
+      }
+    }
+
+    // 2. Profile major and minor ministries
+    if (effectiveProfile.majorMinistryId && effectiveProfile.majorMinistryId.trim() !== '') {
+      ids.add(effectiveProfile.majorMinistryId.trim());
+    }
+    if (effectiveProfile.minorMinistryId && effectiveProfile.minorMinistryId.trim() !== '') {
+      ids.add(effectiveProfile.minorMinistryId.trim());
+    }
+
+    // 3. Multi-ministry assignments in assignedMinistryIds
+    if (Array.isArray(effectiveProfile.assignedMinistryIds)) {
+      for (const mid of effectiveProfile.assignedMinistryIds) {
+        if (mid && mid.trim() !== '') {
+          ids.add(mid.trim());
+        }
+      }
+    }
+
+    return Array.from(ids);
   }, [user, allMinistries, effectiveProfile]);
 
   const isLoading =

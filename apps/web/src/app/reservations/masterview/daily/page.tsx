@@ -87,7 +87,7 @@ const EVENT_COLORS = [
 ];
 
 export default function ScheduleCalendarPage() {
-  const { canViewScheduleMasterview, isLoading: roleLoading } = useUserRole();
+  const { canViewScheduleMasterview, workerProfile, isSuperAdmin, myMinistryIds, isLoading: roleLoading } = useUserRole();
   const router = useRouter();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -108,13 +108,13 @@ export default function ScheduleCalendarPage() {
   });
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ["bookings"],
-    queryFn: () => getBookings(),
+    queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers"],
-    queryFn: getWorkers,
+    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: venueElements, isLoading: venueElementsLoading } = useQuery({

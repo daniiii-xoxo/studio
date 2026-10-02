@@ -240,7 +240,7 @@ export default function DepartmentManagementPage() {
 
   const { workers, isLoading: workersLoading } = useWorkers({ limit: 999999 });
   const { departments: deptDataList, isLoading: deptsLoading, upsertDepartment } = useDepartments();
-  const { ministries } = useMinistries();
+  const { ministries } = useMinistries({ all: true });
 
   const monthAgo = useMemo(() => subDays(new Date(), 30), []);
   const { mealStubs } = useMealStubs({ dateFrom: monthAgo });

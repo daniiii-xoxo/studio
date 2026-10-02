@@ -79,7 +79,7 @@ export default function MealStubAllocationPage() {
   const [ministryEdits, setMinistryEdits] = useState<Record<string, number>>({});
   const [deptEdits, setDeptEdits] = useState<Record<string, number>>({});
 
-  const { ministries, isLoading: ministriesLoading, updateMinistry } = useMinistries();
+  const { ministries, isLoading: ministriesLoading, updateMinistry } = useMinistries({ all: true });
   const { departments, isLoading: departmentsLoading, upsertDepartment } = useDepartments();
   const { settings: globalSettings, isLoading: settingsLoading } = useSettings("mealstubs");
 

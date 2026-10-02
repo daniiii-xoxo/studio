@@ -67,6 +67,7 @@ import {
   Separator,
 } from "@studio/ui";
 import { cn, toJsDate } from "@/lib/utils";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 import {
   Plus,
   PlusCircle,
@@ -1096,6 +1097,7 @@ const MenteeForm = ({
   onSave: (data: any) => void;
   onClose?: () => void;
 }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: mentee?.firstName || "",
     lastName: mentee?.lastName || "",
@@ -1133,6 +1135,30 @@ const MenteeForm = ({
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        if (!formData.firstName.trim() || !formData.lastName.trim()) {
+          toast({
+            variant: "destructive",
+            title: "Required Fields Missing",
+            description: "Please enter both first name and last name.",
+          });
+          return;
+        }
+        if (formData.email.trim() && !isValidEmail(formData.email.trim())) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Email Address",
+            description: "Please enter a valid email format.",
+          });
+          return;
+        }
+        if (formData.phone.trim() && !isValidPhilippineNumber(formData.phone.trim())) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Contact Number",
+            description: "Phone number must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
+          });
+          return;
+        }
         onSave(formData);
       }}
       className="space-y-4"
@@ -1208,10 +1234,12 @@ const MenteeForm = ({
             <Input
               id="phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={11}
               className="h-9 pl-9 rounded-xl bg-background border border-border/70 text-xs font-medium focus-visible:ring-primary"
-              placeholder="e.g. 09179876543"
+              placeholder="09179876543"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, phone: cleanPhoneNumber(e.target.value) })}
             />
           </div>
         </div>
@@ -3025,23 +3053,23 @@ function C2SPageContent() {
 
   // Queries placed at top of component
   const { data: devotions, isLoading: devotionsLoading } = useQuery({
-    queryKey: ["c2s-devotions"],
-    queryFn: () => getC2SDevotionRecords(),
+    queryKey: ["c2s-devotions", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getC2SDevotionRecords({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: groups, isLoading: groupsLoading } = useQuery({
-    queryKey: ["c2s-groups"],
-    queryFn: getC2SGroups,
+    queryKey: ["c2s-groups", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getC2SGroups({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: mentees, isLoading: menteesLoading } = useQuery({
-    queryKey: ["c2s-mentees"],
-    queryFn: getC2SMentees,
+    queryKey: ["c2s-mentees", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getC2SMentees({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers"],
-    queryFn: getWorkers,
+    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
   const { data: allMinistries } = useQuery({
@@ -3274,7 +3302,7 @@ function C2SPageContent() {
           isMentorInDept
         );
       });
-      result = deptGroups.length > 0 ? deptGroups : groups;
+      result = deptGroups;
     }
 
     // Sub-ministry Cluster filter for Ministry Head / Admin
@@ -3950,7 +3978,7 @@ function C2SPageContent() {
       const hasGroupInDept = groups?.some((g) => g.mentorId === w.id);
       return hasGroupInDept;
     });
-    return list.length > 0 ? list : (workers || []);
+    return list;
   }, [isAdminUser, isMinistryHeadUser, workers, workerProfile, activeClusterOptions, myMinistryIds, allMinistries, headDepartment, groups]);
 
   // Individual mentees under ministry head's department / admin scope
@@ -3976,7 +4004,7 @@ function C2SPageContent() {
       return false;
     });
 
-    return scoped.length > 0 ? scoped : (mentees || []);
+    return scoped;
   }, [isAdminUser, isMentorUser, myMentees, departmentMentors, groups, activeClusterOptions, mentees, workerProfile]);
 
   // Filtered individual mentees for Ministry Head / Admin table view
