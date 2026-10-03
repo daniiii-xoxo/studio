@@ -3204,18 +3204,25 @@ function C2SPageContent() {
     userRoleName.includes("admin")
   );
 
-  // Strict Ministry Head detection: ONLY true if the CURRENT USER is a Ministry Head
+  // Strict Ministry Head detection: ONLY true if the CURRENT USER is a Ministry Head (NOT worker, NOT admin)
+  const isExplicitHeadInMinistries = Boolean(
+    Array.isArray(allMinistries) &&
+    workerProfile?.id &&
+    allMinistries.some((m: any) => m.headId === workerProfile.id || m.approverId === workerProfile.id)
+  );
+
   const isMinistryHeadUser = Boolean(
     !isAdminUser && (
-      isMinistryHead ||
-      (myMinistryIds && myMinistryIds.length > 0) ||
-      (Array.isArray(allMinistries) && workerProfile?.id && allMinistries.some((m: any) => m.headId === workerProfile.id || m.approverId === workerProfile.id)) ||
-      userRoleName.includes("head") ||
-      userRoleName.includes("lead") ||
-      userRoleName.includes("manager") ||
-      userRoleName.includes("overseer") ||
-      userRoleName.includes("pastor") ||
-      userRoleName.includes("director")
+      isExplicitHeadInMinistries ||
+      ((isMinistryHead ||
+        userRoleName.includes("head") ||
+        userRoleName.includes("lead") ||
+        userRoleName.includes("manager") ||
+        userRoleName.includes("overseer") ||
+        userRoleName.includes("pastor") ||
+        userRoleName.includes("director")) &&
+       userRoleName !== "worker" &&
+       workerProfile?.roleId !== "viewer")
     )
   );
 
