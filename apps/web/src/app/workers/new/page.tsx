@@ -21,7 +21,7 @@ import {
   SelectLabel,
 } from "@studio/ui";
 import { cn } from "@/lib/utils";
-import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
+import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail, isValidName, cleanName } from "@/lib/validation";
 import type { Worker } from "@studio/types";
 
 // ── Step definitions ──────────────────────────────────────────────────────────
@@ -233,7 +233,23 @@ export default function NewWorkerPage() {
 
   const validateStep1 = () => {
     if (!firstName.trim()) { toast({ variant: "destructive", title: "First name is required" }); return false; }
+    if (!isValidName(firstName.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid First Name",
+        description: "First name can only contain letters, spaces, hyphens, and apostrophes. Numbers are not allowed.",
+      });
+      return false;
+    }
     if (!lastName.trim())  { toast({ variant: "destructive", title: "Last name is required" }); return false; }
+    if (!isValidName(lastName.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Last Name",
+        description: "Last name can only contain letters, spaces, hyphens, and apostrophes. Numbers are not allowed.",
+      });
+      return false;
+    }
     if (!email.trim())     { toast({ variant: "destructive", title: "Email is required" }); return false; }
     if (!isValidEmail(email.trim())) {
       toast({
@@ -375,10 +391,10 @@ export default function NewWorkerPage() {
               {step === 1 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                   <Field label="First name" required>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
+                    <Input value={firstName} onChange={e => setFirstName(cleanName(e.target.value))} className="h-10 rounded-xl border-border/60 bg-background" />
                   </Field>
                   <Field label="Last name" required>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
+                    <Input value={lastName} onChange={e => setLastName(cleanName(e.target.value))} className="h-10 rounded-xl border-border/60 bg-background" />
                   </Field>
                   <Field label="Email" required>
                     <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />

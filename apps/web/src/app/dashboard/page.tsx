@@ -84,6 +84,8 @@ export default function DashboardPage() {
     user?.email?.split("@")[0] ||
     "System";
 
+  const ministryName = workerProfile?.majorMinistry?.name || null;
+
   if (userLoading) {
     return (
       <AppLayout>
@@ -111,6 +113,13 @@ export default function DashboardPage() {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-headline font-bold tracking-tight text-foreground">
               Welcome back, <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">{userName}</span>!
             </h1>
+            
+            {ministryName && (
+              <p className="text-sm sm:text-base text-foreground/80 mt-2 font-medium">
+                <Building2 className="inline-block h-4 w-4 mr-1.5 mb-0.5" />
+                {ministryName}
+              </p>
+            )}
             
             <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-lg leading-relaxed font-normal">
               Here is a summary of activities, facilities, and records for today.

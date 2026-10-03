@@ -809,7 +809,7 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
           <tr>
             <td style="padding: 32px 32px 24px;">
               <h2 style="margin: 0 0 12px; color: #0f172a; font-size: 20px; font-weight: 700;">
-                Welcome to the Ministry, ${data.firstName}!
+                Welcome to the ${ministryName}, ${data.firstName}!
               </h2>
               <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6;">
                 Your worker account has been created by your Ministry Head / Administrator in the COG App portal. Below are your account login credentials and registered profile details.

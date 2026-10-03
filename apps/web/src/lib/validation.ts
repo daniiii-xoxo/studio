@@ -33,3 +33,25 @@ export function isValidEmail(email: string): boolean {
   // Standard email regex
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 }
+
+/**
+ * Validates name fields (first name, last name):
+ * - Must contain only letters, spaces, hyphens, and apostrophes
+ * - No numbers or special characters allowed
+ */
+export function isValidName(name: string): boolean {
+  if (!name) return false;
+  const trimmed = name.trim();
+  // Allow letters (including Unicode/international characters), spaces, hyphens, apostrophes, and periods
+  return /^[a-zA-ZÀ-ÿ\s'\-\.]+$/.test(trimmed);
+}
+
+/**
+ * Sanitizes name input:
+ * - Removes any numbers and special characters (except spaces, hyphens, apostrophes, and periods)
+ */
+export function cleanName(input: string): string {
+  if (!input) return "";
+  // Keep only letters (including international), spaces, hyphens, apostrophes, and periods
+  return input.replace(/[^a-zA-ZÀ-ÿ\s'\-\.]/g, "");
+}
