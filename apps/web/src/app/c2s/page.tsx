@@ -3057,30 +3057,54 @@ function C2SPageContent() {
     queryFn: () => getC2SDevotionRecords({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
 
-  const { data: groups, isLoading: groupsLoading } = useQuery({
+  const { data: rawGroups, isLoading: groupsLoading } = useQuery({
     queryKey: ["c2s-groups", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
     queryFn: () => getC2SGroups({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
+  const groups = useMemo<any[]>(() => {
+    if (Array.isArray(rawGroups)) return rawGroups;
+    if (rawGroups && Array.isArray((rawGroups as any).groups)) return (rawGroups as any).groups;
+    return [];
+  }, [rawGroups]);
 
-  const { data: mentees, isLoading: menteesLoading } = useQuery({
+  const { data: rawMentees, isLoading: menteesLoading } = useQuery({
     queryKey: ["c2s-mentees", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
     queryFn: () => getC2SMentees({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
+  const mentees = useMemo<any[]>(() => {
+    if (Array.isArray(rawMentees)) return rawMentees;
+    if (rawMentees && Array.isArray((rawMentees as any).mentees)) return (rawMentees as any).mentees;
+    return [];
+  }, [rawMentees]);
 
-  const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
+  const { data: rawWorkers, isLoading: workersLoading } = useQuery({
+    queryKey: ["workers", "all", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
     queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
   });
+  const workers = useMemo<Worker[]>(() => {
+    if (Array.isArray(rawWorkers)) return rawWorkers as Worker[];
+    if (rawWorkers && Array.isArray((rawWorkers as any).workers)) return (rawWorkers as any).workers as Worker[];
+    return [];
+  }, [rawWorkers]);
 
-  const { data: allMinistries } = useQuery({
+  const { data: rawMinistries } = useQuery({
     queryKey: ["ministries"],
     queryFn: getMinistries,
   });
+  const allMinistries = useMemo<any[]>(() => {
+    if (Array.isArray(rawMinistries)) return rawMinistries;
+    if (rawMinistries && Array.isArray((rawMinistries as any).ministries)) return (rawMinistries as any).ministries;
+    return [];
+  }, [rawMinistries]);
 
-  const { data: departmentSettings } = useQuery({
+  const { data: rawDepartmentSettings } = useQuery({
     queryKey: ["department-settings"],
     queryFn: getDepartmentSettings,
   });
+  const departmentSettings = useMemo<any[]>(() => {
+    if (Array.isArray(rawDepartmentSettings)) return rawDepartmentSettings;
+    return [];
+  }, [rawDepartmentSettings]);
 
   // Derive department → ministry list from DB with complete mapping in strict WORDA order
   const departmentClusters = useMemo<Record<string, { value: string; label: string }[]>>(() => {
@@ -3557,7 +3581,7 @@ function C2SPageContent() {
         // Ministry Head account sees all devotions within their department (e.g. Outreach)
         const myDeptClusterValues = activeClusterOptions.map((c) => c.value.toLowerCase());
         const cluster = (item.clusterName || "").toLowerCase().trim();
-        const mentorWorker = workers?.find((w) => w.id === item.mentorId);
+        const mentorWorker = Array.isArray(workers) ? workers.find((w) => w.id === item.mentorId) : undefined;
         const isMentorInMyDept = Boolean(
           mentorWorker &&
           (mentorWorker.majorMinistryId === workerProfile?.majorMinistryId ||

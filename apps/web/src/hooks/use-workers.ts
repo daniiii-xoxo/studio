@@ -43,7 +43,7 @@ export function useWorkers(params: {
     }
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['workers', { ...queryParams, actorId, ministryIds: effectiveMinistryIds }],
+        queryKey: ['workers', 'paginated', { ...queryParams, actorId, ministryIds: effectiveMinistryIds }],
         queryFn: () => getPaginatedWorkers(queryParams.page, queryParams.limit, {
             search: queryParams.search,
             searchMode: queryParams.searchMode,
