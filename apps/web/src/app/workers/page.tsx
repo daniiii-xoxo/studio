@@ -41,13 +41,11 @@ import { useUserRole } from "@/hooks/use-user-role";
 import { useAuditLog } from "@/hooks/use-audit-log";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
-import { useApprovals } from "@/hooks/use-approvals";
 import {
   updateWorkersMinistries,
   createMealStub as createMealStubSql,
   deleteWorker as deleteWorkerSql,
   deleteWorkers as deleteWorkersSql,
-  createApproval as createApprovalSql,
 } from "@/actions/db";
 import { ImportSheet } from "@/components/workers/import-sheet";
 import { BatchMinistrySheet } from "@/components/workers/batch-ministry-sheet";
@@ -169,6 +167,30 @@ export default function WorkersPage() {
     setCurrentPage(1);
   };
 
+  const isMinistryHeadScoped = Boolean(
+    !isSuperAdmin && (
+      isMinistryHead ||
+      ((workerProfile as any)?.role && ((workerProfile as any).role.name || "").toLowerCase().includes("head")) ||
+      (Array.isArray((workerProfile as any)?.roles) && (workerProfile as any).roles.some((r: any) => (r.role?.name || "").toLowerCase().includes("head")))
+    )
+  );
+
+  const headMinistryIds = useMemo(() => {
+    if (isSuperAdmin) return undefined;
+    if (ministryFilter !== "all") return [ministryFilter];
+    const ids = new Set<string>();
+    if (myMinistryIds && myMinistryIds.length > 0) {
+      myMinistryIds.forEach(id => ids.add(id));
+    }
+    if (workerProfile?.majorMinistryId) {
+      ids.add(workerProfile.majorMinistryId);
+    }
+    if (workerProfile?.minorMinistryId) {
+      ids.add(workerProfile.minorMinistryId);
+    }
+    return ids.size > 0 ? Array.from(ids) : undefined;
+  }, [isSuperAdmin, ministryFilter, myMinistryIds, workerProfile]);
+
   const { workers: allWorkers, pagination, isLoading: workersLoading,
     updateWorker: updateWorkerSql, createWorker: createWorkerSql,
     deleteWorker: deleteWorkerSqlMut, deleteWorkers: deleteWorkersSqlMut,
@@ -177,23 +199,26 @@ export default function WorkersPage() {
     limit: itemsPerPage, 
     search: searchQuery, 
     searchMode, 
-    ministryIds: ministryFilter !== "all" ? [ministryFilter] : undefined,
+    ministryIds: headMinistryIds,
     sortField, 
-    sortDir 
+    sortDir,
+    actorId: workerProfile?.id,
   });
 
   const { ministries, isLoading: ministriesLoading } = useMinistries();
   const availableMinistries = useMemo(() => {
     if (isSuperAdmin) return ministries;
-    if (isMinistryHead && myMinistryIds?.length > 0) {
-      return ministries.filter(m => myMinistryIds.includes(m.id));
+    const allowed = (myMinistryIds && myMinistryIds.length > 0)
+      ? myMinistryIds
+      : [workerProfile?.majorMinistryId].filter(Boolean) as string[];
+    if (isMinistryHead && allowed.length > 0) {
+      return ministries.filter(m => allowed.includes(m.id));
     }
-    return ministries;
-  }, [isSuperAdmin, isMinistryHead, myMinistryIds, ministries]);
+    return isMinistryHead ? [] : ministries;
+  }, [isSuperAdmin, isMinistryHead, myMinistryIds, workerProfile?.majorMinistryId, ministries]);
   const { roles, isLoading: rolesLoading } = useRoles();
   const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
   const { mealStubs: allMealStubs } = useMealStubs({ dateFrom: thirtyDaysAgo });
-  const { createApproval: createApprovalSqlHook } = useApprovals();
   const { departments: allDepartments, isLoading: departmentsLoading } = useDepartments();
 
   const isLoading = rolesLoading || ministriesLoading || isRoleLoading || departmentsLoading;
@@ -304,24 +329,10 @@ export default function WorkersPage() {
 
   const handleBatchMove = async (major: string, minor: string) => {
     try {
-      if (!isSuperAdmin) {
-        const promises = selectedWorkerIds.map(async id => {
-          const w = allWorkers?.find(worker => worker.id === id);
-          if (!w) return;
-          const newMajorId = major === "unchanged" ? w.majorMinistryId || "" : major === "none" ? "" : major;
-          const newMinorId = minor === "unchanged" ? w.minorMinistryId || "" : minor === "none" ? "" : minor;
-          if (newMajorId === (w.majorMinistryId || "") && newMinorId === (w.minorMinistryId || "")) return;
-          const details = `Batch ministry change for ${w.firstName} ${w.lastName}.`;
-          return createApprovalSqlHook({ requester: `${workerProfile?.firstName} ${workerProfile?.lastName}`, type: "Ministry Change", details, status: "Pending Outgoing Approval", workerId: w.id, oldMajorId: w.majorMinistryId || "", newMajorId, oldMinorId: w.minorMinistryId || "", newMinorId, outgoingApproved: false, incomingApproved: false });
-        });
-        await Promise.all(promises);
-        toast({ title: "Changes Pending Approval" });
-      } else {
-        const majorVal = major === "unchanged" ? undefined : major === "none" ? "" : major;
-        const minorVal = minor === "unchanged" ? undefined : minor === "none" ? "" : minor;
-        await updateWorkersMinistries(selectedWorkerIds, majorVal, minorVal);
-        toast({ title: "Batch Update Successful", description: `Updated ${selectedWorkerIds.length} workers.` });
-      }
+      const majorVal = major === "unchanged" ? undefined : major === "none" ? "" : major;
+      const minorVal = minor === "unchanged" ? undefined : minor === "none" ? "" : minor;
+      await updateWorkersMinistries(selectedWorkerIds, majorVal, minorVal);
+      toast({ title: "Batch Update Successful", description: `Updated ${selectedWorkerIds.length} workers.` });
       setSelectedWorkerIds([]); setIsBatchMoveSheetOpen(false);
     } catch { toast({ variant: "destructive", title: "Batch Update Failed" }); }
   };
@@ -366,18 +377,14 @@ export default function WorkersPage() {
         const newWorkers = results.data;
         if (newWorkers.length === 0) { toast({ variant: "destructive", title: "No Data Found" }); return; }
         try {
-          let approvalCount = 0; let importedCount = 0;
+          let importedCount = 0;
           for (let index = 0; index < newWorkers.length; index++) {
             const nw = newWorkers[index] as any;
             if (!nw.firstName || !nw.lastName || !nw.email) continue;
             const workerId = String(100000 + (allWorkers?.length || 0) + index).slice(-6);
             const phone = cleanPhoneNumber(nw.phone || "");
-            const created = await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone, roleId: nw.roleId || "viewer", status: nw.status || "Pending Approval", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
+            await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone, roleId: nw.roleId || "viewer", status: "Active", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
             importedCount++;
-            if ((nw.status || "Pending Approval") === "Pending Approval") {
-              approvalCount++;
-              await createApprovalSqlHook({ requester: workerProfile ? `${workerProfile.firstName} ${workerProfile.lastName}` : "System Import", type: "New Worker", details: `New worker import: ${nw.email}`, status: "Pending", workerId: created.id });
-            }
           }
           toast({ title: "Import Successful", description: `${importedCount} workers imported.` });
           setIsImportSheetOpen(false);
@@ -423,23 +430,31 @@ export default function WorkersPage() {
     return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 15);
   }, [allWorkers, ministries]);
 
+  // Helper to identify if a worker is Admin or Ministry Head
+  const isWorkerAdminOrHead = (w: Worker) => {
+    const roleLabel = getWorkerRoleLabel(w).toLowerCase();
+    const isHead =
+      roleLabel.includes("head") ||
+      roleLabel.includes("pastor") ||
+      roleLabel.includes("director") ||
+      roleLabel.includes("overseer") ||
+      roleLabel.includes("lead") ||
+      (ministries && ministries.some(m => m.headId === w.id || m.approverId === w.id));
+    const isAdmin =
+      roleLabel.includes("admin") ||
+      (w as any).role?.isSuperAdmin === true ||
+      (w as any).roles?.some((r: any) => r.role?.isSuperAdmin === true);
+    return isHead || isAdmin;
+  };
+
   // Ministry heads count
   const ministryHeadsCount = useMemo(() => {
-    return allWorkers.filter(w => {
-      const roleName = getWorkerRoleLabel(w).toLowerCase();
-      return roleName.includes("head") || roleName.includes("pastor") || ministries.some(m => m.headId === w.id);
-    }).length;
+    return allWorkers.filter(w => isWorkerAdminOrHead(w) && !getWorkerRoleLabel(w).toLowerCase().includes("admin")).length;
   }, [allWorkers, ministries]);
 
   // Mentors count (Workers that serve as mentors / non-admin non-head workers)
   const mentorsCount = useMemo(() => {
-    return allWorkers.filter(w => {
-      const roleName = getWorkerRoleLabel(w).toLowerCase();
-      if (roleName.includes("mentor")) return true;
-      const isHead = roleName.includes("head") || roleName.includes("pastor") || ministries.some(m => m.headId === w.id);
-      const isAdmin = roleName.includes("admin");
-      return !isHead && !isAdmin;
-    }).length;
+    return allWorkers.filter(w => !isWorkerAdminOrHead(w)).length;
   }, [allWorkers, ministries, roles]);
 
   // Admins count
@@ -447,34 +462,62 @@ export default function WorkersPage() {
     return allWorkers.filter(w => getWorkerRoleLabel(w).toLowerCase().includes("admin")).length;
   }, [allWorkers]);
 
-  const displayedWorkers = useMemo(() => {
+  const baseWorkers = useMemo(() => {
     let list = allWorkers || [];
+
+    if (isMinistryHeadScoped) {
+      const allowedIds = headMinistryIds || (workerProfile?.majorMinistryId ? [workerProfile.majorMinistryId] : []);
+      list = list.filter(w => {
+        // Hierarchy rule: A Ministry Head manages the mentors/workers of their ministry.
+        // Admins and Ministry Heads (and the logged-in head themselves) must NOT appear here.
+        if (isWorkerAdminOrHead(w)) return false;
+        if (workerProfile?.id && w.id === workerProfile.id) return false;
+
+        // Must belong to the head's ministry if allowedIds are defined
+        if (allowedIds.length > 0) {
+          const inMajor = w.majorMinistryId && allowedIds.includes(w.majorMinistryId);
+          const inMinor = w.minorMinistryId && allowedIds.includes(w.minorMinistryId);
+          const inAssigned = Array.isArray((w as any).assignedMinistryIds) &&
+            (w as any).assignedMinistryIds.some((id: string) => allowedIds.includes(id));
+          if (!inMajor && !inMinor && !inAssigned) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return list;
+  }, [allWorkers, isMinistryHeadScoped, headMinistryIds, workerProfile, ministries, roles]);
+
+  const displayedWorkers = useMemo(() => {
+    let list = baseWorkers;
 
     if (activeTab === "active") {
       list = list.filter(w => w.status === "Active");
     } else if (activeTab === "inactive") {
       list = list.filter(w => w.status === "Inactive");
     } else if (activeTab === "heads") {
-      list = list.filter(w => {
-        const roleLabel = getWorkerRoleLabel(w).toLowerCase();
-        return roleLabel.includes("head") || roleLabel.includes("pastor") || ministries.some(m => m.headId === w.id);
-      });
+      list = isMinistryHeadScoped ? [] : list.filter(w => isWorkerAdminOrHead(w));
     } else if (activeTab === "mentors") {
-      list = list.filter(w => {
-        const roleLabel = getWorkerRoleLabel(w).toLowerCase();
-        if (roleLabel.includes("mentor")) return true;
-        const isHead = roleLabel.includes("head") || roleLabel.includes("pastor") || ministries.some(m => m.headId === w.id);
-        const isAdmin = roleLabel.includes("admin");
-        return !isHead && !isAdmin;
-      });
+      list = list.filter(w => !isWorkerAdminOrHead(w));
     } else if (activeTab === "admins") {
-      list = list.filter(w => getWorkerRoleLabel(w).toLowerCase().includes("admin"));
+      list = isMinistryHeadScoped ? [] : list.filter(w => getWorkerRoleLabel(w).toLowerCase().includes("admin"));
     }
 
     return list;
-  }, [allWorkers, activeTab, ministries, roles]);
+  }, [baseWorkers, activeTab, isMinistryHeadScoped, ministries, roles]);
 
   const tabCounts = useMemo(() => {
+    if (isMinistryHeadScoped) {
+      return {
+        all: baseWorkers.length,
+        active: baseWorkers.filter(w => w.status === "Active").length,
+        inactive: baseWorkers.filter(w => w.status === "Inactive").length,
+        heads: 0,
+        mentors: baseWorkers.length,
+        admins: 0,
+      };
+    }
     const list = allWorkers || [];
     return {
       all: totalWorkers || list.length,
@@ -484,7 +527,7 @@ export default function WorkersPage() {
       mentors: mentorsCount,
       admins: adminsCount,
     };
-  }, [allWorkers, totalWorkers, totalActive, totalInactive, ministryHeadsCount, mentorsCount, adminsCount]);
+  }, [allWorkers, baseWorkers, isMinistryHeadScoped, totalWorkers, totalActive, totalInactive, ministryHeadsCount, mentorsCount, adminsCount]);
 
   if (isLoading) {
     return <AppLayout><div className="flex justify-center py-10"><LoaderCircle className="h-8 w-8 animate-spin" /></div></AppLayout>;
@@ -501,9 +544,13 @@ export default function WorkersPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">Workers</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground">
+              {isMinistryHeadScoped ? "Ministry Mentors" : "Workers"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Monitor workforce, assign roles and ministries, and register new workers.
+              {isMinistryHeadScoped
+                ? "Monitor mentors under your ministry and manage devotion leaders."
+                : "Monitor workforce, assign roles and ministries, and register new workers."}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -525,7 +572,7 @@ export default function WorkersPage() {
               onClick={handleAddNew}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold transition-colors shadow-xs cursor-pointer whitespace-nowrap"
             >
-              <PlusCircle className="h-4 w-4" /> Add Worker
+              <PlusCircle className="h-4 w-4" /> {isMinistryHeadScoped ? "Add Mentor" : "Add Worker"}
             </button>
           </div>
         </div>
@@ -534,14 +581,25 @@ export default function WorkersPage() {
         <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
-            <StatCard label="Mentors" value={mentorsCount} icon={GraduationCap} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
-            <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
-            <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
+            {isMinistryHeadScoped ? (
+              <>
+                <StatCard label="Mentors" value={tabCounts.all} icon={GraduationCap} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
+                <StatCard label="Active" value={tabCounts.active} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
+                <StatCard label="Inactive" value={tabCounts.inactive} icon={Users} accentColor="bg-amber-500" iconClass="text-amber-600" iconBgClass="bg-amber-50 dark:bg-amber-950/40" />
+                <StatCard label="New This Month" value={newThisMonth} icon={UserCog} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
+              </>
+            ) : (
+              <>
+                <StatCard label="Workers" value={totalWorkers} icon={Users} accentColor="bg-primary" iconClass="text-primary" iconBgClass="bg-primary/10" />
+                <StatCard label="Mentors" value={mentorsCount} icon={GraduationCap} accentColor="bg-blue-500" iconClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-950/40" />
+                <StatCard label="Ministry Heads" value={ministryHeadsCount} icon={ShieldCheck} accentColor="bg-emerald-500" iconClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-950/40" />
+                <StatCard label="Admins" value={adminsCount} icon={UserCog} accentColor="bg-orange-400" iconClass="text-orange-500" iconBgClass="bg-orange-50 dark:bg-orange-950/40" />
+              </>
+            )}
           </div>
 
         {/* Ministry Distribution Chart */}
-        {ministryChartData.length > 0 && (
+        {!isMinistryHeadScoped && ministryChartData.length > 0 && (
           <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-6">
             <h2 className="text-base font-bold text-foreground mb-0.5">Ministry Distribution</h2>
             <p className="text-xs text-muted-foreground mb-5">Workers per ministry.</p>
@@ -629,17 +687,24 @@ export default function WorkersPage() {
               {/* Status & Role Filter Dropdown */}
               <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
                 <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                  <SelectValue placeholder="All Workers" />
+                  <SelectValue placeholder={isMinistryHeadScoped ? "All Mentors" : "All Workers"} />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  {[
-                    { id: "all", label: "All Workers", count: tabCounts.all },
-                    { id: "active", label: "Active", count: tabCounts.active },
-                    { id: "inactive", label: "Inactive", count: tabCounts.inactive },
-                    { id: "mentors", label: "Mentors", count: tabCounts.mentors },
-                    { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
-                    { id: "admins", label: "Admins", count: tabCounts.admins },
-                  ].map(tab => (
+                  {(isMinistryHeadScoped
+                    ? [
+                        { id: "all", label: "All Mentors", count: tabCounts.all },
+                        { id: "active", label: "Active", count: tabCounts.active },
+                        { id: "inactive", label: "Inactive", count: tabCounts.inactive },
+                      ]
+                    : [
+                        { id: "all", label: "All Workers", count: tabCounts.all },
+                        { id: "active", label: "Active", count: tabCounts.active },
+                        { id: "inactive", label: "Inactive", count: tabCounts.inactive },
+                        { id: "mentors", label: "Mentors", count: tabCounts.mentors },
+                        { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
+                        { id: "admins", label: "Admins", count: tabCounts.admins },
+                      ]
+                  ).map(tab => (
                     <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
                       {tab.label} ({tab.count})
                     </SelectItem>
@@ -813,7 +878,7 @@ export default function WorkersPage() {
           {pagination && pagination.total > 0 && (
             <div className="px-6 py-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
-                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, pagination.total)} of {pagination.total.toLocaleString()} workers
+                Showing {displayedWorkers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}–{Math.min(currentPage * itemsPerPage, displayedWorkers.length)} of {displayedWorkers.length.toLocaleString()} {isMinistryHeadScoped ? "mentors" : "workers"}
               </p>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}

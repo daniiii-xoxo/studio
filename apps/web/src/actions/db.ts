@@ -559,6 +559,50 @@ export async function getWorkerById(id: string) {
     }
 }
 
+export async function getWorkerByIdOrWorkerId(identifier: string) {
+    if (!identifier) return null;
+    const clean = identifier.trim();
+    try {
+        const worker = await prisma.worker.findFirst({
+            where: {
+                OR: [
+                    { id: clean },
+                    { workerId: clean },
+                    { workerId: clean.replace(/^COG-/i, '') },
+                    { workerId: clean.replace(/^COG-/i, '').padStart(6, '0') },
+                    { email: clean.toLowerCase() },
+                ],
+            },
+            include: {
+                role: true,
+                roles: {
+                    include: {
+                        role: {
+                            include: {
+                                rolePermissions: { include: { permission: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        return worker ? await attachWorkerAssignedMinistries(worker) : null;
+    } catch {
+        const worker = await prisma.worker.findFirst({
+            where: {
+                OR: [
+                    { id: clean },
+                    { workerId: clean },
+                    { workerId: clean.replace(/^COG-/i, '') },
+                    { workerId: clean.replace(/^COG-/i, '').padStart(6, '0') },
+                ],
+            },
+            include: { role: true },
+        });
+        return worker ? await attachWorkerAssignedMinistries(worker) : null;
+    }
+}
+
 export async function getWorkerByEmail(email: string) {
     try {
         const worker = await prisma.worker.findUnique({
@@ -590,6 +634,7 @@ export async function createWorker(data: any) {
     const worker = await prisma.worker.create({
         data: {
             ...data,
+            status: data.status || 'Active',
             createdAt: new Date(),
         },
     });
@@ -645,6 +690,7 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
     
     const workerData = {
         ...dbData,
+        status: dbData.status || 'Active',
         id: authData.user.id,
         createdAt: new Date(),
     };

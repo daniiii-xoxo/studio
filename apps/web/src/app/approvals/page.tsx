@@ -132,9 +132,14 @@ export default function ApprovalsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ action: "Approved" | "Rejected"; ids: string[] } | null>(null);
 
+  // Only Room Booking requests belong in Approvals
+  const roomBookingRequests = useMemo(() => {
+    return (requests || []).filter(r => r.type === "Room Booking");
+  }, [requests]);
+
   // Role logic
   const filteredRequests = useMemo(() => {
-    let results = [...(requests || [])] as ApprovalRequest[];
+    let results = [...roomBookingRequests] as ApprovalRequest[];
     const explicitHeadIds = (ministries || allMinistries || [])
       .filter(m => m.headId === workerProfile?.id || m.approverId === workerProfile?.id)
       .map(m => m.id);
@@ -143,7 +148,7 @@ export default function ApprovalsPage() {
     const isAdmin = isSuperAdmin || canApproveAllRequests;
 
     results = results.filter(r => {
-      // Super admins / full admins see everything
+      // Super admins / full admins see all room booking requests
       if (isAdmin) return true;
 
       // Resolve the requester worker to check their ministry
@@ -155,38 +160,16 @@ export default function ApprovalsPage() {
             (requesterWorker as any).assignedMinistryIds.some((mid: string) => myMinistryIds.includes(mid)))
         : false;
 
-      const ministryChangeInMyMinistry =
-        (Boolean(r.newMajorId) && myMinistryIds.includes(r.newMajorId!)) ||
-        (Boolean(r.oldMajorId) && myMinistryIds.includes(r.oldMajorId!)) ||
-        (Boolean(r.newMinorId) && myMinistryIds.includes(r.newMinorId!)) ||
-        (Boolean(r.oldMinorId) && myMinistryIds.includes(r.oldMinorId!));
-
-      if (r.type === "Room Booking") {
-        if (r.status === "Pending Ministry Approval") {
-          // Ministry head can approve only their own ministry's bookings
-          return isMinistryHead && workerInMyMinistry;
-        }
-        if (r.status === "Pending Admin Approval") {
-          // Only admins can approve; ministry heads can still see (read-only) their own ministry's
-          return isMinistryHead && workerInMyMinistry;
-        }
-        // For Approved/Rejected bookings, show only own ministry
+      if (r.status === "Pending Ministry Approval") {
+        // Ministry head can approve only their own ministry's bookings
         return isMinistryHead && workerInMyMinistry;
       }
-
-      if (r.type === "New Worker" || r.type === "Ministry Change" || r.type === "Profile Update") {
-        if (!isMinistryHead) return false;
-        // Show only if the worker being registered/changed belongs to the ministry head's ministry
-        if (workerInMyMinistry || ministryChangeInMyMinistry) return true;
-        if (!requesterWorker && r.status?.startsWith("Pending")) {
-          // Worker may not be in the list yet — allow if JL submitted it and it's pending
-          return r.requester === `${workerProfile?.firstName} ${workerProfile?.lastName}`;
-        }
-        return false;
+      if (r.status === "Pending Admin Approval") {
+        // Only admins can approve; ministry heads can still see (read-only) their own ministry's
+        return isMinistryHead && workerInMyMinistry;
       }
-
-      // For any other type, show to ministry heads only if it concerns their ministry
-      return isMinistryHead && (workerInMyMinistry || ministryChangeInMyMinistry);
+      // For Approved/Rejected bookings, show only own ministry
+      return isMinistryHead && workerInMyMinistry;
     });
 
     if (searchTerm) {
@@ -206,7 +189,7 @@ export default function ApprovalsPage() {
     }
 
     return results.sort((a, b) => new Date(b.date as any).getTime() - new Date(a.date as any).getTime());
-  }, [requests, searchTerm, statusFilter, ministries, workerProfile, workers, isSuperAdmin, canApproveAllRequests]);
+  }, [roomBookingRequests, searchTerm, statusFilter, ministries, allMinistries, workerProfile, workers, isSuperAdmin, canApproveAllRequests, userIsMinistryHead, userRoleMinistryIds]);
 
   const checkIsApprover = (request: ApprovalRequest) => {
     if (!workerProfile || !request.workerId) return false;
@@ -314,18 +297,18 @@ export default function ApprovalsPage() {
   }
 
   const stats = {
-    total: requests?.length || 0,
-    pending: requests?.filter(r => r.status.startsWith("Pending")).length || 0,
-    approved: requests?.filter(r => r.status === "Approved").length || 0,
-    rejected: requests?.filter(r => r.status === "Rejected").length || 0,
+    total: roomBookingRequests.length,
+    pending: roomBookingRequests.filter(r => r.status.startsWith("Pending")).length,
+    approved: roomBookingRequests.filter(r => r.status === "Approved").length,
+    rejected: roomBookingRequests.filter(r => r.status === "Rejected").length,
   };
 
   const statusCounts = {
-    all: requests?.length || 0,
-    pending: requests?.filter(r => r.status.startsWith("Pending")).length || 0,
-    approved: requests?.filter(r => r.status === "Approved").length || 0,
-    rejected: requests?.filter(r => r.status === "Rejected").length || 0,
-    completed: requests?.filter(r => r.status === "Approved" || r.status === "Rejected").length || 0,
+    all: roomBookingRequests.length,
+    pending: roomBookingRequests.filter(r => r.status.startsWith("Pending")).length,
+    approved: roomBookingRequests.filter(r => r.status === "Approved").length,
+    rejected: roomBookingRequests.filter(r => r.status === "Rejected").length,
+    completed: roomBookingRequests.filter(r => r.status === "Approved" || r.status === "Rejected").length,
   };
 
   const pendingRequests = filteredRequests.filter(r => r.status.startsWith("Pending"));

@@ -61,24 +61,12 @@ const HeaderMobileTrigger = () => {
   );
 };
 
-import { useQuery } from "@tanstack/react-query";
-import { getMinistries, getC2SGroups } from "@/actions/db";
+import { useMinistries } from "@/hooks/use-ministries";
 
 const ImpersonationBanner = () => {
   const { impersonatedWorkerId, stopImpersonation } = useImpersonation();
   const { workerProfile, allRoles, isMinistryHead } = useUserRole();
-
-  const { data: allMinistries } = useQuery<any[]>({
-    queryKey: ["ministries"],
-    queryFn: () => getMinistries(),
-    enabled: !!impersonatedWorkerId,
-  });
-
-  const { data: c2sGroups } = useQuery({
-    queryKey: ["c2s-groups"],
-    queryFn: () => getC2SGroups(),
-    enabled: !!impersonatedWorkerId,
-  });
+  const { allMinistries } = useMinistries();
 
   if (!impersonatedWorkerId) {
     return null;

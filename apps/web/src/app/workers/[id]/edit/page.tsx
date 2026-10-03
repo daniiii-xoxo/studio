@@ -8,9 +8,8 @@ import { useRoles } from "@/hooks/use-roles";
 import { useMinistries } from "@/hooks/use-ministries";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 import { CheckCircle2, Clock, LoaderCircle } from "lucide-react";
-import { getWorkerById, updateWorker as updateWorkerSql, createApproval as createApprovalSql, assignRolesToWorker, adminSendPasswordResetEmail } from "@/actions/db";
+import { getWorkerById, updateWorker as updateWorkerSql, assignRolesToWorker, adminSendPasswordResetEmail } from "@/actions/db";
 import { useAuditLog } from "@/hooks/use-audit-log";
 import { supabase } from "@studio/database";
 import type { Worker } from "@studio/types";
@@ -92,58 +91,18 @@ export default function EditWorkerPage() {
         (workerData.minorMinistryId !== undefined &&
           workerData.minorMinistryId !== (worker.minorMinistryId || ""));
 
-      if (isMinistryChanging && !isSuperAdmin) {
-        const details =
-          `Ministry change request for ${worker.firstName} ${worker.lastName}.\n` +
-          (workerData.majorMinistryId !== undefined
-            ? `Major: ${ministries.find((m) => m.id === worker.majorMinistryId)?.name || "None"} -> ${ministries.find((m) => m.id === workerData.majorMinistryId)?.name || "None"}\n`
-            : "") +
-          (workerData.minorMinistryId !== undefined
-            ? `Minor: ${ministries.find((m) => m.id === worker.minorMinistryId)?.name || "None"} -> ${ministries.find((m) => m.id === workerData.minorMinistryId)?.name || "None"}`
-            : "");
-
-        await createApprovalSql({
-          requester: `${workerProfile?.firstName} ${workerProfile?.lastName}`,
-          type: "Ministry Change",
-          details,
-          status: "Pending Outgoing Approval",
-          workerId: worker.id,
-          oldMajorId: worker.majorMinistryId || "",
-          newMajorId: workerData.majorMinistryId ?? worker.majorMinistryId,
-          oldMinorId: worker.minorMinistryId || "",
-          newMinorId: workerData.minorMinistryId ?? worker.minorMinistryId,
-          outgoingApproved: false,
-          incomingApproved: false,
-        });
-
-        const { majorMinistryId, minorMinistryId, ...otherFields } = workerData;
-        await updateWorkerSql(id, otherFields);
-
-        await logAction(
-          "Requested Ministry Change",
-          "Workers",
-          `Requested ministry change for ${worker.firstName} ${worker.lastName}`,
-          worker.id,
-          `${worker.firstName} ${worker.lastName}`,
-        );
-        toast({
-          title: "Change Pending Approval",
-          description: "The ministry change has been submitted for approval.",
-        });
-      } else {
-        await updateWorkerSql(id, workerData);
-        await logAction(
-          "Updated Worker",
-          "Workers",
-          `Updated worker: ${workerData.firstName} ${workerData.lastName}`,
-          id,
-          `${workerData.firstName} ${workerData.lastName}`,
-        );
-        toast({
-          title: "Worker Updated",
-          description: "Worker profile has been updated successfully.",
-        });
-      }
+      await updateWorkerSql(id, workerData);
+      await logAction(
+        "Updated Worker",
+        "Workers",
+        `Updated worker: ${workerData.firstName} ${workerData.lastName}`,
+        id,
+        `${workerData.firstName} ${workerData.lastName}`,
+      );
+      toast({
+        title: "Worker Updated",
+        description: "Worker profile has been updated successfully.",
+      });
 
       // Sync the WorkerRole join table
       await assignRolesToWorker(id, roleIds);

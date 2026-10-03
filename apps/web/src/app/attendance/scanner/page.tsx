@@ -18,6 +18,7 @@ import { useAttendance } from "@/hooks/use-attendance";
 import { useScanLogs } from "@/hooks/use-scan-logs";
 import { useMealStubs } from "@/hooks/use-meal-stubs";
 import { useAttendanceSettings } from "@/hooks/use-attendance-settings";
+import { getWorkerByIdOrWorkerId } from "@/actions/db";
 import jsQR from "jsqr";
 
 interface AutoAttendanceScanResult {
@@ -50,7 +51,7 @@ export default function QRScannerPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [passwordInput, setPasswordInput] = useState('');
 
-    const { workers: allWorkers, isLoading: workersLoading } = useWorkers();
+    const { workers: allWorkers, isLoading: workersLoading } = useWorkers({ limit: 10000, unrestricted: true });
     const { scanLogs, isLoading: logsLoading, createScanLog: createScanLogSql } = useScanLogs();
     const { createAttendanceRecord: createAttendanceSql, recordAutoAttendance: recordAutoAttendanceSql } = useAttendance();
     const { mealStubs: allMealStubs, updateMealStub: updateMealStubSql } = useMealStubs();
@@ -163,8 +164,27 @@ export default function QRScannerPage() {
         if (!data || isProcessing) return;
         setIsProcessing(true);
 
-        const [type, payload, tokenOrTs] = data.split(':');
-        const worker = allWorkers?.find(w => w.id === payload || w.workerId === payload);
+        let type = 'COG_USER';
+        let payload = data.trim();
+        let tokenOrTs: string | undefined = undefined;
+
+        if (data.includes(':')) {
+            const parts = data.split(':');
+            type = parts[0];
+            payload = parts[1] || parts[0];
+            tokenOrTs = parts[2];
+        }
+
+        let worker = allWorkers?.find(w => w.id === payload || w.workerId === payload || w.email?.toLowerCase() === payload.toLowerCase());
+
+        // Fallback: If not in memory cache (e.g. newly created account, or created while scanner was already open), lookup directly from DB
+        if (!worker && payload) {
+            try {
+                worker = (await getWorkerByIdOrWorkerId(payload)) as any;
+            } catch (err) {
+                console.error("Direct worker lookup error:", err);
+            }
+        }
 
         if (scanMode === 'Attendance') {
             if (type !== 'ATTENDANCE' && type !== 'STATIC' && type !== 'COG_USER' && type !== 'MEAL_STUB') {

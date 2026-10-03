@@ -24,8 +24,7 @@ import { supabase } from "@studio/database";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useImpersonation } from "@/hooks/use-impersonation";
-import { useQuery } from "@tanstack/react-query";
-import { getMinistries, getC2SGroups } from "@/actions/db";
+import { useMinistries } from "@/hooks/use-ministries";
 import { LogOut, ChevronDown, QrCode, KeyRound, User, Loader2 } from "lucide-react";
 
 export function UserNav() {
@@ -36,15 +35,7 @@ export function UserNav() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const { data: allMinistries } = useQuery<any[]>({
-    queryKey: ["ministries"],
-    queryFn: () => getMinistries(),
-  });
-
-  const { data: c2sGroups } = useQuery({
-    queryKey: ["c2s-groups"],
-    queryFn: () => getC2SGroups(),
-  });
+  const { allMinistries } = useMinistries();
 
   const handleLogout = async () => {
     try {

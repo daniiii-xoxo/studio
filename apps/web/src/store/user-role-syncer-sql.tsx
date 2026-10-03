@@ -243,7 +243,7 @@ export function UserRoleSyncerSQL() {
       canManageC2S:
         sa || hasPerm('mentorship:manage') || hasPerm('manage_c2s') || isMinistryHead || !!effectiveProfile,
       canViewC2SAnalytics:
-        sa || hasPerm('mentorship:view_reports') || hasPerm('view_c2s_analytics') || isMinistryHead,
+        sa || isMinistryHead,
 
       canViewScheduleMasterview:
         sa || hasPerm('venues:view_calendar') || hasPerm('view_schedule_masterview'),

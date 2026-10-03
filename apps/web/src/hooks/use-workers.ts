@@ -24,14 +24,15 @@ export function useWorkers(params: {
     sortDir?: 'asc' | 'desc';
     actorId?: string;
     enabled?: boolean;
+    unrestricted?: boolean;
 } = {}) {
     const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
     const queryClient = useQueryClient();
-    const { enabled = true, ...queryParams } = params;
+    const { enabled = true, unrestricted = false, ...queryParams } = params;
 
-    const actorId = params.actorId || workerProfile?.id;
+    const actorId = unrestricted ? undefined : (params.actorId || workerProfile?.id);
     let effectiveMinistryIds = params.ministryIds;
-    if (!isSuperAdmin) {
+    if (!isSuperAdmin && !unrestricted) {
         if (!myMinistryIds || myMinistryIds.length === 0) {
             effectiveMinistryIds = ['__NONE__'];
         } else if (effectiveMinistryIds && effectiveMinistryIds.length > 0) {

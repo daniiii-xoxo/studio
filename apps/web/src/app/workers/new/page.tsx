@@ -7,9 +7,8 @@ import { useRoles } from "@/hooks/use-roles";
 import { useMinistries } from "@/hooks/use-ministries";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
-import { useWorkers } from "@/hooks/use-workers";
 import { LoaderCircle, ArrowLeft, ArrowRight, User, Building2, FileText, ClipboardCheck, CheckCircle2, Briefcase } from "lucide-react";
-import { createWorkerWithAuth, createApproval as createApprovalSql } from "@/actions/db";
+import { createWorkerWithAuth } from "@/actions/db";
 import { useAuditLog } from "@/hooks/use-audit-log";
 import {
   Input,
@@ -194,7 +193,6 @@ export default function NewWorkerPage() {
   const [minorMinistryId, setMinorMinistryId] = useState("");
   const [employmentType, setEmploymentType]   = useState("Full-Time");
   const [startDate, setStartDate]             = useState("");
-  const [status, setStatus]               = useState("Pending Approval");
 
   // Auto-select role based on permissions
   useEffect(() => {
@@ -297,7 +295,7 @@ export default function NewWorkerPage() {
         minorMinistryId, 
         roleId: roleId || "viewer", 
         employmentType, 
-        status, 
+        status: "Active", 
         workerId, 
         avatarUrl: "", 
         remarks, 
@@ -309,9 +307,6 @@ export default function NewWorkerPage() {
       };
       const newWorker: any = await createWorkerWithAuth(data, roleId ? [roleId] : [], workerProfile?.id);
       await logAction("Created Worker", "Workers", `Created worker: ${firstName} ${lastName}`, newWorker.id, `${firstName} ${lastName}`);
-      if (status === "Pending Approval") {
-        await createApprovalSql({ requester: `${workerProfile?.firstName} ${workerProfile?.lastName}`, type: "New Worker", details: `New worker registration for ${firstName} ${lastName}.`, status: "Pending", workerId: newWorker.id });
-      }
       if (newWorker.emailSent) {
         toast({ 
           title: "Worker Registered & Email Sent", 
@@ -591,7 +586,6 @@ export default function NewWorkerPage() {
                       ["Ministry", ministries.find(m => m.id === majorMinistryId)?.name || "—"],
                       ["Worker Type", employmentType], ["Start Date", startDate || "—"],
                       ["Emergency Contact", emergencyName ? `${emergencyName}${emergencyPhone ? ` (${emergencyPhone})` : ''}` : "—"],
-                      ["Status", status],
                       ["Default Password", "COGDASMA2026"],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between px-4 py-2.5">

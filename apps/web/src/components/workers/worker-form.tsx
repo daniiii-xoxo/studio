@@ -49,7 +49,7 @@ export function WorkerForm({
     email: "",
     phone: "",
     roleId: "viewer",
-    status: canManage ? "Active" : "Pending Approval",
+    status: "Active",
     avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
     majorMinistryId: "",
     minorMinistryId: "",
@@ -100,7 +100,7 @@ export function WorkerForm({
         email: "",
         phone: "",
         roleId: "viewer",
-        status: canManage ? "Active" : "Pending Approval",
+        status: "Active",
         avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
         majorMinistryId: "",
         minorMinistryId: "",
@@ -267,17 +267,18 @@ export function WorkerForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="status" className="text-right">Status</Label>
-        <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })} disabled={!canManage && !worker}>
-          <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
-            <SelectItem value="Pending Approval">Pending Approval</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {worker && (
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="status" className="text-right">Status</Label>
+          <Select value={formData.status || "Active"} onValueChange={(v: any) => setFormData({ ...formData, status: v })} disabled={!canManage}>
+            <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Active">Active</SelectItem>
+              <SelectItem value="Inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="grid grid-cols-4 items-center gap-4">
         <Label className="text-right">Ministry</Label>
         <MinistrySelect value={formData.majorMinistryId || ""} onChange={(v) => setFormData({ ...formData, majorMinistryId: v, minorMinistryId: "" })} />

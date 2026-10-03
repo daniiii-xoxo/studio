@@ -8,7 +8,7 @@ import { ScanLine, LoaderCircle, SwitchCamera, History, CheckCircle2, XCircle, A
 import { Alert, AlertTitle, AlertDescription } from "@studio/ui";
 import { ScrollArea } from "@studio/ui";
 import { formatDistanceToNow, isToday, format } from "date-fns";
-import { getMealStubs, updateMealStub, createScanLog } from "@/actions/db";
+import { getMealStubs, updateMealStub, createScanLog, getWorkerByIdOrWorkerId } from "@/actions/db";
 import { useWorkers } from "@/hooks/use-workers";
 import jsQR from "jsqr";
 
@@ -38,7 +38,7 @@ export default function QRScannerPage() {
         status: 'success' | 'warning' | 'error';
     } | null>(null);
 
-    const { workers } = useWorkers();
+    const { workers } = useWorkers({ limit: 10000, unrestricted: true });
     const animFrameRef = useRef<number>(0);
     const streamRef = useRef<MediaStream | null>(null);
 
@@ -176,9 +176,19 @@ export default function QRScannerPage() {
         }
 
         try {
-            const worker = workers?.find(
-                w => w.id === rawWorkerId || w.workerId === rawWorkerId
+            let worker = workers?.find(
+                w => w.id === rawWorkerId || w.workerId === rawWorkerId || w.email?.toLowerCase() === rawWorkerId.toLowerCase()
             );
+
+            // Fallback: lookup directly from DB if not in memory
+            if (!worker && rawWorkerId) {
+                try {
+                    worker = (await getWorkerByIdOrWorkerId(rawWorkerId)) as any;
+                } catch (err) {
+                    console.error("Direct worker lookup error:", err);
+                }
+            }
+
             const workerId = worker?.id || rawWorkerId;
             const workerName = worker ? `${worker.firstName} ${worker.lastName}` : `Worker (${rawWorkerId.slice(0, 8)})`;
 

@@ -3237,8 +3237,10 @@ function C2SPageContent() {
 
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<string>(() => {
+    if (tabParam === "overview" && isAdminUser) return "overview";
     if (tabParam === "mentees" || tabParam === "groups") return "mentees";
-    if (tabParam) return tabParam;
+    if (tabParam === "analytics") return isHeadOrAdmin ? "analytics" : "devotions";
+    if (tabParam && tabParam !== "overview") return tabParam;
     return isAdminUser ? "overview" : "devotions";
   });
 
@@ -3248,13 +3250,15 @@ function C2SPageContent() {
     if (currentTab) {
       if (currentTab === "overview" && isAdminUser) {
         setActiveTab("overview");
-      } else if (["devotions", "groups", "mentees", "analytics"].includes(currentTab)) {
+      } else if (currentTab === "analytics") {
+        setActiveTab(isHeadOrAdmin ? "analytics" : "devotions");
+      } else if (["devotions", "groups", "mentees"].includes(currentTab)) {
         setActiveTab(currentTab === "groups" ? "mentees" : currentTab);
       }
     } else if (isAdminUser && !tabParam) {
       setActiveTab("overview");
     }
-  }, [searchParams, isAdminUser, tabParam]);
+  }, [searchParams, isAdminUser, isHeadOrAdmin, tabParam]);
 
   const handleTabChange = (val: string) => {
     const normalized = val === "groups" ? "mentees" : val;
@@ -5134,21 +5138,23 @@ function C2SPageContent() {
           </TabsContent>
 
           {/* ══════════════════ TAB 3: ANALYTICS ══════════════════ */}
-          <TabsContent value="analytics" className="mt-0">
-            <C2SAnalytics
-              mentees={mentees || []}
-              groups={groups || []}
-              devotions={allDevotions}
-              workers={workers || []}
-              canGenerateReport={canGenerateAnalyticsReport}
-              departmentClusters={departmentClusters}
-              headDepartment={headDepartment}
-              isSuperAdmin={isAdminUser}
-              isMinistryHead={isMinistryHeadUser}
-              isHeadOrAdmin={isHeadOrAdmin}
-              onViewDevotion={(dev) => setViewingDevotion(dev)}
-            />
-          </TabsContent>
+          {isHeadOrAdmin && (
+            <TabsContent value="analytics" className="mt-0">
+              <C2SAnalytics
+                mentees={mentees || []}
+                groups={groups || []}
+                devotions={allDevotions}
+                workers={workers || []}
+                canGenerateReport={canGenerateAnalyticsReport}
+                departmentClusters={departmentClusters}
+                headDepartment={headDepartment}
+                isSuperAdmin={isAdminUser}
+                isMinistryHead={isMinistryHeadUser}
+                isHeadOrAdmin={isHeadOrAdmin}
+                onViewDevotion={(dev) => setViewingDevotion(dev)}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

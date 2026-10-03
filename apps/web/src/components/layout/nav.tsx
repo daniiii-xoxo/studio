@@ -142,7 +142,11 @@ const allNavItems: NavItem[] = [
       },
       { href: "/c2s?tab=devotions", label: "Devotions" },
       { href: "/c2s?tab=mentees", label: "Mentees" },
-      { href: "/c2s?tab=analytics", label: "Analytics" },
+      {
+        href: "/c2s?tab=analytics",
+        label: "Analytics",
+        anyPermissionKeys: ["isMinistryHead", "canViewC2SAnalytics"],
+      },
     ],
   },
   {
