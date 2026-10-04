@@ -253,6 +253,28 @@ export default function NewReservationPage() {
       return;
     }
 
+    // Validate tables limit (max 5)
+    const tablesNum = parseInt(numTables) || 0;
+    if (tablesNum > 5) {
+      toast({
+        variant: "destructive",
+        title: "Tables Limit Exceeded",
+        description: "Maximum of 5 tables allowed per reservation.",
+      });
+      return;
+    }
+
+    // Validate chairs limit (based on room capacity)
+    const chairsNum = parseInt(numChairs) || 0;
+    if (selectedRoom && chairsNum > selectedRoom.capacity) {
+      toast({
+        variant: "destructive",
+        title: "Chairs Limit Exceeded",
+        description: `Maximum of ${selectedRoom.capacity} chairs allowed based on room capacity.`,
+      });
+      return;
+    }
+
     if (!guidelinesAccepted) {
       toast({
         variant: "destructive",
@@ -294,7 +316,7 @@ export default function NewReservationPage() {
         return;
       }
 
-      // Check conflicts
+      // Check conflicts - Block ANY reservation (Approved or Pending) in the same time slot
       const existingReservations = await getBookingsForRoomOnDate(
         roomId,
         parsedDate
@@ -311,22 +333,17 @@ export default function NewReservationPage() {
 
         if (resStart && resEnd && start < resEnd && end > resStart) {
           hasConflict = true;
-          if (res.status === "Approved") {
-            conflictingStatus = "Approved";
-            conflictingRequester = res.name;
-            break;
-          } else if (res.status.startsWith("Pending")) {
-            conflictingStatus = "Pending";
-            conflictingRequester = res.name;
-          }
+          conflictingStatus = res.status;
+          conflictingRequester = res.name;
+          break;
         }
       }
 
-      if (hasConflict && conflictingStatus === "Approved") {
+      if (hasConflict) {
         toast({
           variant: "destructive",
-          title: "Slot Unavailable",
-          description: `This time slot is already approved for ${conflictingRequester}.`,
+          title: "Time Slot Unavailable",
+          description: `This room is already reserved (${conflictingStatus}) by ${conflictingRequester} for this time slot. Please choose a different time or room.`,
         });
         setIsSubmitting(false);
         return;
@@ -363,11 +380,7 @@ export default function NewReservationPage() {
         await createApproval({
           requester: requesterName || "System Admin",
           type: "Room Booking",
-          details:
-            `"${purpose}" for room: ${selectedRoom?.name}` +
-            (hasConflict && conflictingStatus === "Pending"
-              ? `\n(⚠️ Conflicts with pending request by ${conflictingRequester})`
-              : ""),
+          details: `"${purpose}" for room: ${selectedRoom?.name}`,
           date: new Date(),
           status: "Pending Ministry Approval",
           roomId,
@@ -683,22 +696,20 @@ export default function NewReservationPage() {
                 <Input
                   type="number"
                   value={pax}
-                  onChange={(e) => setPax(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    const maxCapacity = selectedRoom?.capacity || 999;
+                    if (val <= maxCapacity || e.target.value === "") {
+                      setPax(e.target.value);
+                    }
+                  }}
                   placeholder="Number of people"
+                  max={selectedRoom?.capacity || undefined}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
                 {selectedRoom && (
-                  <p
-                    className={cn(
-                      "text-[11px] font-medium mt-1 transition-colors",
-                      parseInt(pax) > selectedRoom.capacity
-                        ? "text-red-500 font-semibold"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {parseInt(pax) > selectedRoom.capacity
-                      ? `⚠️ Capacity Exceeded! Max: ${selectedRoom.capacity}`
-                      : `Max room capacity: ${selectedRoom.capacity}`}
+                  <p className="text-[11px] font-medium mt-1 text-muted-foreground">
+                    Max room capacity: {selectedRoom.capacity}
                   </p>
                 )}
               </div>
@@ -710,10 +721,19 @@ export default function NewReservationPage() {
                 <Input
                   type="number"
                   value={numTables}
-                  onChange={(e) => setNumTables(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val <= 5 || e.target.value === "") {
+                      setNumTables(e.target.value);
+                    }
+                  }}
                   placeholder="0"
+                  max={5}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
+                <p className="text-[11px] font-medium text-muted-foreground mt-1">
+                  Maximum: 5 tables
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -723,10 +743,22 @@ export default function NewReservationPage() {
                 <Input
                   type="number"
                   value={numChairs}
-                  onChange={(e) => setNumChairs(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    const maxChairs = selectedRoom?.capacity || 999;
+                    if (val <= maxChairs || e.target.value === "") {
+                      setNumChairs(e.target.value);
+                    }
+                  }}
                   placeholder="0"
+                  max={selectedRoom?.capacity || undefined}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
+                {selectedRoom && (
+                  <p className="text-[11px] font-medium mt-1 text-muted-foreground">
+                    Maximum: {selectedRoom.capacity} chairs
+                  </p>
+                )}
               </div>
             </div>
 
