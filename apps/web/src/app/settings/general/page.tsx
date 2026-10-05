@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Settings, ArrowLeft, Save, LoaderCircle, Building2, SlidersHorizontal, Ticket } from "lucide-react";
+import { Settings, ArrowLeft, Save, LoaderCircle, Building2, SlidersHorizontal, Ticket, Type, SunMoon } from "lucide-react";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FontSizeSlider } from "@/components/settings/font-size-slider";
+import { ThemeToggle } from "@/components/settings/theme-toggle";
 
 // ── Toggle switch ──────────────────────────────────────────────────────────────
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
@@ -208,6 +210,30 @@ export default function GeneralSettingsPage() {
               <ToggleRow label="Email Notifications" desc="Send digests for important events." value={settings.emailNotifications} onChange={v => set("emailNotifications", v)} />
               <ToggleRow label="Maintenance mode" desc="Temporarily disable member access." value={settings.maintenanceMode} onChange={v => set("maintenanceMode", v)} />
               <ToggleRow label="Audit Logging" desc="Record every change to the audit trail." value={settings.auditLogging} onChange={v => set("auditLogging", v)} />
+            </div>
+          </div>
+
+          {/* Theme, Display & Typography */}
+          <div id="font-size" className="lg:col-span-2 bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark overflow-hidden flex flex-col justify-between">
+            <div className="p-4 sm:p-5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 flex items-center justify-center shrink-0 border border-sidebar/20">
+                <SunMoon className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold font-headline text-foreground">Theme & Display</h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Global appearance, dark mode toggle, and typography scaling.</p>
+              </div>
+            </div>
+            <div className="p-5 sm:p-7 space-y-8">
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Color Theme</h3>
+                <ThemeToggle />
+              </div>
+              <div className="h-[1px] bg-border/60" />
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Typography & Font Size</h3>
+                <FontSizeSlider />
+              </div>
             </div>
           </div>
 

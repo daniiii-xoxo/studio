@@ -360,7 +360,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                     SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${effectiveIds}::text[]
                 `;
                 extraIds = rawMatches.map(r => r.id);
-            } catch {}
+            } catch { }
 
             where.OR = [
                 { majorMinistryId: { in: effectiveIds } },
@@ -374,7 +374,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                     SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
                 `;
                 extraIds = rawMatches.map(r => r.id);
-            } catch {}
+            } catch { }
 
             where.OR = [
                 { majorMinistryId: { in: filters.ministryIds } },
@@ -389,7 +389,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                 SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
             `;
             extraIds = rawMatches.map(r => r.id);
-        } catch {}
+        } catch { }
 
         where.OR = [
             { majorMinistryId: { in: filters.ministryIds } },
@@ -693,32 +693,32 @@ export async function createWorker(data: any) {
 export async function createWorkerWithAuth(data: any, roleIds: string[], assignedBy?: string) {
     const supabaseAdmin = getSupabaseAdminClient();
     const defaultPassword = "COGDASMA2026";
-    
+
     // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email?.trim(),
-      password: defaultPassword,
-      email_confirm: true,
-      user_metadata: {
-        firstName: data.firstName,
-        lastName: data.lastName
-      }
+        email: data.email?.trim(),
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+            firstName: data.firstName,
+            lastName: data.lastName
+        }
     });
 
     if (authError) {
-      if (authError.message.includes('already registered')) {
-        throw new Error('Email is already registered. Please use another email.');
-      }
-      throw new Error(`Failed to create Auth user: ${authError.message}`);
+        if (authError.message.includes('already registered')) {
+            throw new Error('Email is already registered. Please use another email.');
+        }
+        throw new Error(`Failed to create Auth user: ${authError.message}`);
     }
 
     // Now create in DB
-    const { 
-        roleId, role, roles, approvals, attendanceRecords, bookings, 
-        venueBookings, InventoryBorrowing, InventoryLog, mealStubs, 
-        legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt, 
+    const {
+        roleId, role, roles, approvals, attendanceRecords, bookings,
+        venueBookings, InventoryBorrowing, InventoryLog, mealStubs,
+        legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt,
         emergencyName, emergencyPhone, startDate,
-        ...dbData 
+        ...dbData
     } = data;
 
     // Format startYear and startMonth if startDate is provided
@@ -735,7 +735,7 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
         const emergencyPart = `Emergency Contact: ${emergencyName || 'N/A'}${emergencyPhone ? ` (${emergencyPhone})` : ''}`;
         dbData.remarks = dbData.remarks ? `${dbData.remarks}\n${emergencyPart}` : emergencyPart;
     }
-    
+
     // Check if majorMinistryId is a Department name (e.g. Worship, Outreach, Relationship, Discipleship, Administration)
     const DEPARTMENTS = ["Worship", "Outreach", "Relationship", "Discipleship", "Administration"];
     const isDeptSelection = typeof data.majorMinistryId === 'string' && DEPARTMENTS.includes(data.majorMinistryId);
@@ -1087,7 +1087,7 @@ Next Steps:
         emailErrorMsg = emailError?.message || String(emailError);
         console.error(`[createWorkerWithAuth] Failed to send welcome email to ${data.email}:`, emailError);
     }
-    
+
     revalidatePath('/workers');
     return {
         ...worker,
@@ -1550,7 +1550,7 @@ export async function createBooking(data: any) {
         try {
             revalidatePath('/reservations');
             revalidatePath('/dashboard');
-        } catch {}
+        } catch { }
         return booking;
     } catch (err: any) {
         if (err.message?.includes('Unauthorized') || err.message?.includes('No ministry assignment')) {
@@ -1584,7 +1584,7 @@ export async function updateBooking(id: string, data: any, actorId?: string) {
     try {
         revalidatePath('/reservations');
         revalidatePath('/dashboard');
-    } catch {}
+    } catch { }
     return booking;
 }
 
@@ -1608,7 +1608,7 @@ export async function deleteBooking(id: string, actorId?: string) {
     try {
         revalidatePath('/reservations');
         revalidatePath('/dashboard');
-    } catch {}
+    } catch { }
 }
 
 // --- Meal Stubs ---
@@ -2579,7 +2579,7 @@ export async function updateC2SDevotionRecord(id: string, data: {
     }
     if (data.reflectionNotes !== undefined) updateData.reflectionNotes = data.reflectionNotes;
     if (data.prayerRequests !== undefined) updateData.prayerRequests = data.prayerRequests;
-    
+
     // Use uploaded URLs if available
     if (uploadedPhotoUrls.length > 0) {
         updateData.photoUrls = uploadedPhotoUrls;
@@ -2591,7 +2591,7 @@ export async function updateC2SDevotionRecord(id: string, data: {
         updateData.photoUrl = data.photoUrl;
         updateData.photoUrls = data.photoUrl ? [data.photoUrl] : [];
     }
-    
+
     if (data.status !== undefined) updateData.status = data.status;
 
     const record = await prisma.c2SDevotionRecord.update({
@@ -2756,18 +2756,18 @@ export async function getWorkerLogs(workerId: string) {
 
 export async function adminForcePasswordReset(workerId: string) {
     const supabaseAdmin = getSupabaseAdminClient();
-    
+
     const worker = await prisma.worker.findUnique({ where: { id: workerId } });
     if (!worker) throw new Error("Worker not found");
 
     const defaultPassword = "StudioUser2026!";
     const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      workerId,
-      { password: defaultPassword }
+        workerId,
+        { password: defaultPassword }
     );
 
     if (error) {
-       throw new Error(`Failed to forcibly reset password: ${error.message}`);
+        throw new Error(`Failed to forcibly reset password: ${error.message}`);
     }
 
     // Force sign out the user from all sessions so they have to login again
@@ -2778,7 +2778,7 @@ export async function adminForcePasswordReset(workerId: string) {
 
 export async function adminSendPasswordResetEmail(workerId: string, appUrl: string) {
     const supabaseAdmin = getSupabaseAdminClient();
-    
+
     // Get worker to find their email
     const worker = await prisma.worker.findUnique({ where: { id: workerId } });
     if (!worker || !worker.email) {
@@ -2797,7 +2797,7 @@ export async function adminSendPasswordResetEmail(workerId: string, appUrl: stri
     if (linkError) {
         throw new Error(`Failed to generate reset link: ${linkError.message}`);
     }
-    
+
     // Send email using Resend
     const link = linkData.properties.action_link;
     await EmailService.sendEmail({
@@ -2816,6 +2816,6 @@ export async function adminSendPasswordResetEmail(workerId: string, appUrl: stri
         `,
         text: `You have requested to reset your password. Reset it here: ${link}`
     });
-    
+
     return true;
 }

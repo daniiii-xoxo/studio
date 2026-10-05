@@ -29,13 +29,17 @@ import {
   Laptop,
   Check,
   ArrowRight,
+  Type,
+  SunMoon,
 } from "lucide-react";
 import { useAuthStore } from "@studio/store";
 import { supabase } from "@studio/database";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FontSizeSlider } from "@/components/settings/font-size-slider";
+import { ThemeToggle } from "@/components/settings/theme-toggle";
 
-type SettingTab = "password" | "security" | "support" | "report";
+type SettingTab = "appearance" | "password" | "security" | "support" | "report";
 
 function MySettingsContent() {
   const { toast } = useToast();
@@ -45,9 +49,9 @@ function MySettingsContent() {
   
   const rawTab = searchParams.get("tab");
   const activeTab: SettingTab =
-    rawTab && ["password", "security", "support", "report"].includes(rawTab)
+    rawTab && ["appearance", "password", "security", "support", "report"].includes(rawTab)
       ? (rawTab as SettingTab)
-      : "password";
+      : "appearance";
 
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [reportCategory, setReportCategory] = useState("general");
@@ -128,12 +132,14 @@ function MySettingsContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold font-headline tracking-tight text-gray-900 dark:text-white">
+            {activeTab === "appearance" && "Display & Appearance"}
             {activeTab === "password" && "Change Password"}
             {activeTab === "security" && "Login Security"}
             {activeTab === "support" && "Help & Support"}
             {activeTab === "report" && "Report a Problem"}
           </h1>
           <p className="text-sm text-muted-foreground">
+            {activeTab === "appearance" && "Customize theme mode (Dark / Light), typography, text sizing, and accessibility preferences across the application."}
             {activeTab === "password" && "Manage your account authentication credentials and security settings."}
             {activeTab === "security" && "Monitor active devices, login sessions, and global security controls."}
             {activeTab === "support" && "Browse FAQs and find guidance on using the workforce management platform."}
@@ -142,8 +148,77 @@ function MySettingsContent() {
         </div>
       </div>
 
+      {/* Tab Navigation Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/60">
+        {[
+          { id: "appearance", label: "Display & Appearance", icon: SunMoon },
+          { id: "password", label: "Change Password", icon: KeyRound },
+          { id: "security", label: "Login Security", icon: Shield },
+          { id: "support", label: "Help & Support", icon: HelpCircle },
+          { id: "report", label: "Report a Problem", icon: AlertCircle },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => handleTabChange(tab.id as SettingTab)}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 cursor-pointer",
+              activeTab === tab.id
+                ? "bg-sidebar text-white shadow-xs dark:bg-sidebar"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+            )}
+          >
+            <tab.icon className="h-4 w-4" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Main Container Card */}
       <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-6 sm:p-8 md:p-10 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* ── Tab: Display & Appearance ── */}
+        {activeTab === "appearance" && (
+          <div className="space-y-10">
+            {/* Theme / Dark Mode Section */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-xs font-bold">
+                  <SunMoon className="h-3.5 w-3.5" />
+                  <span>Color Theme</span>
+                </div>
+                <h3 className="text-2xl font-bold font-headline text-foreground">
+                  Appearance & Theme
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                  Choose between Light and Dark mode. Dark mode uses a comfortable, low-glare slate palette designed to reduce eye strain in low-light environments.
+                </p>
+              </div>
+
+              <ThemeToggle />
+            </div>
+
+            {/* Subtle Divider */}
+            <div className="h-[1px] bg-border/60" />
+
+            {/* Typography / Font Size Section */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sidebar/10 text-sidebar dark:text-blue-400 text-xs font-bold">
+                  <Type className="h-3.5 w-3.5" />
+                  <span>Accessibility & Typography</span>
+                </div>
+                <h3 className="text-2xl font-bold font-headline text-foreground">
+                  Text & Font Size
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                  Personalize text size across the entire application for improved legibility and comfort. The setting scales all headers, forms, tables, cards, dialogs, and navigation labels immediately.
+                </p>
+              </div>
+
+              <FontSizeSlider />
+            </div>
+          </div>
+        )}
         {/* ── Tab: Change Password ── */}
         {activeTab === "password" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

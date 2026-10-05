@@ -25,7 +25,7 @@ import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useImpersonation } from "@/hooks/use-impersonation";
 import { useMinistries } from "@/hooks/use-ministries";
-import { LogOut, ChevronDown, QrCode, KeyRound, User, Loader2 } from "lucide-react";
+import { LogOut, ChevronDown, QrCode, KeyRound, User, Loader2, SunMoon } from "lucide-react";
 
 export function UserNav() {
   const { user } = useAuthStore();
@@ -161,6 +161,16 @@ export function UserNav() {
               <DropdownMenuSeparator />
             </>
           )}
+
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href="/my-settings?tab=appearance" className="flex items-center">
+                <SunMoon className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>Theme & Appearance</span>
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
 
           <DropdownMenuItem
             onSelect={(e) => {

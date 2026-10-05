@@ -19,6 +19,7 @@ import {
   UserCog,
   SlidersHorizontal,
 } from "lucide-react";
+import { useFontSize } from "@/hooks/use-font-size";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -223,6 +224,10 @@ export function Nav({
   const userRole = useUserRole();
   const { isLoading, needsSeeding, workerProfile, isSuperAdmin, isMinistryHead } = userRole;
   const searchParams = useSearchParams();
+  const { scale } = useFontSize();
+  const mainFontSize = `${16 * scale}px`;
+  const subFontSize = `${14.5 * scale}px`;
+  const labelFontSize = `${12 * scale}px`;
 
   // Build the full current URL (path + query) for accurate active matching
   const currentUrl = searchParams.toString()
@@ -244,7 +249,7 @@ export function Nav({
           if (hrefPath === "/attendance" && targetTab === "personal") return true;
           if (hrefPath === "/meals" && targetTab === "view") return true;
           if (hrefPath === "/reports" && targetTab === "attendance") return true;
-          if (hrefPath === "/my-settings" && targetTab === "password") return true;
+          if (hrefPath === "/my-settings" && (targetTab === "appearance" || targetTab === "password")) return true;
         }
         return currentTab === targetTab;
       }
@@ -311,7 +316,10 @@ export function Nav({
   return (
     <nav className={cn("flex flex-col pb-3", className)}>
       <SidebarGroup className="p-1.5 pt-0">
-        <SidebarGroupLabel className="uppercase tracking-wider text-[12px] font-bold text-white/70 px-3.5 h-6 mb-1">
+        <SidebarGroupLabel
+          className="uppercase tracking-wider font-bold text-white/70 px-3.5 h-6 mb-1"
+          style={{ fontSize: labelFontSize }}
+        >
           Menu
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -329,7 +337,8 @@ export function Nav({
                   asChild
                   isActive={!isExternal && isActiveHref(item.href)}
                   tooltip={{ children: item.label }}
-                  className="rounded-xl py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
+                  className="rounded-xl py-1.5 px-3.5 font-semibold min-h-[40px] h-auto [&>svg]:size-[19px]"
+                  style={{ fontSize: mainFontSize }}
                 >
                   {isExternal ? (
                     <a href={item.href} target="_blank" rel="noopener noreferrer" onClick={handleNavClick}>
@@ -356,7 +365,8 @@ export function Nav({
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton
                       isActive={pathname.startsWith(item.href)}
-                      className="rounded-xl py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
+                      className="rounded-xl py-1.5 px-3.5 font-semibold min-h-[40px] h-auto [&>svg]:size-[19px]"
+                      style={{ fontSize: mainFontSize }}
                     >
                       <item.icon className="size-[19px]" />
                       <span>{item.label}</span>
@@ -386,13 +396,13 @@ export function Nav({
                       if (visibleNestedItems.length > 0) {
                         return (
                           <DropdownMenuSub key={subItem.label}>
-                            <DropdownMenuSubTrigger className="text-[14.5px] font-semibold">
+                            <DropdownMenuSubTrigger className="font-semibold" style={{ fontSize: subFontSize }}>
                               {subItem.label}
                             </DropdownMenuSubTrigger>
                             <DropdownMenuPortal>
                               <DropdownMenuSubContent>
                                 {visibleNestedItems.map((nested) => (
-                                   <DropdownMenuItem key={nested.href} asChild className="text-[14.5px]">
+                                   <DropdownMenuItem key={nested.href} asChild style={{ fontSize: subFontSize }}>
                                     <Link href={nested.href} onClick={handleNavClick}>
                                       {nested.label}
                                     </Link>
@@ -408,7 +418,8 @@ export function Nav({
                         <DropdownMenuItem
                           key={subItem.href + subItem.label}
                           asChild
-                          className="text-[14.5px] font-semibold"
+                          className="font-semibold"
+                          style={{ fontSize: subFontSize }}
                         >
                           <Link href={subItem.href} onClick={handleNavClick}>{subItem.label}</Link>
                         </DropdownMenuItem>
@@ -432,7 +443,8 @@ export function Nav({
                 <CollapsibleTrigger asChild>
                   <SidebarMenuButton
                     isActive={pathname.startsWith(item.href)}
-                    className="rounded-xl justify-between w-full py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
+                    className="rounded-xl justify-between w-full py-1.5 px-3.5 font-semibold min-h-[40px] h-auto [&>svg]:size-[19px]"
+                    style={{ fontSize: mainFontSize }}
                   >
                     <div className="flex items-center gap-2.5">
                       <item.icon className="size-[19px]" />
@@ -452,7 +464,8 @@ export function Nav({
                           <SidebarMenuSubButton
                             asChild
                             isActive={isActiveHref(item.href)}
-                            className="rounded-xl py-1 px-3 text-[14.5px] font-semibold h-[34px]"
+                            className="rounded-xl py-1 px-3 font-semibold min-h-[34px] h-auto"
+                            style={{ fontSize: subFontSize }}
                           >
                             <Link href={item.href} onClick={handleNavClick}>
                               <span>General</span>
@@ -482,7 +495,10 @@ export function Nav({
                           >
                             <SidebarMenuSubItem className="flex flex-col group/subcollapsible">
                               <CollapsibleTrigger asChild>
-                                <SidebarMenuSubButton className="rounded-xl justify-between w-full py-1 px-3 text-[14.5px] font-semibold h-[34px]">
+                                <SidebarMenuSubButton
+                                  className="rounded-xl justify-between w-full py-1 px-3 font-semibold min-h-[34px] h-auto"
+                                  style={{ fontSize: subFontSize }}
+                                >
                                   <span>{subItem.label}</span>
                                   <ChevronRight className="size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/subcollapsible:rotate-90" />
                                 </SidebarMenuSubButton>
@@ -494,7 +510,8 @@ export function Nav({
                                       <SidebarMenuSubButton
                                         asChild
                                         isActive={isActiveHref(nested.href)}
-                                        className="rounded-xl py-1 px-3 text-[14.5px] font-semibold h-[34px]"
+                                        className="rounded-xl py-1 px-3 font-semibold min-h-[34px] h-auto"
+                                        style={{ fontSize: subFontSize }}
                                       >
                                         <Link href={nested.href} onClick={handleNavClick}>
                                           <span>{nested.label}</span>
@@ -514,7 +531,8 @@ export function Nav({
                           <SidebarMenuSubButton
                             asChild
                             isActive={isActiveHref(subItem.href)}
-                            className="rounded-xl py-1 px-3 text-[14.5px] font-semibold h-[34px]"
+                            className="rounded-xl py-1 px-3 font-semibold min-h-[34px] h-auto"
+                            style={{ fontSize: subFontSize }}
                           >
                             <Link href={subItem.href} onClick={handleNavClick}>
                               <span>{subItem.label}</span>
@@ -547,7 +565,8 @@ export function Nav({
                     <SidebarMenuButton
                       isActive={pathname.startsWith("/my-settings")}
                       tooltip={{ children: "Settings" }}
-                      className="rounded-xl py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
+                      className="rounded-xl py-1.5 px-3.5 font-semibold min-h-[40px] h-auto [&>svg]:size-[19px]"
+                      style={{ fontSize: mainFontSize }}
                     >
                       <Settings className="size-[19px]" />
                       <span>Settings</span>
@@ -559,6 +578,7 @@ export function Nav({
                     className="min-w-[200px]"
                   >
                     {[
+                      { href: "/my-settings?tab=appearance", label: "Display & Font Size" },
                       { href: "/my-settings?tab=password", label: "Change Password" },
                       { href: "/my-settings?tab=security", label: "Login Security" },
                       { href: "/my-settings?tab=support", label: "Help & Support" },
@@ -567,7 +587,8 @@ export function Nav({
                       <DropdownMenuItem
                         key={subItem.href}
                         asChild
-                        className="text-[14.5px] font-semibold"
+                        className="font-semibold"
+                        style={{ fontSize: subFontSize }}
                       >
                         <Link href={subItem.href} onClick={handleNavClick}>
                           {subItem.label}
@@ -587,7 +608,8 @@ export function Nav({
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton
                       isActive={pathname.startsWith("/my-settings")}
-                      className="rounded-xl justify-between w-full py-1.5 px-3.5 text-[16px] font-semibold h-[40px] [&>svg]:size-[19px]"
+                      className="rounded-xl justify-between w-full py-1.5 px-3.5 font-semibold min-h-[40px] h-auto [&>svg]:size-[19px]"
+                      style={{ fontSize: mainFontSize }}
                     >
                       <div className="flex items-center gap-2.5">
                         <Settings className="size-[19px]" />
@@ -599,6 +621,7 @@ export function Nav({
                   <CollapsibleContent>
                     <SidebarMenuSub className="gap-1 py-1 ml-3 pl-3">
                       {[
+                        { href: "/my-settings?tab=appearance", label: "Display & Font Size" },
                         { href: "/my-settings?tab=password", label: "Change Password" },
                         { href: "/my-settings?tab=security", label: "Login Security" },
                         { href: "/my-settings?tab=support", label: "Help & Support" },
@@ -608,7 +631,8 @@ export function Nav({
                           <SidebarMenuSubButton
                             asChild
                             isActive={isActiveHref(subItem.href)}
-                            className="rounded-xl py-1 px-3 text-[14.5px] font-semibold h-[34px]"
+                            className="rounded-xl py-1 px-3 font-semibold min-h-[34px] h-auto"
+                            style={{ fontSize: subFontSize }}
                           >
                             <Link href={subItem.href} onClick={handleNavClick}>
                               <span>{subItem.label}</span>

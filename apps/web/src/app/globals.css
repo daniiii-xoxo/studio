@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --font-scale: 1;
     --background: 210 20% 98%;
     /* Clean crisp page bg */
     --foreground: 222 47% 11%;
@@ -56,44 +57,46 @@
   }
 
   .dark {
-    --background: 150 4% 18%;
-    /* #2C302E - Minia dark bg */
-    --foreground: 230 10% 70%;
-    --card: 150 4% 21%;
-    --card-foreground: 230 10% 70%;
-    --popover: 150 4% 21%;
-    --popover-foreground: 230 10% 70%;
-    --primary: 222 67% 32%;
-    /* #1e3a8a - Dark Navy Blue */
+    --background: 222 47% 10%;
+    /* Rich slate dark background #0d1424 */
+    --foreground: 210 40% 98%;
+    /* Crisp white text */
+    --card: 222 47% 14%;
+    /* Elevated card surface #141c2e */
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 14%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    /* Bright accessible blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 150 3% 25%;
-    --secondary-foreground: 230 10% 70%;
-    --muted: 150 3% 25%;
-    --muted-foreground: 226 10% 60%;
-    --accent: 150 3% 25%;
-    --accent-foreground: 230 10% 70%;
-    --destructive: 2 70% 40%;
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 70%;
+    /* Clear legible secondary text */
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 3% 25%;
-    --input: 150 3% 25%;
-    --ring: 237 46% 53%;
+    --border: 217 30% 22%;
+    /* Visible borders on cards and tables */
+    --input: 217 30% 22%;
+    --ring: 217 91% 60%;
 
-    --chart-1: 237 46% 53%;
+    --chart-1: 217 91% 60%;
     --chart-2: 157 62% 44%;
     --chart-3: 208 83% 61%;
     --chart-4: 40 100% 66%;
     --chart-5: 2 97% 68%;
 
-    --sidebar-background: 222 67% 32%;
-    /* #1e3a8a */
+    --sidebar-background: 224 50% 10%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 222 67% 32%;
-    /* #1e3a8a */
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 60% 40%;
+    --sidebar-accent: 224 40% 18%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 55% 40%;
-    --sidebar-ring: 222 67% 32%;
+    --sidebar-border: 224 35% 18%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -104,7 +107,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-size: 0.875rem;
+    font-size: calc(1.25rem * var(--font-scale, 1));
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
@@ -116,6 +119,13 @@
   [contenteditable="true"] {
     user-select: text;
     -webkit-user-select: text;
+  }
+
+  /* Form controls font size scaling (20px at Default) */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: calc(1.25rem * var(--font-scale, 1));
   }
 
   /* Hide default browser password reveal / clear buttons to avoid duplicate eye icons in Edge/IE */
@@ -133,6 +143,23 @@
     font-weight: 600;
     color: hsl(var(--foreground));
   }
+
+  /* Dynamic font size scaling for arbitrary Tailwind pixel classes (scaled to 20px baseline) */
+  .text-\[9px\] { font-size: calc(13px * var(--font-scale, 1)) !important; }
+  .text-\[10px\] { font-size: calc(14.5px * var(--font-scale, 1)) !important; }
+  .text-\[11px\] { font-size: calc(16px * var(--font-scale, 1)) !important; }
+  .text-\[12px\] { font-size: calc(17px * var(--font-scale, 1)) !important; }
+  .text-\[13px\] { font-size: calc(18.5px * var(--font-scale, 1)) !important; }
+  .text-\[14px\] { font-size: calc(20px * var(--font-scale, 1)) !important; }
+  .text-\[14\.5px\] { font-size: calc(20.5px * var(--font-scale, 1)) !important; }
+  .text-\[15px\] { font-size: calc(21px * var(--font-scale, 1)) !important; }
+  .text-\[16px\] { font-size: calc(22px * var(--font-scale, 1)) !important; }
+  .text-\[18px\] { font-size: calc(24px * var(--font-scale, 1)) !important; }
+  .text-\[20px\] { font-size: calc(26px * var(--font-scale, 1)) !important; }
+  .text-\[22px\] { font-size: calc(28px * var(--font-scale, 1)) !important; }
+  .text-\[24px\] { font-size: calc(30px * var(--font-scale, 1)) !important; }
+  .text-\[28px\] { font-size: calc(34px * var(--font-scale, 1)) !important; }
+  .text-\[32px\] { font-size: calc(38px * var(--font-scale, 1)) !important; }
 }
 
 @layer utilities {
@@ -219,3 +246,93 @@ main,
   --removed-body-scroll-bar-size: 0px !important;
   margin-right: 0px !important;
 }
+
+/* ============================================================ */
+/* UNLAYERED GLOBAL FONT SCALE ENFORCEMENT                     */
+/* (Unlayered rules have higher cascade priority than all layers) */
+/* ============================================================ */
+
+/* Brand Logo Header (COG APP) remains at default size */
+.brand-title,
+[data-sidebar="header"] .brand-title,
+[data-sidebar="header"] span.font-headline {
+  font-size: 28px !important;
+}
+
+header .brand-title {
+  font-size: 22px !important;
+}
+
+/* ── SIDEBAR & NAVIGATION FONT SCALING ── */
+/* Menu buttons: Dashboard, Workers, Room Reservations, Configuration, Settings, etc. */
+[data-sidebar="menu-button"],
+[data-sidebar="menu-button"] *,
+[data-sidebar="sidebar"] [data-sidebar="menu-button"],
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] * {
+  font-size: calc(20px * var(--font-scale, 1)) !important;
+}
+
+[data-sidebar="menu-button"] {
+  min-height: 44px !important;
+  height: auto !important;
+}
+
+/* Sub-menu buttons: Display & Font Size, Change Password, etc. */
+[data-sidebar="menu-sub-button"],
+[data-sidebar="menu-sub-button"] *,
+[data-sidebar="sidebar"] [data-sidebar="menu-sub-button"],
+[data-sidebar="sidebar"] [data-sidebar="menu-sub-button"] * {
+  font-size: calc(18px * var(--font-scale, 1)) !important;
+}
+
+[data-sidebar="menu-sub-button"] {
+  min-height: 38px !important;
+  height: auto !important;
+}
+
+/* Group labels (MENU) */
+[data-sidebar="group-label"],
+[data-sidebar="sidebar"] [data-sidebar="group-label"],
+[data-sidebar="group-label"] * {
+  font-size: calc(15px * var(--font-scale, 1)) !important;
+}
+
+/* ── GLOBAL TYPOGRAPHY SCALING (Baseline: 20px / 1.25rem at Default) ── */
+.text-xs { font-size: calc(1rem * var(--font-scale, 1)) !important; line-height: calc(1.35rem * var(--font-scale, 1)) !important; }
+.text-sm { font-size: calc(1.25rem * var(--font-scale, 1)) !important; line-height: calc(1.65rem * var(--font-scale, 1)) !important; }
+.text-base { font-size: calc(1.375rem * var(--font-scale, 1)) !important; line-height: calc(1.85rem * var(--font-scale, 1)) !important; }
+.text-lg { font-size: calc(1.5rem * var(--font-scale, 1)) !important; line-height: calc(2rem * var(--font-scale, 1)) !important; }
+.text-xl { font-size: calc(1.75rem * var(--font-scale, 1)) !important; line-height: calc(2.25rem * var(--font-scale, 1)) !important; }
+.text-2xl { font-size: calc(2rem * var(--font-scale, 1)) !important; line-height: calc(2.5rem * var(--font-scale, 1)) !important; }
+.text-3xl { font-size: calc(2.375rem * var(--font-scale, 1)) !important; line-height: calc(2.85rem * var(--font-scale, 1)) !important; }
+.text-4xl { font-size: calc(2.75rem * var(--font-scale, 1)) !important; line-height: calc(3.25rem * var(--font-scale, 1)) !important; }
+.text-5xl { font-size: calc(3.5rem * var(--font-scale, 1)) !important; }
+
+/* Arbitrary pixel sizes (scaled proportionally to 20px baseline) */
+.text-\[9px\] { font-size: calc(13px * var(--font-scale, 1)) !important; }
+.text-\[10px\] { font-size: calc(14.5px * var(--font-scale, 1)) !important; }
+.text-\[11px\] { font-size: calc(16px * var(--font-scale, 1)) !important; }
+.text-\[12px\] { font-size: calc(17px * var(--font-scale, 1)) !important; }
+.text-\[13px\] { font-size: calc(18.5px * var(--font-scale, 1)) !important; }
+.text-\[14px\] { font-size: calc(20px * var(--font-scale, 1)) !important; }
+.text-\[14\.5px\] { font-size: calc(20.5px * var(--font-scale, 1)) !important; }
+.text-\[15px\] { font-size: calc(21px * var(--font-scale, 1)) !important; }
+.text-\[16px\] { font-size: calc(22px * var(--font-scale, 1)) !important; }
+.text-\[18px\] { font-size: calc(24px * var(--font-scale, 1)) !important; }
+.text-\[20px\] { font-size: calc(26px * var(--font-scale, 1)) !important; }
+.text-\[22px\] { font-size: calc(28px * var(--font-scale, 1)) !important; }
+.text-\[24px\] { font-size: calc(30px * var(--font-scale, 1)) !important; }
+.text-\[28px\] { font-size: calc(34px * var(--font-scale, 1)) !important; }
+.text-\[32px\] { font-size: calc(38px * var(--font-scale, 1)) !important; }
+
+/* Form inputs & tables (20px at Default) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+textarea,
+select {
+  font-size: calc(1.25rem * var(--font-scale, 1)) !important;
+}
+
+table th,
+table td {
+  font-size: calc(1.25rem * var(--font-scale, 1)) !important;
+}
