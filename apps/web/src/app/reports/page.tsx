@@ -139,41 +139,74 @@ function AttendanceTab() {
   const [range, setRange] = useState<"today" | "this-week" | "this-month" | "all-time">("this-month");
   const [page, setPage] = useState(1);
 
+  const allowedMinistryIdSet = useMemo(() => {
+    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
+    return new Set(myMinistryIds);
+  }, [isSuperAdmin, myMinistryIds]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (allowedMinistryIdSet) {
+      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    }
+    return ministries as any[];
+  }, [ministries, allowedMinistryIdSet]);
+
+  const scopedWorkers = useMemo(() => {
+    if (!workers) return [];
+    if (allowedMinistryIdSet) {
+      return workers.filter(w => {
+        const mId = w.majorMinistryId || w.minorMinistryId;
+        return mId && allowedMinistryIdSet.has(mId);
+      });
+    }
+    return workers;
+  }, [workers, allowedMinistryIdSet]);
+
+  const scopedAttendance = useMemo(() => {
+    if (!attendance) return [];
+    if (allowedMinistryIdSet) {
+      const vIds = new Set(scopedWorkers.map(w => w.id));
+      return attendance.filter(r => vIds.has(r.workerProfileId));
+    }
+    return attendance;
+  }, [attendance, scopedWorkers, allowedMinistryIdSet]);
+
   // Ministry distribution chart
   const ministryChartData = useMemo(() => {
-    if (!attendance || !workers || !ministries) return [];
+    if (!scopedAttendance || !scopedWorkers || !filteredMinistries) return [];
     const counts: Record<string, number> = {};
-    for (const rec of attendance) {
+    for (const rec of scopedAttendance) {
       if (rec.type !== "Clock In") continue;
-      const w = workers.find(x => x.id === rec.workerProfileId);
+      const w = scopedWorkers.find(x => x.id === rec.workerProfileId);
       if (!w) continue;
-      const min = (ministries as any[]).find(m => m.id === w.majorMinistryId);
+      const min = filteredMinistries.find(m => m.id === w.majorMinistryId);
       if (min) counts[min.name] = (counts[min.name] || 0) + 1;
     }
     return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 15);
-  }, [attendance, workers, ministries]);
+  }, [scopedAttendance, scopedWorkers, filteredMinistries]);
 
   // Stats
-  const totalTimeIns = useMemo(() => attendance?.filter(a => a.type === "Clock In").length ?? 0, [attendance]);
-  const totalTimeOuts = useMemo(() => attendance?.filter(a => a.type === "Clock Out").length ?? 0, [attendance]);
-  const uniqueWorkers = useMemo(() => new Set(attendance?.map(a => a.workerProfileId)).size ?? 0, [attendance]);
+  const totalTimeIns = useMemo(() => scopedAttendance?.filter(a => a.type === "Clock In").length ?? 0, [scopedAttendance]);
+  const totalTimeOuts = useMemo(() => scopedAttendance?.filter(a => a.type === "Clock Out").length ?? 0, [scopedAttendance]);
+  const uniqueWorkers = useMemo(() => new Set(scopedAttendance?.map(a => a.workerProfileId)).size ?? 0, [scopedAttendance]);
   const avgRate = useMemo(() => {
-    if (!workers?.length) return "0%";
-    const pct = Math.round((uniqueWorkers / workers.length) * 100);
+    if (!scopedWorkers?.length) return "0%";
+    const pct = Math.round((uniqueWorkers / scopedWorkers.length) * 100);
     return `${pct}%`;
-  }, [uniqueWorkers, workers]);
+  }, [uniqueWorkers, scopedWorkers]);
 
   // Build per-worker per-day rows
   const rows = useMemo(() => {
-    if (!attendance || !workers) return [];
+    if (!scopedAttendance || !scopedWorkers) return [];
     const workerMap: Record<string, any[]> = {};
-    for (const r of attendance) {
+    for (const r of scopedAttendance) {
       if (!workerMap[r.workerProfileId]) workerMap[r.workerProfileId] = [];
       workerMap[r.workerProfileId].push({ ...r, _t: toJsDate(r.time) });
     }
     const result: any[] = [];
     for (const [wId, recs] of Object.entries(workerMap)) {
-      const w = workers.find(x => x.id === wId);
+      const w = scopedWorkers.find(x => x.id === wId);
       if (!w) continue;
       const dayMap: Record<string, any[]> = {};
       for (const r of recs) {
@@ -197,7 +230,7 @@ function AttendanceTab() {
       }
     }
     return result.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [attendance, workers]);
+  }, [scopedAttendance, scopedWorkers]);
 
   // Filter based on range
   const rangeFilteredRows = useMemo(() => {
@@ -357,7 +390,7 @@ function AttendanceTab() {
             </SelectTrigger>
             <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
               <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-              {(ministries as any[] || []).map(m => (
+              {filteredMinistries.map(m => (
                 <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
               ))}
             </SelectContent>
@@ -579,25 +612,43 @@ function MealStubClaimsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const stats = useMemo(() => {
-    if (!mealstubs) return { issued: 0, claimed: 0, unclaimed: 0, claimRate: "0%" };
-    const claimed = mealstubs.filter(s => s.status === "Claimed").length;
-    const unclaimed = mealstubs.length - claimed;
-    return {
-      issued: mealstubs.length,
-      claimed,
-      unclaimed,
-      claimRate: mealstubs.length > 0 ? `${Math.round((claimed / mealstubs.length) * 100)}%` : "0%",
-    };
-  }, [mealstubs]);
+  const allowedMinistryIdSet = useMemo(() => {
+    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
+    return new Set(myMinistryIds);
+  }, [isSuperAdmin, myMinistryIds]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (allowedMinistryIdSet) {
+      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    }
+    return ministries as any[];
+  }, [ministries, allowedMinistryIdSet]);
 
   const rows = useMemo(() => {
     return (mealstubs || []).map(s => {
       const w = workers?.find(x => x.id === s.workerId);
       const min = w ? (ministries as any[] || []).find(m => m.id === w.majorMinistryId) : null;
       return { ...s, worker: w, ministry: min };
+    }).filter(r => {
+      if (allowedMinistryIdSet) {
+        const minId = r.worker?.majorMinistryId || r.worker?.minorMinistryId || r.ministry?.id;
+        if (!minId || !allowedMinistryIdSet.has(minId)) return false;
+      }
+      return true;
     });
-  }, [mealstubs, workers, ministries]);
+  }, [mealstubs, workers, ministries, allowedMinistryIdSet]);
+
+  const stats = useMemo(() => {
+    const claimed = rows.filter(s => s.status === "Claimed").length;
+    const unclaimed = rows.length - claimed;
+    return {
+      issued: rows.length,
+      claimed,
+      unclaimed,
+      claimRate: rows.length > 0 ? `${Math.round((claimed / rows.length) * 100)}%` : "0%",
+    };
+  }, [rows]);
 
   const tabCounts = useMemo(() => {
     return {
@@ -722,7 +773,7 @@ function MealStubClaimsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -896,24 +947,54 @@ function AllocationsTab() {
   const [workerTypeFilter, setWorkerTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const getMinistry = useCallback((id: string) => (ministries as any[] || []).find(m => m.id === id), [ministries]);
+  const allowedMinistryIdSet = useMemo(() => {
+    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
+    return new Set(myMinistryIds);
+  }, [isSuperAdmin, myMinistryIds]);
 
-  const eligibleWorkers = useMemo(() => (workers || []).filter(w => w.employmentType === "Full-Time" || w.employmentType === "On-Call" || w.employmentType === "Part-Time" || w.employmentType === "Volunteer"), [workers]);
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (allowedMinistryIdSet) {
+      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    }
+    return ministries as any[];
+  }, [ministries, allowedMinistryIdSet]);
+
+  const getMinistry = useCallback((id: string) => (filteredMinistries || []).find(m => m.id === id), [filteredMinistries]);
+
+  const eligibleWorkers = useMemo(() => {
+    return (workers || []).filter(w => {
+      if (allowedMinistryIdSet) {
+        const mId = w.majorMinistryId || w.minorMinistryId;
+        if (!mId || !allowedMinistryIdSet.has(mId)) return false;
+      }
+      return w.employmentType === "Full-Time" || w.employmentType === "On-Call" || w.employmentType === "Part-Time" || w.employmentType === "Volunteer";
+    });
+  }, [workers, allowedMinistryIdSet]);
+
+  const scopedMealStubs = useMemo(() => {
+    if (!mealstubs) return [];
+    if (allowedMinistryIdSet) {
+      const vIds = new Set(eligibleWorkers.map(w => w.id));
+      return mealstubs.filter(s => vIds.has(s.workerId));
+    }
+    return mealstubs;
+  }, [mealstubs, eligibleWorkers, allowedMinistryIdSet]);
 
   const getStats = useCallback((wId: string) => {
-    const stubs = (mealstubs || []).filter(s => s.workerId === wId);
+    const stubs = scopedMealStubs.filter(s => s.workerId === wId);
     const weekday = stubs.filter(s => !isSunday(toJsDate(s.date))).length;
     const sunday = stubs.filter(s => isSunday(toJsDate(s.date))).length;
     const weekdayLimit = 5;
     const sundayLimit = 2;
     const remaining = Math.max(0, (weekdayLimit - weekday) + (sundayLimit - sunday));
     return { weekday, sunday, weekdayLimit, sundayLimit, remaining };
-  }, [mealstubs]);
+  }, [scopedMealStubs]);
 
   // Summary stats
-  const totalAllocations = useMemo(() => (mealstubs || []).length, [mealstubs]);
-  const fullTimeCount = useMemo(() => (workers || []).filter(w => w.employmentType === "Full-Time").length, [workers]);
-  const onCallCount = useMemo(() => (workers || []).filter(w => w.employmentType === "On-Call").length, [workers]);
+  const totalAllocations = useMemo(() => scopedMealStubs.length, [scopedMealStubs]);
+  const fullTimeCount = useMemo(() => eligibleWorkers.filter(w => w.employmentType === "Full-Time").length, [eligibleWorkers]);
+  const onCallCount = useMemo(() => eligibleWorkers.filter(w => w.employmentType === "On-Call").length, [eligibleWorkers]);
   const remainingAllocations = useMemo(() => {
     const maxPerWorker = 7;
     const total = eligibleWorkers.length * maxPerWorker;
@@ -921,13 +1002,13 @@ function AllocationsTab() {
   }, [eligibleWorkers, totalAllocations]);
 
   // Allocation usage
-  const weekdayUsed = useMemo(() => (mealstubs || []).filter(s => !isSunday(toJsDate(s.date))).length, [mealstubs]);
-  const sundayUsed = useMemo(() => (mealstubs || []).filter(s => isSunday(toJsDate(s.date))).length, [mealstubs]);
+  const weekdayUsed = useMemo(() => scopedMealStubs.filter(s => !isSunday(toJsDate(s.date))).length, [scopedMealStubs]);
+  const sundayUsed = useMemo(() => scopedMealStubs.filter(s => isSunday(toJsDate(s.date))).length, [scopedMealStubs]);
   const weekdayMax = eligibleWorkers.length * 5;
   const sundayMax = eligibleWorkers.length * 2;
-  const ftAllocated = useMemo(() => (mealstubs || []).filter(s => { const w = workers?.find(x => x.id === s.workerId); return w?.employmentType === "Full-Time"; }).length, [mealstubs, workers]);
+  const ftAllocated = useMemo(() => scopedMealStubs.filter(s => { const w = eligibleWorkers.find(x => x.id === s.workerId); return w?.employmentType === "Full-Time"; }).length, [scopedMealStubs, eligibleWorkers]);
   const ftMax = fullTimeCount * 7;
-  const ocAllocated = useMemo(() => (mealstubs || []).filter(s => { const w = workers?.find(x => x.id === s.workerId); return w?.employmentType === "On-Call"; }).length, [mealstubs, workers]);
+  const ocAllocated = useMemo(() => scopedMealStubs.filter(s => { const w = eligibleWorkers.find(x => x.id === s.workerId); return w?.employmentType === "On-Call"; }).length, [scopedMealStubs, eligibleWorkers]);
   const ocMax = onCallCount * 7;
 
   const tabCounts = useMemo(() => {
@@ -1025,7 +1106,7 @@ function AllocationsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -1179,23 +1260,48 @@ function ReservationsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
+  const allowedMinistryIdSet = useMemo(() => {
+    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
+    return new Set(myMinistryIds);
+  }, [isSuperAdmin, myMinistryIds]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (allowedMinistryIdSet) {
+      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    }
+    return ministries as any[];
+  }, [ministries, allowedMinistryIdSet]);
+
+  const scopedReservations = useMemo(() => {
+    if (!reservations) return [];
+    if (allowedMinistryIdSet) {
+      return reservations.filter(r => {
+        const w = (workers as any[])?.find((x: any) => x.id === r.workerProfileId);
+        const minId = r.ministryId || w?.majorMinistryId || w?.minorMinistryId;
+        return minId && allowedMinistryIdSet.has(minId);
+      });
+    }
+    return reservations;
+  }, [reservations, workers, allowedMinistryIdSet]);
+
   const getWorkerName = useCallback((id: string) => { const w = (workers as any[])?.find((x: any) => x.id === id); return w ? `${w.firstName} ${w.lastName}` : "Unknown"; }, [workers]);
   const getRoomName = useCallback((id: string) => rooms?.find(r => r.id === id)?.name ?? "Unknown", [rooms]);
   const getWorkerMinistry = useCallback((wId: string) => {
     const w = (workers as any[])?.find((x: any) => x.id === wId);
     if (!w) return null;
-    return (ministries as any[] || []).find(m => m.id === w.majorMinistryId);
-  }, [workers, ministries]);
+    return (filteredMinistries || []).find(m => m.id === w.majorMinistryId);
+  }, [workers, filteredMinistries]);
 
   const stats = useMemo(() => {
-    if (!reservations) return { total: 0, approved: 0, pending: 0, rejected: 0 };
+    if (!scopedReservations) return { total: 0, approved: 0, pending: 0, rejected: 0 };
     return {
-      total: reservations.length,
-      approved: reservations.filter(r => r.status === "Approved").length,
-      pending: reservations.filter(r => r.status?.startsWith("Pending")).length,
-      rejected: reservations.filter(r => r.status === "Rejected").length,
+      total: scopedReservations.length,
+      approved: scopedReservations.filter(r => r.status === "Approved").length,
+      pending: scopedReservations.filter(r => r.status?.startsWith("Pending")).length,
+      rejected: scopedReservations.filter(r => r.status === "Rejected").length,
     };
-  }, [reservations]);
+  }, [scopedReservations]);
 
   const donutData = [
     { name: "Approved", value: stats.approved, color: "#10b981" },
@@ -1204,32 +1310,32 @@ function ReservationsTab() {
   ];
 
   const topRooms = useMemo(() => {
-    if (!reservations || !rooms) return [];
+    if (!scopedReservations || !rooms) return [];
     const counts: Record<string, number> = {};
-    for (const r of reservations) {
+    for (const r of scopedReservations) {
       counts[r.roomId] = (counts[r.roomId] || 0) + 1;
     }
     return Object.entries(counts)
       .map(([roomId, count]) => ({ name: getRoomName(roomId), count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [reservations, rooms, getRoomName]);
+  }, [scopedReservations, rooms, getRoomName]);
 
   const maxRoomCount = topRooms[0]?.count || 1;
 
   const tabCounts = useMemo(() => {
-    const res = reservations || [];
+    const res = scopedReservations || [];
     return {
       all: res.length,
       approved: res.filter(r => r.status === "Approved").length,
       pending: res.filter(r => r.status?.startsWith("Pending")).length,
       rejected: res.filter(r => r.status === "Rejected").length,
     };
-  }, [reservations]);
+  }, [scopedReservations]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (reservations || []).filter(r => {
+    return (scopedReservations || []).filter(r => {
       if (q && !r.title.toLowerCase().includes(q) && !getWorkerName(r.workerProfileId).toLowerCase().includes(q)) return false;
       if (ministryFilter !== "all") {
         const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
@@ -1242,7 +1348,7 @@ function ReservationsTab() {
       }
       return true;
     });
-  }, [reservations, search, ministryFilter, statusFilter, getWorkerName, getWorkerMinistry]);
+  }, [scopedReservations, search, ministryFilter, statusFilter, getWorkerName, getWorkerMinistry]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -1313,7 +1419,7 @@ function ReservationsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
