@@ -124,7 +124,8 @@ function AttendanceStatusBadge({ status }: { status: "timed-in" | "timed-out" | 
 // ── Main Content ──────────────────────────────────────────────────────────────
 function AttendanceContent() {
   const { user } = useAuthStore();
-  const { canViewAttendance, workerProfile, isLoading: isRoleLoading, isMinistryHead, canManageWorkers, canOperateScanner } = useUserRole();
+  const { canViewAttendance, workerProfile, isLoading: isRoleLoading, isMinistryHead, isSuperAdmin, canManageWorkers, canOperateScanner } = useUserRole();
+  const isMinistryHeadOnly = isMinistryHead && !isSuperAdmin;
   const { toast } = useToast();
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [localToken, setLocalToken] = useState<string | null>(null);
@@ -217,22 +218,6 @@ function AttendanceContent() {
     return map;
   }, [todayAttendance]);
 
-  const manualStatusCounts = useMemo(() => {
-    let timedIn = 0, timedOut = 0, notYet = 0;
-    for (const w of allWorkers || []) {
-      const st = workerStatusMap[w.id]?.status ?? "not-yet";
-      if (st === "timed-in") timedIn++;
-      else if (st === "timed-out") timedOut++;
-      else notYet++;
-    }
-    return {
-      all: (allWorkers || []).length,
-      "timed-in": timedIn,
-      "timed-out": timedOut,
-      "not-yet": notYet,
-    };
-  }, [allWorkers, workerStatusMap]);
-
   const fmtId = (id: string | null | undefined) => {
     if (!id) return "—";
     const n = parseInt(id, 10);
@@ -244,15 +229,43 @@ function AttendanceContent() {
     return (roles as any[]).find(r => r.id === w.roleId)?.name || "Worker";
   };
 
-  const filteredWorkers = useMemo(() => {
+  // For Ministry Head, restrict visible workers strictly to those with the "Worker" role
+  const visibleWorkers = useMemo(() => {
     if (!allWorkers) return [];
-    return allWorkers.filter(w => {
+    if (isMinistryHeadOnly) {
+      return allWorkers.filter(w => {
+        const rn = getRoleName(w).toLowerCase();
+        return rn === "worker" || (!rn.includes("head") && !rn.includes("admin"));
+      });
+    }
+    return allWorkers;
+  }, [allWorkers, isMinistryHeadOnly, roles]);
+
+  const manualStatusCounts = useMemo(() => {
+    let timedIn = 0, timedOut = 0, notYet = 0;
+    for (const w of visibleWorkers) {
+      const st = workerStatusMap[w.id]?.status ?? "not-yet";
+      if (st === "timed-in") timedIn++;
+      else if (st === "timed-out") timedOut++;
+      else notYet++;
+    }
+    return {
+      all: visibleWorkers.length,
+      "timed-in": timedIn,
+      "timed-out": timedOut,
+      "not-yet": notYet,
+    };
+  }, [visibleWorkers, workerStatusMap]);
+
+  const filteredWorkers = useMemo(() => {
+    if (!visibleWorkers) return [];
+    return visibleWorkers.filter(w => {
       const name = `${w.firstName} ${w.lastName}`.toLowerCase();
       const wId = fmtId(w.workerId).toLowerCase();
       const q = assignSearch.trim().toLowerCase();
       if (q && !name.includes(q) && !wId.includes(q)) return false;
       if (ministryFilter !== "all" && w.majorMinistryId !== ministryFilter) return false;
-      if (roleFilter !== "all") {
+      if (!isMinistryHeadOnly && roleFilter !== "all") {
         const rn = getRoleName(w).toLowerCase();
         if (!rn.includes(roleFilter.toLowerCase())) return false;
       }
@@ -261,7 +274,7 @@ function AttendanceContent() {
       if (statusFilter !== "all" && cs !== statusFilter) return false;
       return true;
     });
-  }, [allWorkers, assignSearch, ministryFilter, roleFilter, statusFilter, workerStatusMap]);
+  }, [visibleWorkers, assignSearch, ministryFilter, roleFilter, statusFilter, workerStatusMap, isMinistryHeadOnly, roles]);
 
   // Records tab: build rows
   const recordRows = useMemo(() => {
@@ -272,7 +285,7 @@ function AttendanceContent() {
     }
     const rows: { worker: any; date: Date; timeIn: Date | null; timeOut: Date | null; hours: number | null; status: "present" | "late" | "absent" | "incomplete" }[] = [];
     for (const [wId, recs] of Object.entries(workerRecordsMap)) {
-      const w = allWorkers?.find(x => x.id === wId);
+      const w = visibleWorkers?.find(x => x.id === wId);
       if (!w) continue;
       const dayMap: Record<string, any[]> = {};
       for (const r of recs) {
@@ -487,17 +500,19 @@ function AttendanceContent() {
                   </SelectContent>
                 </Select>
 
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="h-10 w-[130px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                    <SelectValue placeholder="All Roles" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
-                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
-                    {(roles as any[]).map(r => (
-                      <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!isMinistryHeadOnly && (
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="h-10 w-[130px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                      <SelectValue placeholder="All Roles" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
+                      <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
+                      {(roles as any[]).map(r => (
+                        <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 {/* Status Filter Dropdown */}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -759,17 +774,19 @@ function AttendanceContent() {
                   </Select>
 
                   {/* Role */}
-                  <Select value={recordsRoleFilter} onValueChange={setRecordsRoleFilter}>
-                    <SelectTrigger className="h-10 w-[125px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                      <SelectValue placeholder="All Roles" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
-                      <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
-                      {(roles as any[]).map(r => (
-                        <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {!isMinistryHeadOnly && (
+                    <Select value={recordsRoleFilter} onValueChange={setRecordsRoleFilter}>
+                      <SelectTrigger className="h-10 w-[125px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                        <SelectValue placeholder="All Roles" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
+                        <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
+                        {(roles as any[]).map(r => (
+                          <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
 
                   {/* Range */}
                   <Select value={recordsRange} onValueChange={(val: any) => setRecordsRange(val)}>
