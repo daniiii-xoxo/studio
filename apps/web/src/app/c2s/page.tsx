@@ -4382,8 +4382,8 @@ function C2SPageContent() {
                               {titleLabel}
                             </SelectLabel>
                             {items.map((item, idx) => (
-                              <SelectItem key={`admin-cluster-${dept}-${item.value}-${idx}`} value={item.value} className="text-xs pl-6 cursor-pointer">
-                                • {item.label}
+                              <SelectItem key={`admin-cluster-${dept}-${item.value}-${idx}`} value={item.value} className="text-xs cursor-pointer">
+                                {item.label}
                               </SelectItem>
                             ))}
                           </SelectGroup>
@@ -4410,8 +4410,8 @@ function C2SPageContent() {
                           {headDepartment.toUpperCase()} MINISTRIES
                         </SelectLabel>
                         {activeClusterOptions.map((item, idx) => (
-                          <SelectItem key={`head-cluster-${item.value}-${idx}`} value={item.value} className="text-xs pl-6 cursor-pointer">
-                            • {item.label}
+                          <SelectItem key={`head-cluster-${item.value}-${idx}`} value={item.value} className="text-xs cursor-pointer">
+                            {item.label}
                           </SelectItem>
                         ))}
                       </SelectGroup>
