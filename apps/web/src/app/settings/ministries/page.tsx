@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Papa from "papaparse";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import {
   Building2, HeartHandshake, User as UserIcon, Users, LoaderCircle,
-  Upload, PlusCircle, MoreHorizontal, Edit, Trash2, UserCog, Utensils,
+  PlusCircle, MoreHorizontal, Edit, Trash2, UserCog, Utensils,
   Eye, ArrowLeft, Search, Copy, ClipboardCheck,
 } from "lucide-react";
 import type { Ministry, Worker, Department } from "@studio/types";
@@ -32,7 +31,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@studio/ui";
 import { useMinistries } from "@/hooks/use-ministries";
 import { useWorkers } from "@/hooks/use-workers";
-import { createMinistries } from "@/actions/db";
 import { cn } from "@/lib/utils";
 
 const generateMinistryId = (name: string, department: string) =>
@@ -244,47 +242,6 @@ function AppointDialog({ ministry, workers, onSave, onClose, type = "approver" }
   );
 }
 
-// ── Import Dialog ───────────────────────────────────────────────────────────────
-function ImportDialogContent({ onImport, onClose }: { onImport: (csv: string) => void; onClose: () => void }) {
-  const [csvData, setCsvData] = useState("");
-  return (
-    <div className="space-y-6">
-      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
-            <Upload className="h-5 w-5" />
-          </div>
-          <div>
-            <DialogTitle className="text-xl font-bold font-headline text-foreground">Import Ministries</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Paste CSV data with headers: <code className="bg-muted px-1 py-0.5 rounded font-mono text-[11px]">name,department</code> (1=Worship, 2=Outreach, 3=Relationship, 4=Discipleship, 5=Administration)
-            </DialogDescription>
-          </div>
-        </div>
-      </DialogHeader>
-
-      <div className="space-y-3 py-1">
-        <Input readOnly defaultValue="name,department" className="font-mono text-xs h-9 bg-muted/40 rounded-xl" />
-        <Textarea
-          value={csvData}
-          onChange={e => setCsvData(e.target.value)}
-          placeholder={`name,department\nPrayer Ministry,1\nYouth Worship,1`}
-          className="h-52 font-mono text-xs rounded-xl border-slate-200/90 dark:border-border"
-        />
-      </div>
-
-      <DialogFooter className="pt-2 border-t border-border/40 flex items-center justify-end gap-2.5">
-        <Button type="button" variant="outline" onClick={onClose} className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold cursor-pointer">
-          Cancel
-        </Button>
-        <Button onClick={() => onImport(csvData)} className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs cursor-pointer">
-          Process Import
-        </Button>
-      </DialogFooter>
-    </div>
-  );
-}
-
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function MinistryManagementPage() {
   const { canManageMinistries, canAppointApprovers, workerProfile, isLoading: isRoleLoading } = useUserRole();
@@ -293,7 +250,6 @@ export default function MinistryManagementPage() {
   const { toast } = useToast();
   const { logAction } = useAuditLog();
 
-  const [importOpen, setImportOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedMinistry, setSelectedMinistry] = useState<Ministry | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -343,23 +299,6 @@ export default function MinistryManagementPage() {
       toast({ title: "Ministry Deleted" });
       setDeleteTarget(null);
     } catch { toast({ variant: "destructive", title: "Delete Failed" }); }
-  };
-
-  const handleImport = (csvData: string) => {
-    const deptMap: Record<string, Department> = { "1": "Worship", "2": "Outreach", "3": "Relationship", "4": "Discipleship", "5": "Administration" };
-    Papa.parse(csvData, {
-      header: true, skipEmptyLines: true,
-      complete: async results => {
-        const data = (results.data as any[]).map(row => {
-          const dept = deptMap[row.department];
-          if (!row.name || !dept) return null;
-          return { id: generateMinistryId(row.name, dept), name: row.name, department: dept, description: "", leaderId: "", headId: "" };
-        }).filter(Boolean);
-        if (!data.length) { toast({ variant: "destructive", title: "No valid rows found" }); return; }
-        try { await createMinistries(data as any[]); toast({ title: "Import Successful", description: `${data.length} ministries imported.` }); setImportOpen(false); }
-        catch { toast({ variant: "destructive", title: "Import Failed" }); }
-      },
-    });
   };
 
   const deptCounts = useMemo(() => {
@@ -542,13 +481,6 @@ export default function MinistryManagementPage() {
       <Dialog open={appointOpen} onOpenChange={setAppointOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
           {appointTarget && <AppointDialog ministry={appointTarget} workers={workers || []} onSave={handleSaveAppointed} onClose={() => setAppointOpen(false)} type={appointType} />}
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Dialog */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl">
-          <ImportDialogContent onImport={handleImport} onClose={() => setImportOpen(false)} />
         </DialogContent>
       </Dialog>
 

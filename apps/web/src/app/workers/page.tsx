@@ -45,9 +45,9 @@ import {
   updateWorkersMinistries,
   createMealStub as createMealStubSql,
   deleteWorker as deleteWorkerSql,
-  deleteWorkers as deleteWorkersSql,
 } from "@/actions/db";
-import { ImportSheet } from "@/components/workers/import-sheet";
+import { exportToExcel } from "@/lib/export-excel";
+import { ExportConfirmDialog } from "@/components/common/export-confirm-dialog";
 import { BatchMinistrySheet } from "@/components/workers/batch-ministry-sheet";
 import { BatchMealStubSheet } from "@/components/workers/batch-meal-stub-sheet";
 import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
@@ -345,7 +345,6 @@ export default function WorkersPage() {
     isMinistryHeadScoped ? undefined : workerProfile?.id
   );
 
-  const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
   const [isBatchMoveSheetOpen, setIsBatchMoveSheetOpen] = useState(false);
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false);
@@ -353,6 +352,8 @@ export default function WorkersPage() {
   const [isAssigningStubs, setIsAssigningStubs] = useState(false);
   const [selectedWorkerForDetails, setSelectedWorkerForDetails] = useState<Worker | null>(null);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
   const handleAddNew = () => router.push("/workers/new");
   const handleEdit = (worker: Worker) => setEditingWorker(worker);
@@ -362,28 +363,93 @@ export default function WorkersPage() {
       toast({ variant: "destructive", title: "No data to export" });
       return;
     }
-    const exportData = allWorkers.map(w => ({
-      "Worker ID": formatWorkerId(w.workerId),
-      "First Name": w.firstName,
-      "Last Name": w.lastName,
-      "Email": w.email || "",
-      "Phone": w.phone || "",
-      "Role": getWorkerRoleLabel(w),
-      "Ministry": ministries.find(m => m.id === w.majorMinistryId)?.name || "",
-      "Worker Type": w.employmentType || "",
-      "Status": w.status,
-      "Registered": w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
-    }));
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `workers_export_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Workers Exported", description: `Exported ${exportData.length} records.` });
+
+    // ── Sheet 1: Workers Directory ──
+    const directoryHeaders = [
+      "Worker ID",
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone",
+      "Role",
+      "Ministry",
+      "Worker Type",
+      "Status",
+      "Registered Date",
+    ];
+
+    const directoryRows = allWorkers.map((w) => [
+      formatWorkerId(w.workerId),
+      w.firstName || "",
+      w.lastName || "",
+      w.email || "",
+      w.phone || "",
+      getWorkerRoleLabel(w),
+      ministries.find((m) => m.id === w.majorMinistryId)?.name || "Unassigned",
+      w.employmentType || "Volunteer",
+      w.status || "Active",
+      w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
+    ]);
+
+    // ── Sheet 2: Ministry Breakdown ──
+    const ministryCounts: Record<string, { total: number; active: number }> = {};
+    ministries.forEach((m) => {
+      ministryCounts[m.name] = { total: 0, active: 0 };
+    });
+    ministryCounts["Unassigned"] = { total: 0, active: 0 };
+
+    allWorkers.forEach((w) => {
+      const minName = ministries.find((m) => m.id === w.majorMinistryId)?.name || "Unassigned";
+      if (!ministryCounts[minName]) ministryCounts[minName] = { total: 0, active: 0 };
+      ministryCounts[minName].total += 1;
+      if (w.status === "Active") ministryCounts[minName].active += 1;
+    });
+
+    const ministryRows = Object.entries(ministryCounts).map(([name, data]) => [
+      name,
+      data.total,
+      data.active,
+      data.total > 0 ? `${Math.round((data.active / data.total) * 100)}%` : "0%",
+    ]);
+
+    // ── Sheet 3: Status Summary ──
+    const statusCounts: Record<string, number> = {};
+    allWorkers.forEach((w) => {
+      const s = w.status || "Active";
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const statusRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      `${Math.round((count / allWorkers.length) * 100)}%`,
+    ]);
+
+    exportToExcel(`workers_export_${new Date().toISOString().split("T")[0]}.xlsx`, [
+      {
+        name: "Workers Directory",
+        data: [directoryHeaders, ...directoryRows],
+        colWidths: [14, 18, 18, 28, 16, 20, 24, 16, 12, 16],
+      },
+      {
+        name: "Ministry Breakdown",
+        data: [
+          ["Ministry Name", "Total Workers", "Active Workers", "Active Rate"],
+          ...ministryRows,
+        ],
+        colWidths: [28, 16, 16, 14],
+      },
+      {
+        name: "Status Summary",
+        data: [["Status", "Total Workers", "Percentage"], ...statusRows],
+        colWidths: [20, 16, 14],
+      },
+    ]);
+
+    toast({
+      title: "Workers Exported",
+      description: `Exported ${allWorkers.length} workers with multiple summary tabs.`,
+    });
   };
 
   const handlePasswordReset = async (worker: Worker) => {
@@ -463,29 +529,6 @@ export default function WorkersPage() {
     else setSelectedWorkerIds(currentWorkers.map(w => w.id));
   };
   const toggleSelectWorker = (id: string) => setSelectedWorkerIds(prev => prev.includes(id) ? prev.filter(wId => wId !== id) : [...prev, id]);
-
-  const handleImportWorkers = (csvData: string) => {
-    Papa.parse(csvData, {
-      header: true, skipEmptyLines: true,
-      complete: async results => {
-        const newWorkers = results.data;
-        if (newWorkers.length === 0) { toast({ variant: "destructive", title: "No Data Found" }); return; }
-        try {
-          let importedCount = 0;
-          for (let index = 0; index < newWorkers.length; index++) {
-            const nw = newWorkers[index] as any;
-            if (!nw.firstName || !nw.lastName || !nw.email) continue;
-            const workerId = String(100000 + (allWorkers?.length || 0) + index).slice(-6);
-            const phone = cleanPhoneNumber(nw.phone || "");
-            await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone, roleId: nw.roleId || "viewer", status: "Active", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
-            importedCount++;
-          }
-          toast({ title: "Import Successful", description: `${importedCount} workers imported.` });
-          setIsImportSheetOpen(false);
-        } catch { toast({ variant: "destructive", title: "Import Failed" }); }
-      },
-    });
-  };
 
   const getRoleName = (roleId?: string | null) => {
     if (!roleId) return "Worker";
@@ -648,14 +691,7 @@ export default function WorkersPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setIsImportSheetOpen(true)}
-              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
-            >
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="hidden sm:inline">Import</span>
-            </button>
-            <button
-              onClick={handleExportWorkers}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
             >
               <Download className="h-4 w-4 text-muted-foreground" />
@@ -993,12 +1029,6 @@ export default function WorkersPage() {
     </div>
 
       {/* Sheets & Dialogs */}
-      <Sheet open={isImportSheetOpen} onOpenChange={setIsImportSheetOpen}>
-        <SheetContent className="sm:max-w-lg">
-          <ImportSheet onImport={handleImportWorkers} onClose={() => setIsImportSheetOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       <AlertDialog open={isBatchDeleteDialogOpen} onOpenChange={setIsBatchDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1137,6 +1167,15 @@ export default function WorkersPage() {
             setSelectedWorkerForDetails(null);
           }
         }}
+      />
+
+      {/* Export Confirmation Dialog (Yes/No) */}
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Workers Directory?"
+        description="Do you want to export the workers directory along with ministry and status summary sheets as an Excel workbook (.xlsx)?"
+        onConfirm={handleExportWorkers}
       />
     </AppLayout>
   );

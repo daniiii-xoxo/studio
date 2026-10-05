@@ -29,6 +29,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
+import { exportToExcel } from "@/lib/export-excel";
+import { ExportConfirmDialog } from "@/components/common/export-confirm-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function exportCsv(filename: string, headers: string[], rows: (string | number)[][]) {
@@ -326,20 +329,53 @@ function AttendanceTab() {
   const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE) || 1;
   const paginatedRows = filteredRows.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv(`attendance-report.csv`,
-      ["Worker", "Worker ID", "Ministry", "Date", "Time In", "Time Out", "Hours", "Status"],
-      filteredRows.map(r => [
-        `${r.worker.firstName} ${r.worker.lastName}`,
-        fmtId(r.worker.workerId),
-        (ministries as any[])?.find(m => m.id === r.worker.majorMinistryId)?.name || "—",
-        format(r.date, "MMM d, yyyy"),
-        r.timeIn ? format(r.timeIn, "H:mm") : "—",
-        r.timeOut ? format(r.timeOut, "H:mm") : "—",
-        r.hours != null ? `${Math.floor(r.hours / 60)}h ${r.hours % 60}m` : "—",
-        r.status,
-      ])
-    );
+    const recordsHeaders = ["Worker", "Worker ID", "Ministry", "Date", "Time In", "Time Out", "Hours", "Status"];
+    const recordsRows = filteredRows.map(r => [
+      `${r.worker.firstName} ${r.worker.lastName}`,
+      fmtId(r.worker.workerId),
+      (ministries as any[])?.find(m => m.id === r.worker.majorMinistryId)?.name || "—",
+      format(r.date, "MMM d, yyyy"),
+      r.timeIn ? format(r.timeIn, "H:mm") : "—",
+      r.timeOut ? format(r.timeOut, "H:mm") : "—",
+      r.hours != null ? `${Math.floor(r.hours / 60)}h ${r.hours % 60}m` : "—",
+      r.status,
+    ]);
+
+    const statusCounts: Record<string, number> = {};
+    filteredRows.forEach(r => {
+      const s = r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Unknown";
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const summaryRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      filteredRows.length > 0 ? `${Math.round((count / filteredRows.length) * 100)}%` : "0%",
+    ]);
+
+    exportToExcel(`attendance-report_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Attendance Records",
+        data: [recordsHeaders, ...recordsRows],
+        colWidths: [24, 14, 24, 16, 12, 12, 12, 14],
+      },
+      {
+        name: "Attendance Summary",
+        data: [
+          ["Total Records", filteredRows.length],
+          [],
+          ["Status", "Count", "Percentage"],
+          ...summaryRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
+
+    toast({ title: "Attendance Exported", description: `Exported ${filteredRows.length} records to Excel.` });
   };
 
   if (isLoading) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -494,12 +530,12 @@ function AttendanceTab() {
             </SelectContent>
           </Select>
 
-          {/* Export CSV */}
+          {/* Export */}
           <button
-            onClick={handleExport}
+            onClick={() => setShowExportConfirm(true)}
             className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
           >
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> Export Excel
           </button>
         </div>
 
@@ -645,6 +681,14 @@ function AttendanceTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Attendance Report?"
+        description="Do you want to export the attendance records and summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
@@ -732,18 +776,40 @@ function MealStubClaimsTab() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("mealstub-claims.csv",
-      ["Worker", "Ministry", "Date Issued", "Date Claimed", "Status", "Claim Type"],
-      filtered.map(s => [
-        s.workerName,
-        s.ministry?.name || "—",
-        format(toJsDate(s.date), "MMM d, yyyy"),
-        (s as any).claimedAt ? format(toJsDate((s as any).claimedAt), "MMM d, yyyy") : "——",
-        s.status,
-        (s as any).stubType || "Daily",
-      ])
-    );
+    const claimsHeaders = ["Worker", "Ministry", "Date Issued", "Date Claimed", "Status", "Claim Type"];
+    const claimsRows = filtered.map(s => [
+      s.workerName,
+      s.ministry?.name || "—",
+      format(toJsDate(s.date), "MMM d, yyyy"),
+      (s as any).claimedAt ? format(toJsDate((s as any).claimedAt), "MMM d, yyyy") : "——",
+      s.status,
+      (s as any).stubType || "Daily",
+    ]);
+
+    exportToExcel(`mealstub-claims_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Meal Claims",
+        data: [claimsHeaders, ...claimsRows],
+        colWidths: [24, 24, 16, 16, 14, 14],
+      },
+      {
+        name: "Claims Summary",
+        data: [
+          ["Metric", "Value"],
+          ["Total Issued", stats.issued],
+          ["Claimed", stats.claimed],
+          ["Unclaimed", stats.unclaimed],
+          ["Claim Rate", stats.claimRate],
+        ],
+        colWidths: [20, 16],
+      },
+    ]);
+
+    toast({ title: "Meal Claims Exported", description: `Exported ${filtered.length} claims records to Excel.` });
   };
 
   // Donut chart data
@@ -864,10 +930,10 @@ function MealStubClaimsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -981,6 +1047,14 @@ function MealStubClaimsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Meal Claims Report?"
+        description="Do you want to export the meal claims and claims summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
@@ -1093,14 +1167,25 @@ function AllocationsTab() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("allocations.csv",
-      ["Worker", "Ministry", "Worker Type", "Weekday Used", "Sunday Used", "Remaining"],
-      filtered.map(w => {
-        const s = getStats(w.id);
-        return [`${w.firstName} ${w.lastName}`, getMinistry(w.majorMinistryId)?.name || "—", w.employmentType || "—", `${s.weekday}/${s.weekdayLimit}`, `${s.sunday}/${s.sundayLimit}`, s.remaining];
-      })
-    );
+    const headers = ["Worker", "Ministry", "Worker Type", "Weekday Used", "Sunday Used", "Remaining"];
+    const rows = filtered.map(w => {
+      const s = getStats(w.id);
+      return [`${w.firstName} ${w.lastName}`, getMinistry(w.majorMinistryId)?.name || "—", w.employmentType || "—", `${s.weekday}/${s.weekdayLimit}`, `${s.sunday}/${s.sundayLimit}`, s.remaining];
+    });
+
+    exportToExcel(`meal-allocations_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Allocations",
+        data: [headers, ...rows],
+        colWidths: [24, 24, 18, 16, 16, 14],
+      },
+    ]);
+
+    toast({ title: "Allocations Exported", description: `Exported ${filtered.length} worker allocations to Excel.` });
   };
 
   if (wL || mL || msL) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1186,10 +1271,10 @@ function AllocationsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -1295,6 +1380,14 @@ function AllocationsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Meal Allocations Report?"
+        description="Do you want to export the worker meal allocations as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
@@ -1413,24 +1506,56 @@ function ReservationsTab() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("reservations.csv",
-      ["Worker", "Ministry", "Facility", "Date", "Time", "Purpose", "Status"],
-      filtered.map(r => {
-        const start = toJsDate(r.start);
-        const end = toJsDate(r.end);
-        const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
-        return [
-          r.workerProfileId ? getWorkerName(r.workerProfileId) : "N/A",
-          min?.name || "—",
-          getRoomName(r.roomId),
-          format(start, "MMM d, yyyy"),
-          `${format(start, "H:mm")} - ${format(end, "H:mm")}`,
-          r.purpose || r.title || "—",
-          r.status,
-        ];
-      })
-    );
+    const headers = ["Worker", "Ministry", "Facility", "Date", "Time", "Purpose", "Status"];
+    const rows = filtered.map(r => {
+      const start = toJsDate(r.start);
+      const end = toJsDate(r.end);
+      const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
+      return [
+        r.workerProfileId ? getWorkerName(r.workerProfileId) : "N/A",
+        min?.name || "—",
+        getRoomName(r.roomId),
+        format(start, "MMM d, yyyy"),
+        `${format(start, "H:mm")} - ${format(end, "H:mm")}`,
+        r.purpose || r.title || "—",
+        r.status,
+      ];
+    });
+
+    const statusCounts: Record<string, number> = {};
+    filtered.forEach(r => {
+      statusCounts[r.status] = (statusCounts[r.status] || 0) + 1;
+    });
+
+    const summaryRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      filtered.length > 0 ? `${Math.round((count / filtered.length) * 100)}%` : "0%",
+    ]);
+
+    exportToExcel(`facility-reservations_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Reservations",
+        data: [headers, ...rows],
+        colWidths: [24, 24, 22, 16, 18, 30, 14],
+      },
+      {
+        name: "Summary by Status",
+        data: [
+          ["Total Reservations", filtered.length],
+          [],
+          ["Status", "Count", "Percentage"],
+          ...summaryRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
+
+    toast({ title: "Reservations Exported", description: `Exported ${filtered.length} reservations to Excel.` });
   };
 
   if (isLoading) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1500,10 +1625,10 @@ function ReservationsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -1648,6 +1773,14 @@ function ReservationsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Reservations Report?"
+        description="Do you want to export facility reservations and status summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }

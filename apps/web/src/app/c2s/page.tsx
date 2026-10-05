@@ -122,6 +122,7 @@ import {
   Tooltip as ReTooltip,
   Legend,
 } from "recharts";
+import * as XLSX from "xlsx";
 import { useAuthStore, usePermissionsStore } from "@studio/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { C2SGroup, C2SMentee, C2SDevotionRecord, Worker } from "@studio/types";
@@ -2775,42 +2776,160 @@ const C2SAnalytics = ({
   const retentionRate =
     totalFinished > 0 ? Math.round((completed / totalFinished) * 100) : 0;
 
-  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
-  const handleExportCSV = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "CONNECT 2 SOULS - ANALYTICS SUMMARY REPORT\n";
-    csvContent += `Generated Date,${format(new Date(), "yyyy-MM-dd HH:mm:ss")}\n`;
-    csvContent += `Filtered Cluster,${selectedCluster === "all" ? `All ${formattedDeptName} Ministries` : selectedCluster}\n\n`;
+  const handleExportAnalytics = () => {
+    try {
+      const totalMentees = filteredMentees.length || 0;
+      const totalDevCount = filteredDevotions.length || 0;
 
-    csvContent += "METRIC SUMMARY,VALUE\n";
-    csvContent += `Total Devotions Logged,${filteredDevotions.length}\n`;
-    csvContent += `Mentee Attendees Reached,${totalAttendeesReached}\n`;
-    csvContent += `Mentee Retention Rate,${retentionRate}%\n`;
-    csvContent += `Active Groups,${filteredGroups.length}\n`;
-    csvContent += `Total Enrolled Mentees,${filteredMentees.length}\n`;
-    csvContent += `Completed Mentees,${completed}\n`;
-    csvContent += `In Progress Mentees,${inProgress}\n`;
-    csvContent += `Dropped Mentees,${dropped}\n\n`;
+      // ── Sheet 1: Analytics Overview ──
+      const overviewData: any[][] = [
+        ["CONNECT 2 SOULS - ANALYTICS SUMMARY REPORT"],
+        ["Scope / Filter", selectedCluster === "all" ? `All ${formattedDeptName} Ministries` : selectedCluster],
+        ["Generated Date", format(new Date(), "yyyy-MM-dd HH:mm:ss")],
+        [],
+        ["KPI METRIC OVERVIEW", "VALUE", "DESCRIPTION"],
+        ["Total Devotions Logged", filteredDevotions.length, "Total devotion sessions conducted"],
+        ["Total Mentee Attendees Reached", totalAttendeesReached, "Cumulative attendees across sessions"],
+        ["Mentee Retention Rate", `${retentionRate}%`, "Percentage of retained / completed mentees"],
+        ["Active Mentoring Groups", filteredGroups.length, "Total active discipleship / care groups"],
+        ["Total Enrolled Mentees", totalMentees, "Total registered mentees across groups"],
+        [],
+        ["MENTEE STATUS BREAKDOWN", "COUNT", "PERCENTAGE"],
+        ["In Progress", inProgress, `${totalMentees > 0 ? Math.round((inProgress / totalMentees) * 100) : 0}%`],
+        ["Completed", completed, `${totalMentees > 0 ? Math.round((completed / totalMentees) * 100) : 0}%`],
+        ["Dropped", dropped, `${totalMentees > 0 ? Math.round((dropped / totalMentees) * 100) : 0}%`],
+        ["Total Mentees", totalMentees, "100%"],
+      ];
 
-    csvContent += "DEVOTION SESSIONS LOG\n";
-    csvContent += "Date,Lesson Topic,Mentor,Attendees,Prayer Request\n";
-    filteredDevotions.forEach((d) => {
-      const date = d.devotionDate ? format(toJsDate(d.devotionDate), "yyyy-MM-dd") : "";
-      const topic = (d.lessonName || d.topic || "").replace(/"/g, '""');
-      const mentor = (d.mentorName || "").replace(/"/g, '""');
-      const prayer = (d.prayerRequests || "").replace(/"/g, '""');
-      const attendees = (d.attendeeNames || []).join("; ").replace(/"/g, '""');
-      csvContent += `"${date}","${topic}","${mentor}","${attendees}","${prayer}"\n`;
-    });
+      const overviewSheet = XLSX.utils.aoa_to_sheet(overviewData);
+      overviewSheet["!cols"] = [
+        { wch: 34 },
+        { wch: 18 },
+        { wch: 45 },
+      ];
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `C2S_Analytics_Report_${format(new Date(), "yyyyMMdd")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // ── Sheet 2: Cluster Breakdown ──
+      const clusterRows = clusterDevotionsData.map((c) => [
+        c.name,
+        c.count,
+        `${totalDevCount > 0 ? Math.round((c.count / totalDevCount) * 100) : 0}%`,
+      ]);
+
+      const clusterData: any[][] = [
+        ["CONNECT 2 SOULS - DEVOTIONS BY CLUSTER"],
+        ["Scope", selectedCluster === "all" ? `All ${formattedDeptName} Ministries` : selectedCluster],
+        ["Generated Date", format(new Date(), "yyyy-MM-dd HH:mm:ss")],
+        [],
+        ["Cluster / Ministry Group", "Devotions Logged", "Share (%)"],
+        ...clusterRows,
+        [],
+        ["Total Devotions", totalDevCount, "100%"],
+      ];
+
+      const clusterSheet = XLSX.utils.aoa_to_sheet(clusterData);
+      clusterSheet["!cols"] = [
+        { wch: 32 },
+        { wch: 18 },
+        { wch: 15 },
+      ];
+
+      // ── Sheet 3: Devotions Log ──
+      const devotionsHeaders = [
+        "Date",
+        "Lesson Topic",
+        "Cluster / Group",
+        "Mentor",
+        "Attendees Count",
+        "Attendees List",
+        "Prayer Requests",
+      ];
+
+      const devotionsRows = filteredDevotions.map((d) => [
+        d.devotionDate ? format(toJsDate(d.devotionDate), "yyyy-MM-dd") : "",
+        d.lessonName || d.topic || "—",
+        d.clusterName || "—",
+        d.mentorName || "—",
+        d.attendeeCount || (d.attendeeNames || []).length || 0,
+        (d.attendeeNames || []).join(", ") || "—",
+        d.prayerRequests || "—",
+      ]);
+
+      const devotionsSheet = XLSX.utils.aoa_to_sheet([
+        ["CONNECT 2 SOULS - DEVOTION SESSIONS LOG"],
+        ["Scope", selectedCluster === "all" ? `All ${formattedDeptName} Ministries` : selectedCluster],
+        ["Total Records", filteredDevotions.length],
+        [],
+        devotionsHeaders,
+        ...devotionsRows,
+      ]);
+      devotionsSheet["!cols"] = [
+        { wch: 14 },
+        { wch: 32 },
+        { wch: 25 },
+        { wch: 24 },
+        { wch: 16 },
+        { wch: 40 },
+        { wch: 45 },
+      ];
+
+      // ── Sheet 4: Mentees List ──
+      const menteeHeaders = [
+        "Mentee Name",
+        "Status",
+        "Group / Cluster",
+        "Mentor",
+        "Contact Number",
+      ];
+
+      const menteeRows = filteredMentees.map((m) => [
+        m.fullName || `${m.firstName || ""} ${m.lastName || ""}`.trim() || "—",
+        m.status || "In Progress",
+        m.groupName || m.clusterName || "—",
+        m.mentorName || "—",
+        m.contactNumber || "—",
+      ]);
+
+      const menteesSheet = XLSX.utils.aoa_to_sheet([
+        ["CONNECT 2 SOULS - ENROLLED MENTEES"],
+        ["Scope", selectedCluster === "all" ? `All ${formattedDeptName} Ministries` : selectedCluster],
+        ["Total Mentees", filteredMentees.length],
+        [],
+        menteeHeaders,
+        ...menteeRows,
+      ]);
+      menteesSheet["!cols"] = [
+        { wch: 28 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 24 },
+        { wch: 20 },
+      ];
+
+      // ── Build Workbook & Append Sheets ──
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, overviewSheet, "Analytics Overview");
+      XLSX.utils.book_append_sheet(workbook, clusterSheet, "Cluster Breakdown");
+      XLSX.utils.book_append_sheet(workbook, devotionsSheet, "Devotions Log");
+      XLSX.utils.book_append_sheet(workbook, menteesSheet, "Mentees List");
+
+      const filenameCluster = selectedCluster === "all" ? "All" : selectedCluster.replace(/[^a-zA-Z0-9]/g, "_");
+      XLSX.writeFile(workbook, `C2S_Analytics_${filenameCluster}_${format(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+
+      toast({
+        title: "Analytics Exported",
+        description: "Excel report with multiple tabs has been downloaded successfully.",
+      });
+    } catch (err: any) {
+      console.error("Export error:", err);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: err.message || "Failed to generate Excel report.",
+      });
+    }
   };
 
   return (
@@ -2917,22 +3036,12 @@ const C2SAnalytics = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportCSV}
+            onClick={() => setShowExportConfirm(true)}
             className="h-10 px-4 text-xs font-semibold rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted text-slate-700 dark:text-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
-            <span>Export CSV</span>
+            <span>Export Excel</span>
           </Button>
-
-          {canGenerateReport && (
-            <Button
-              onClick={() => setIsReportDialogOpen(true)}
-              className="h-10 px-4 gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-            >
-              <FileText className="h-4 w-4" />
-              Generate Analytics Report
-            </Button>
-          )}
         </div>
       </div>
 
@@ -3097,125 +3206,30 @@ const C2SAnalytics = ({
         )}
       </div>
 
-      {/* ── GENERATE REPORT DIALOG MODAL ── */}
-      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader className="pr-8 space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-primary/10 text-primary font-medium text-xs rounded-full border-transparent">
-                OFFICIAL C2S REPORT
-              </Badge>
-            </div>
-            <DialogTitle className="text-2xl font-extrabold text-foreground tracking-tight mt-1">
-              Connect 2 Souls Analytics Report
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Official summary report for devotions, groups, retention, and mentee progress.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Printable / Viewable Report Preview */}
-          <div className="space-y-4 my-2 p-5 rounded-2xl bg-muted/20 border border-border/60">
-            <div className="flex justify-between items-center border-b border-border/60 pb-3">
-              <div>
-                <h3 className="font-extrabold text-base text-foreground">
-                  Ministry Analytics Overview
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Date: {format(new Date(), "MMMM dd, yyyy")}
-                </p>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                Verified Report
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-card rounded-xl border border-border/50">
-                <p className="text-muted-foreground font-medium">
-                  Total Devotions Logged
-                </p>
-                <p className="text-xl font-black text-primary">
-                  {filteredDevotions.length}
-                </p>
-              </div>
-              <div className="p-3 bg-card rounded-xl border border-border/50">
-                <p className="text-muted-foreground font-medium">
-                  Cumulative Attendance
-                </p>
-                <p className="text-xl font-black text-amber-600">
-                  {totalAttendeesReached}
-                </p>
-              </div>
-              <div className="p-3 bg-card rounded-xl border border-border/50">
-                <p className="text-muted-foreground font-medium">
-                  Mentee Retention Rate
-                </p>
-                <p className="text-xl font-black text-emerald-600">
-                  {retentionRate}%
-                </p>
-              </div>
-              <div className="p-3 bg-card rounded-xl border border-border/50">
-                <p className="text-muted-foreground font-medium">
-                  Active Groups / Mentees
-                </p>
-                <p className="text-xl font-black text-indigo-600">
-                  {filteredGroups.length} / {filteredMentees.length}
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2 space-y-1.5">
-              <p className="text-xs font-bold text-foreground">
-                Mentoring Status Summary
-              </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 rounded-xl bg-card border">
-                <span>In Progress</span>
-                <span className="font-bold text-amber-600">
-                  {inProgress} mentees
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 rounded-xl bg-card border">
-                <span>Completed</span>
-                <span className="font-bold text-emerald-600">
-                  {completed} mentees
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground p-2.5 rounded-xl bg-card border">
-                <span>Dropped</span>
-                <span className="font-bold text-red-500">
-                  {dropped} mentees
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex items-center justify-between sm:justify-between mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsReportDialogOpen(false)}
-              className="rounded-xl px-5 text-xs font-semibold cursor-pointer border-slate-200 dark:border-border"
+      {/* ── EXPORT CONFIRMATION MODAL (YES / NO) ── */}
+      <AlertDialog open={showExportConfirm} onOpenChange={setShowExportConfirm}>
+        <AlertDialogContent className="sm:max-w-[420px] rounded-2xl border border-border/80 shadow-2xl p-6">
+          <AlertDialogHeader className="space-y-2">
+            <AlertDialogTitle className="text-lg font-bold text-foreground">
+              Export Analytics Report?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              Do you want to export the Connect 2 Souls analytics report as an Excel file (.xlsx) with clean, organized sheets for Overview, Cluster Breakdown, Devotions Log, and Mentees?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2 pt-2">
+            <AlertDialogCancel className="rounded-xl px-4 text-xs font-medium cursor-pointer">
+              No
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExportAnalytics}
+              className="rounded-xl px-4 text-xs font-semibold bg-sidebar hover:bg-sidebar/90 text-white cursor-pointer"
             >
-              Close
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleExportCSV}
-                className="rounded-xl gap-1.5 text-xs font-semibold cursor-pointer border-slate-200 dark:border-border"
-              >
-                <FileText className="h-4 w-4" /> Export CSV
-              </Button>
-              <Button
-                onClick={() => window.print()}
-                className="rounded-xl gap-1.5 text-xs bg-sidebar hover:bg-sidebar/90 text-white font-bold shadow-xs cursor-pointer"
-              >
-                <Download className="h-4 w-4" /> Print / Save PDF
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Yes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

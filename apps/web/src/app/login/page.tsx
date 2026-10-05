@@ -35,7 +35,7 @@ export default function LoginPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Reset Password state
-  const [resetEmail, setResetEmail] = useState("");
+  const [resetIdentifier, setResetIdentifier] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -136,31 +136,43 @@ export default function LoginPage() {
   };
 
   const handlePasswordReset = async () => {
-    if (!resetEmail) {
+    const input = resetIdentifier.trim();
+    if (!input) {
       toast({
         variant: "destructive",
-        title: "Email Required",
-        description: "Please enter your email.",
+        title: mode === "worker" ? "Worker ID or Email Required" : "Email Required",
+        description: `Please enter your ${mode === "worker" ? "Worker ID or email" : "email"}.`,
       });
       return;
     }
     setIsResetting(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      let targetEmail = input;
+
+      // If it doesn't look like an email, assume it's a Worker ID and resolve it
+      if (!targetEmail.includes("@")) {
+        const result = await getWorkerEmail(targetEmail);
+        if (!result.success || !result.email) {
+          throw new Error(result.error || "Worker ID not found.");
+        }
+        targetEmail = result.email;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
       if (error) throw error;
       toast({
         title: "Reset Email Sent",
-        description: `Instructions sent to ${resetEmail}`,
+        description: `Instructions sent to ${targetEmail}`,
       });
       setIsResetDialogOpen(false);
-      setResetEmail("");
+      setResetIdentifier("");
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Reset Failed",
-        description: error.message,
+        description: error.message || "Failed to send reset link.",
       });
     } finally {
       setIsResetting(false);
@@ -242,45 +254,58 @@ export default function LoginPage() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password" className="text-white text-sm font-medium">Password</Label>
-                {mode === "email" && (
-                  <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-                    <DialogTrigger asChild>
-                      <button
+                <Dialog
+                  open={isResetDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsResetDialogOpen(open);
+                    if (open && identifier) {
+                      setResetIdentifier(identifier.trim());
+                    }
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="ml-auto inline-block text-xs sm:text-sm underline text-white/90 hover:text-white transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Reset Password</DialogTitle>
+                      <DialogDescription>
+                        {mode === "worker"
+                          ? "Enter your Worker ID or registered email to receive reset instructions."
+                          : "Enter your email for reset instructions."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4">
+                      <Label htmlFor="reset-identifier">
+                        {mode === "worker" ? "Worker ID or Email" : "Email"}
+                      </Label>
+                      <Input
+                        id="reset-identifier"
+                        placeholder={mode === "worker" ? "e.g. 01042 or m@example.com" : "m@example.com"}
+                        value={resetIdentifier}
+                        onChange={(e) => setResetIdentifier(e.target.value)}
+                        disabled={isResetting}
+                        onKeyDown={(e) => e.key === "Enter" && handlePasswordReset()}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
                         type="button"
-                        className="ml-auto inline-block text-xs sm:text-sm underline text-white/90 hover:text-white transition-colors"
+                        onClick={handlePasswordReset}
+                        disabled={isResetting}
+                        className="w-full"
                       >
-                        Forgot password?
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Reset Password</DialogTitle>
-                        <DialogDescription>Enter your email for reset instructions.</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-2 py-4">
-                        <Label htmlFor="reset-email">Email</Label>
-                        <Input
-                          id="reset-email"
-                          placeholder="m@example.com"
-                          value={resetEmail}
-                          onChange={(e) => setResetEmail(e.target.value)}
-                          disabled={isResetting}
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          onClick={handlePasswordReset}
-                          disabled={isResetting}
-                          className="w-full"
-                        >
-                          {isResetting && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
-                          Send Reset Link
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
+                        {isResetting && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
+                        Send Reset Link
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="relative">
                 <Input
