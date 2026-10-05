@@ -307,11 +307,11 @@ export default function NewReservationPage() {
       });
       return;
     }
-    if (selectedRoom && chairsNum > selectedRoom.capacity) {
+    if (chairsNum > 60) {
       toast({
         variant: "destructive",
         title: "Chairs Limit Exceeded",
-        description: `Maximum of ${selectedRoom.capacity} chairs allowed based on room capacity.`,
+        description: "Maximum of 60 chairs allowed per reservation.",
       });
       return;
     }
@@ -795,20 +795,17 @@ export default function NewReservationPage() {
                   value={numChairs}
                   onChange={(e) => {
                     const val = parseInt(e.target.value);
-                    const maxChairs = selectedRoom?.capacity || 999;
-                    if (val <= maxChairs || e.target.value === "") {
+                    if (val <= 60 || e.target.value === "") {
                       setNumChairs(e.target.value);
                     }
                   }}
                   placeholder="0"
-                  max={selectedRoom?.capacity || undefined}
+                  max={60}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
-                {selectedRoom && (
-                  <p className="text-[11px] font-medium mt-1 text-muted-foreground">
-                    Maximum: {selectedRoom.capacity} chairs
-                  </p>
-                )}
+                <p className="text-[11px] font-medium mt-1 text-muted-foreground">
+                  Maximum: 60 chairs
+                </p>
               </div>
             </div>
 
