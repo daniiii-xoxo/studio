@@ -4399,11 +4399,11 @@ function C2SPageContent() {
                     }}
                   >
                     <SelectTrigger className="w-full sm:w-[220px] h-10 text-xs rounded-2xl border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 font-medium shadow-2xs px-3">
-                      <SelectValue placeholder="All Ministries & Clusters" />
+                      <SelectValue placeholder="All Ministries" />
                     </SelectTrigger>
                     <SelectContent className="max-h-96 overflow-y-auto">
                       <SelectItem value="all" className="text-xs font-bold text-primary">
-                        All Ministries & Clusters
+                        All Ministries
                       </SelectItem>
                       <SelectGroup>
                         <SelectLabel className="px-2 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/40 my-1 rounded-sm">
