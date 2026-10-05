@@ -6,10 +6,10 @@ export const FONT_SCALE_KEY = "cog_app_font_scale";
 export const FONT_SCALE_EVENT = "cog-font-scale-changed";
 
 export const FONT_PRESETS = [
-  { id: "small", label: "Small", scale: 0.85 },
+  { id: "small", label: "Small", scale: 0.875 },
   { id: "default", label: "Default", scale: 1.0 },
-  { id: "large", label: "Large", scale: 1.15 },
-  { id: "xlarge", label: "Extra Large", scale: 1.3 },
+  { id: "large", label: "Large", scale: 1.125 },
+  { id: "xlarge", label: "Extra Large", scale: 1.25 },
 ] as const;
 
 export type FontPresetId = (typeof FONT_PRESETS)[number]["id"];

@@ -15,7 +15,7 @@ export function FontSizeSlider({
   className,
   showPreview = true,
 }: FontSizeSliderProps) {
-  const { currentIndex, setByIndex, setPreset, resetToDefault, currentPresetLabel } =
+  const { scale, currentIndex, setByIndex, setPreset, resetToDefault, currentPresetLabel } =
     useFontSize();
 
   const handleSliderChange = (vals: number[]) => {
@@ -23,6 +23,8 @@ export function FontSizeSlider({
       setByIndex(vals[0]);
     }
   };
+
+  const currentPx = Math.round(16 * scale);
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -41,11 +43,11 @@ export function FontSizeSlider({
                 Font Size
               </label>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sidebar/10 text-sidebar dark:bg-sky-950/60 dark:text-sky-300 border border-sidebar/20">
-                {currentPresetLabel}
+                {currentPresetLabel} ({currentPx}px)
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Adjust text size across the entire application for improved legibility.
+              Adjust text size across the entire application (default: 16px).
             </p>
           </div>
         </div>
@@ -59,7 +61,7 @@ export function FontSizeSlider({
             className="self-start sm:self-auto h-8 px-3 rounded-lg text-xs font-semibold gap-1.5 border-border/80 hover:bg-muted/50 cursor-pointer"
           >
             <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Reset to Default</span>
+            <span>Reset to Default (16px)</span>
           </Button>
         )}
       </div>
@@ -68,8 +70,8 @@ export function FontSizeSlider({
       <div className="bg-slate-50/80 dark:bg-muted/30 rounded-2xl border border-border/60 p-5 sm:p-6 space-y-5">
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Smaller text</span>
-            <span className="text-[11px] font-bold uppercase tracking-wider">Larger text</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Smaller (14px)</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">Larger (20px)</span>
           </div>
 
           <div className="py-2 px-1">
@@ -97,7 +99,7 @@ export function FontSizeSlider({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xs font-semibold">Small</span>
+              <span className="text-xs font-semibold">Small (14px)</span>
             </button>
 
             <button
@@ -110,7 +112,7 @@ export function FontSizeSlider({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xs font-semibold">Default</span>
+              <span className="text-xs font-semibold">Default (16px)</span>
             </button>
 
             <button
@@ -123,7 +125,7 @@ export function FontSizeSlider({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xs font-semibold">Large</span>
+              <span className="text-xs font-semibold">Large (18px)</span>
             </button>
 
             <button
@@ -136,7 +138,7 @@ export function FontSizeSlider({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xs font-semibold">Extra Large</span>
+              <span className="text-xs font-semibold">Extra Large (20px)</span>
             </button>
           </div>
         </div>
@@ -149,6 +151,7 @@ export function FontSizeSlider({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {FONT_PRESETS.map((preset, idx) => {
               const isSelected = currentIndex === idx;
+              const px = Math.round(16 * preset.scale);
               return (
                 <button
                   key={preset.id}
@@ -161,7 +164,7 @@ export function FontSizeSlider({
                       : "border-border/70 bg-white dark:bg-card text-foreground hover:border-sidebar/40 hover:bg-muted/40"
                   )}
                 >
-                  <span>{preset.label}</span>
+                  <span>{preset.label} <span className="opacity-75 font-normal">({px}px)</span></span>
                   {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
                 </button>
               );
@@ -181,7 +184,7 @@ export function FontSizeSlider({
               </h4>
             </div>
             <span className="text-xs font-semibold text-muted-foreground">
-              Size: {currentPresetLabel}
+              Size: {currentPresetLabel} ({currentPx}px)
             </span>
           </div>
 

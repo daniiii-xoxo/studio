@@ -107,7 +107,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-size: calc(1.25rem * var(--font-scale, 1));
+    font-size: calc(1rem * var(--font-scale, 1));
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
@@ -121,11 +121,11 @@
     -webkit-user-select: text;
   }
 
-  /* Form controls font size scaling (20px at Default) */
+  /* Form controls font size scaling (16px at Default) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
   textarea,
   select {
-    font-size: calc(1.25rem * var(--font-scale, 1));
+    font-size: calc(1rem * var(--font-scale, 1));
   }
 
   /* Hide default browser password reveal / clear buttons to avoid duplicate eye icons in Edge/IE */
@@ -143,23 +143,6 @@
     font-weight: 600;
     color: hsl(var(--foreground));
   }
-
-  /* Dynamic font size scaling for arbitrary Tailwind pixel classes (scaled to 20px baseline) */
-  .text-\[9px\] { font-size: calc(13px * var(--font-scale, 1)) !important; }
-  .text-\[10px\] { font-size: calc(14.5px * var(--font-scale, 1)) !important; }
-  .text-\[11px\] { font-size: calc(16px * var(--font-scale, 1)) !important; }
-  .text-\[12px\] { font-size: calc(17px * var(--font-scale, 1)) !important; }
-  .text-\[13px\] { font-size: calc(18.5px * var(--font-scale, 1)) !important; }
-  .text-\[14px\] { font-size: calc(20px * var(--font-scale, 1)) !important; }
-  .text-\[14\.5px\] { font-size: calc(20.5px * var(--font-scale, 1)) !important; }
-  .text-\[15px\] { font-size: calc(21px * var(--font-scale, 1)) !important; }
-  .text-\[16px\] { font-size: calc(22px * var(--font-scale, 1)) !important; }
-  .text-\[18px\] { font-size: calc(24px * var(--font-scale, 1)) !important; }
-  .text-\[20px\] { font-size: calc(26px * var(--font-scale, 1)) !important; }
-  .text-\[22px\] { font-size: calc(28px * var(--font-scale, 1)) !important; }
-  .text-\[24px\] { font-size: calc(30px * var(--font-scale, 1)) !important; }
-  .text-\[28px\] { font-size: calc(34px * var(--font-scale, 1)) !important; }
-  .text-\[32px\] { font-size: calc(38px * var(--font-scale, 1)) !important; }
 }
 
 @layer utilities {
@@ -263,76 +246,71 @@ header .brand-title {
   font-size: 22px !important;
 }
 
-/* ── SIDEBAR & NAVIGATION FONT SCALING ── */
+/* ── SIDEBAR & NAVIGATION FONT SCALING (16px default) ── */
 /* Menu buttons: Dashboard, Workers, Room Reservations, Configuration, Settings, etc. */
 [data-sidebar="menu-button"],
-[data-sidebar="menu-button"] *,
-[data-sidebar="sidebar"] [data-sidebar="menu-button"],
-[data-sidebar="sidebar"] [data-sidebar="menu-button"] * {
-  font-size: calc(20px * var(--font-scale, 1)) !important;
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] {
+  font-size: calc(1rem * var(--font-scale, 1));
 }
 
 [data-sidebar="menu-button"] {
-  min-height: 44px !important;
-  height: auto !important;
+  min-height: 40px;
+  height: auto;
 }
 
 /* Sub-menu buttons: Display & Font Size, Change Password, etc. */
 [data-sidebar="menu-sub-button"],
-[data-sidebar="menu-sub-button"] *,
-[data-sidebar="sidebar"] [data-sidebar="menu-sub-button"],
-[data-sidebar="sidebar"] [data-sidebar="menu-sub-button"] * {
-  font-size: calc(18px * var(--font-scale, 1)) !important;
+[data-sidebar="sidebar"] [data-sidebar="menu-sub-button"] {
+  font-size: calc(0.90625rem * var(--font-scale, 1)); /* 14.5px */
 }
 
 [data-sidebar="menu-sub-button"] {
-  min-height: 38px !important;
-  height: auto !important;
+  min-height: 34px;
+  height: auto;
 }
 
 /* Group labels (MENU) */
 [data-sidebar="group-label"],
-[data-sidebar="sidebar"] [data-sidebar="group-label"],
-[data-sidebar="group-label"] * {
-  font-size: calc(15px * var(--font-scale, 1)) !important;
+[data-sidebar="sidebar"] [data-sidebar="group-label"] {
+  font-size: calc(0.75rem * var(--font-scale, 1)); /* 12px */
 }
 
-/* ── GLOBAL TYPOGRAPHY SCALING (Baseline: 20px / 1.25rem at Default) ── */
-.text-xs { font-size: calc(1rem * var(--font-scale, 1)) !important; line-height: calc(1.35rem * var(--font-scale, 1)) !important; }
-.text-sm { font-size: calc(1.25rem * var(--font-scale, 1)) !important; line-height: calc(1.65rem * var(--font-scale, 1)) !important; }
-.text-base { font-size: calc(1.375rem * var(--font-scale, 1)) !important; line-height: calc(1.85rem * var(--font-scale, 1)) !important; }
-.text-lg { font-size: calc(1.5rem * var(--font-scale, 1)) !important; line-height: calc(2rem * var(--font-scale, 1)) !important; }
-.text-xl { font-size: calc(1.75rem * var(--font-scale, 1)) !important; line-height: calc(2.25rem * var(--font-scale, 1)) !important; }
-.text-2xl { font-size: calc(2rem * var(--font-scale, 1)) !important; line-height: calc(2.5rem * var(--font-scale, 1)) !important; }
-.text-3xl { font-size: calc(2.375rem * var(--font-scale, 1)) !important; line-height: calc(2.85rem * var(--font-scale, 1)) !important; }
-.text-4xl { font-size: calc(2.75rem * var(--font-scale, 1)) !important; line-height: calc(3.25rem * var(--font-scale, 1)) !important; }
-.text-5xl { font-size: calc(3.5rem * var(--font-scale, 1)) !important; }
+/* ── GLOBAL TYPOGRAPHY SCALING (Baseline: 16px / 1rem at Default) ── */
+.text-xs { font-size: calc(0.75rem * var(--font-scale, 1)) !important; line-height: calc(1rem * var(--font-scale, 1)) !important; }
+.text-sm { font-size: calc(0.875rem * var(--font-scale, 1)) !important; line-height: calc(1.25rem * var(--font-scale, 1)) !important; }
+.text-base { font-size: calc(1rem * var(--font-scale, 1)) !important; line-height: calc(1.5rem * var(--font-scale, 1)) !important; }
+.text-lg { font-size: calc(1.125rem * var(--font-scale, 1)) !important; line-height: calc(1.75rem * var(--font-scale, 1)) !important; }
+.text-xl { font-size: calc(1.25rem * var(--font-scale, 1)) !important; line-height: calc(1.75rem * var(--font-scale, 1)) !important; }
+.text-2xl { font-size: calc(1.5rem * var(--font-scale, 1)) !important; line-height: calc(2rem * var(--font-scale, 1)) !important; }
+.text-3xl { font-size: calc(1.875rem * var(--font-scale, 1)) !important; line-height: calc(2.25rem * var(--font-scale, 1)) !important; }
+.text-4xl { font-size: calc(2.25rem * var(--font-scale, 1)) !important; line-height: calc(2.5rem * var(--font-scale, 1)) !important; }
+.text-5xl { font-size: calc(3rem * var(--font-scale, 1)) !important; }
 
-/* Arbitrary pixel sizes (scaled proportionally to 20px baseline) */
-.text-\[9px\] { font-size: calc(13px * var(--font-scale, 1)) !important; }
-.text-\[10px\] { font-size: calc(14.5px * var(--font-scale, 1)) !important; }
-.text-\[11px\] { font-size: calc(16px * var(--font-scale, 1)) !important; }
-.text-\[12px\] { font-size: calc(17px * var(--font-scale, 1)) !important; }
-.text-\[13px\] { font-size: calc(18.5px * var(--font-scale, 1)) !important; }
-.text-\[14px\] { font-size: calc(20px * var(--font-scale, 1)) !important; }
-.text-\[14\.5px\] { font-size: calc(20.5px * var(--font-scale, 1)) !important; }
-.text-\[15px\] { font-size: calc(21px * var(--font-scale, 1)) !important; }
-.text-\[16px\] { font-size: calc(22px * var(--font-scale, 1)) !important; }
-.text-\[18px\] { font-size: calc(24px * var(--font-scale, 1)) !important; }
-.text-\[20px\] { font-size: calc(26px * var(--font-scale, 1)) !important; }
-.text-\[22px\] { font-size: calc(28px * var(--font-scale, 1)) !important; }
-.text-\[24px\] { font-size: calc(30px * var(--font-scale, 1)) !important; }
-.text-\[28px\] { font-size: calc(34px * var(--font-scale, 1)) !important; }
-.text-\[32px\] { font-size: calc(38px * var(--font-scale, 1)) !important; }
+/* Arbitrary pixel sizes (scaled proportionally to 16px default) */
+.text-\[9px\] { font-size: calc(9px * var(--font-scale, 1)) !important; }
+.text-\[10px\] { font-size: calc(10px * var(--font-scale, 1)) !important; }
+.text-\[11px\] { font-size: calc(11px * var(--font-scale, 1)) !important; }
+.text-\[12px\] { font-size: calc(12px * var(--font-scale, 1)) !important; }
+.text-\[13px\] { font-size: calc(13px * var(--font-scale, 1)) !important; }
+.text-\[14px\] { font-size: calc(14px * var(--font-scale, 1)) !important; }
+.text-\[14\.5px\] { font-size: calc(14.5px * var(--font-scale, 1)) !important; }
+.text-\[15px\] { font-size: calc(15px * var(--font-scale, 1)) !important; }
+.text-\[16px\] { font-size: calc(16px * var(--font-scale, 1)) !important; }
+.text-\[18px\] { font-size: calc(18px * var(--font-scale, 1)) !important; }
+.text-\[20px\] { font-size: calc(20px * var(--font-scale, 1)) !important; }
+.text-\[22px\] { font-size: calc(22px * var(--font-scale, 1)) !important; }
+.text-\[24px\] { font-size: calc(24px * var(--font-scale, 1)) !important; }
+.text-\[28px\] { font-size: calc(28px * var(--font-scale, 1)) !important; }
+.text-\[32px\] { font-size: calc(32px * var(--font-scale, 1)) !important; }
 
-/* Form inputs & tables (20px at Default) */
+/* Form inputs & controls (16px / 1rem at Default) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
 textarea,
 select {
-  font-size: calc(1.25rem * var(--font-scale, 1)) !important;
+  font-size: calc(1rem * var(--font-scale, 1)) !important;
 }
 
 table th,
 table td {
-  font-size: calc(1.25rem * var(--font-scale, 1)) !important;
+  font-size: calc(1rem * var(--font-scale, 1));
 }
