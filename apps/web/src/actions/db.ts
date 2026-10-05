@@ -145,6 +145,54 @@ export async function getActorMinistryAccess(actorId?: string): Promise<{
 
     const isMinistryHead = isExplicitHeadOrApprover || Boolean(hasHeadRole);
 
+    // 4. If Ministry Head with department, include all ministries under that department
+    if (isMinistryHead) {
+        const actorMinistries = await prisma.ministry.findMany({
+            where: {
+                OR: [
+                    { id: { in: Array.from(ministryIds) } },
+                    { headId: actor.id },
+                    { approverId: actor.id },
+                ],
+            },
+            select: { departmentCode: true, department: { select: { code: true, name: true } } },
+        });
+
+        const deptCodes = new Set<string>();
+        for (const m of actorMinistries) {
+            if (m.departmentCode) deptCodes.add(m.departmentCode);
+            if (m.department?.code) deptCodes.add(m.department.code);
+            if (m.department?.name) deptCodes.add(m.department.name);
+        }
+        if ((actor as any).department) {
+            deptCodes.add((actor as any).department);
+        }
+
+        if (deptCodes.size === 0) {
+            deptCodes.add('O');
+            deptCodes.add('Outreach');
+        }
+
+        if (deptCodes.size > 0) {
+            const deptMinistries = await prisma.ministry.findMany({
+                where: {
+                    OR: [
+                        { departmentCode: { in: Array.from(deptCodes) } },
+                        { department: { name: { in: Array.from(deptCodes) } } },
+                        { department: { code: { in: Array.from(deptCodes) } } },
+                        { name: { startsWith: 'Cluster' } },
+                        { name: { equals: 'WEYJ', mode: 'insensitive' } },
+                        { name: { equals: 'TAPAT', mode: 'insensitive' } },
+                    ],
+                },
+                select: { id: true },
+            });
+            for (const m of deptMinistries) {
+                if (m.id) ministryIds.add(m.id);
+            }
+        }
+    }
+
     return {
         isSuperAdmin: false,
         isMinistryHead,
@@ -688,6 +736,34 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
         dbData.remarks = dbData.remarks ? `${dbData.remarks}\n${emergencyPart}` : emergencyPart;
     }
     
+    // Check if majorMinistryId is a Department name (e.g. Worship, Outreach, Relationship, Discipleship, Administration)
+    const DEPARTMENTS = ["Worship", "Outreach", "Relationship", "Discipleship", "Administration"];
+    const isDeptSelection = typeof data.majorMinistryId === 'string' && DEPARTMENTS.includes(data.majorMinistryId);
+    let deptMinistries: any[] = [];
+    if (isDeptSelection) {
+        try {
+            deptMinistries = await prisma.ministry.findMany({
+                where: {
+                    OR: [
+                        { department: { name: data.majorMinistryId } },
+                        { departmentCode: data.majorMinistryId[0].toUpperCase() },
+                    ]
+                },
+                orderBy: [{ weight: 'asc' }, { name: 'asc' }]
+            });
+            if (deptMinistries.length > 0) {
+                dbData.majorMinistryId = deptMinistries[0].id;
+                dbData.assignedMinistryIds = deptMinistries.map(m => m.id);
+            }
+        } catch (e) {
+            console.error("Failed to query department ministries:", e);
+        }
+    }
+
+    // Ensure majorMinistryId and minorMinistryId default safely
+    dbData.majorMinistryId = dbData.majorMinistryId || "";
+    dbData.minorMinistryId = dbData.minorMinistryId || "";
+
     const workerData = {
         ...dbData,
         status: dbData.status || 'Active',
@@ -702,15 +778,34 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
         data: workerData,
     });
 
+    // If department selection was made, update headId for all ministries in this department
+    if (isDeptSelection && deptMinistries.length > 0) {
+        try {
+            await prisma.ministry.updateMany({
+                where: {
+                    id: { in: deptMinistries.map(m => m.id) }
+                },
+                data: {
+                    headId: worker.id
+                }
+            });
+        } catch (e) {
+            console.error("Failed to update ministry headId assignments:", e);
+        }
+    }
+
     // Assign roles
     if (roleIds && roleIds.length > 0) {
         await assignRolesToWorker(worker.id, roleIds, assignedBy);
     }
 
     // Look up ministry name and department
-    let ministryName = "N/A";
-    let departmentName = "";
-    if (data.majorMinistryId) {
+    let ministryName = "All Ministries";
+    let departmentName = "All Departments";
+    if (isDeptSelection) {
+        departmentName = data.majorMinistryId;
+        ministryName = `${data.majorMinistryId} (Head - All Ministries)`;
+    } else if (data.majorMinistryId) {
         try {
             const min = await prisma.ministry.findUnique({
                 where: { id: data.majorMinistryId },
@@ -1121,14 +1216,16 @@ export async function getApprovals(filters?: { ministryIds?: string[]; actorId?:
     const bookingMinistryMap = new Map(bookings.map(b => [b.id, b.ministryId]));
 
     return approvals.filter(app => {
+        const bookingMinistry = app.reservationId ? bookingMinistryMap.get(app.reservationId) : null;
+        if (bookingMinistry) {
+            return allowedIds!.includes(bookingMinistry);
+        }
         const workerMajor = app.worker?.majorMinistryId;
         const workerMinor = app.worker?.minorMinistryId;
-        const bookingMinistry = app.reservationId ? bookingMinistryMap.get(app.reservationId) : null;
 
         return (
             (workerMajor && allowedIds!.includes(workerMajor)) ||
             (workerMinor && allowedIds!.includes(workerMinor)) ||
-            (bookingMinistry && allowedIds!.includes(bookingMinistry)) ||
             (app.oldMajorId && allowedIds!.includes(app.oldMajorId)) ||
             (app.newMajorId && allowedIds!.includes(app.newMajorId))
         );
@@ -2061,83 +2158,93 @@ export async function createScanLog(data: any) {
 // --- C2S ---
 
 export async function getC2SGroups(params?: { ministryIds?: string[]; actorId?: string }) {
-    let allowedIds: string[] | null = null;
-    if (params?.actorId) {
-        const access = await getActorMinistryAccess(params.actorId);
-        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            allowedIds = params.ministryIds && params.ministryIds.length > 0
-                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
-                : access.allowedMinistryIds;
-            if (allowedIds.length === 0) return [];
+    try {
+        let allowedIds: string[] | null = null;
+        if (params?.actorId) {
+            const access = await getActorMinistryAccess(params.actorId);
+            if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+                allowedIds = params.ministryIds && params.ministryIds.length > 0
+                    ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                    : access.allowedMinistryIds;
+                if (allowedIds.length === 0) return [];
+            }
+        } else if (params?.ministryIds && params.ministryIds.length > 0) {
+            allowedIds = params.ministryIds;
         }
-    } else if (params?.ministryIds && params.ministryIds.length > 0) {
-        allowedIds = params.ministryIds;
-    }
 
-    const where: any = {};
-    if (allowedIds !== null) {
-        const workers = await prisma.worker.findMany({
-            where: {
-                OR: [
-                    { majorMinistryId: { in: allowedIds } },
-                    { minorMinistryId: { in: allowedIds } },
-                ],
+        const where: any = {};
+        if (allowedIds !== null) {
+            const workers = await prisma.worker.findMany({
+                where: {
+                    OR: [
+                        { majorMinistryId: { in: allowedIds } },
+                        { minorMinistryId: { in: allowedIds } },
+                    ],
+                },
+                select: { id: true },
+            });
+            const mentorIds = workers.map(w => w.id);
+            where.mentorId = { in: mentorIds };
+        }
+
+        return await prisma.c2SGroup.findMany({
+            where,
+            include: {
+                mentees: true,
             },
-            select: { id: true },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
-        const mentorIds = workers.map(w => w.id);
-        where.mentorId = { in: mentorIds };
+    } catch (error) {
+        console.error("Error fetching C2S groups:", error);
+        return [];
     }
-
-    return await prisma.c2SGroup.findMany({
-        where,
-        include: {
-            mentees: true,
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
-    });
 }
 
 export async function getC2SMentees(params?: { ministryIds?: string[]; actorId?: string }) {
-    let allowedIds: string[] | null = null;
-    if (params?.actorId) {
-        const access = await getActorMinistryAccess(params.actorId);
-        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            allowedIds = params.ministryIds && params.ministryIds.length > 0
-                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
-                : access.allowedMinistryIds;
-            if (allowedIds.length === 0) return [];
+    try {
+        let allowedIds: string[] | null = null;
+        if (params?.actorId) {
+            const access = await getActorMinistryAccess(params.actorId);
+            if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+                allowedIds = params.ministryIds && params.ministryIds.length > 0
+                    ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                    : access.allowedMinistryIds;
+                if (allowedIds.length === 0) return [];
+            }
+        } else if (params?.ministryIds && params.ministryIds.length > 0) {
+            allowedIds = params.ministryIds;
         }
-    } else if (params?.ministryIds && params.ministryIds.length > 0) {
-        allowedIds = params.ministryIds;
-    }
 
-    const where: any = {};
-    if (allowedIds !== null) {
-        const workers = await prisma.worker.findMany({
-            where: {
-                OR: [
-                    { majorMinistryId: { in: allowedIds } },
-                    { minorMinistryId: { in: allowedIds } },
-                ],
+        const where: any = {};
+        if (allowedIds !== null) {
+            const workers = await prisma.worker.findMany({
+                where: {
+                    OR: [
+                        { majorMinistryId: { in: allowedIds } },
+                        { minorMinistryId: { in: allowedIds } },
+                    ],
+                },
+                select: { id: true },
+            });
+            const mentorIds = workers.map(w => w.id);
+            where.mentorId = { in: mentorIds };
+        }
+
+        return await prisma.c2SMentee.findMany({
+            where,
+            include: {
+                group: true,
             },
-            select: { id: true },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
-        const mentorIds = workers.map(w => w.id);
-        where.mentorId = { in: mentorIds };
+    } catch (error) {
+        console.error("Error fetching C2S mentees:", error);
+        return [];
     }
-
-    return await prisma.c2SMentee.findMany({
-        where,
-        include: {
-            group: true,
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
-    });
 }
 
 export async function createC2SGroup(data: {

@@ -178,6 +178,59 @@ export function UserRoleSyncerSQL() {
       }
     }
 
+    // 4. If Ministry Head with department, include all ministries under that department
+    const roleName = ((effectiveProfile.role?.name || '') + ' ' + (effectiveProfile.roles?.map((r: any) => r.role?.name || '').join(' ') || '')).toLowerCase();
+    const isHead = roleName.includes('head') || roleName.includes('coordinator') || (allMinistries && allMinistries.some((m: any) => m.headId === effectiveProfile.id));
+    if (isHead && allMinistries && allMinistries.length > 0) {
+      const userMinistryList = allMinistries.filter(
+        (m: any) =>
+          m.headId === effectiveProfile.id ||
+          m.approverId === effectiveProfile.id ||
+          m.id === effectiveProfile.majorMinistryId ||
+          m.id === effectiveProfile.minorMinistryId ||
+          (Array.isArray(effectiveProfile.assignedMinistryIds) && effectiveProfile.assignedMinistryIds.includes(m.id))
+      );
+
+      const deptCodes = new Set<string>();
+      for (const m of userMinistryList) {
+        if (m.departmentCode) deptCodes.add(m.departmentCode.toLowerCase());
+        if (typeof m.department === 'string') deptCodes.add(m.department.toLowerCase());
+        if (m.department?.code) deptCodes.add(m.department.code.toLowerCase());
+        if (m.department?.name) deptCodes.add(m.department.name.toLowerCase());
+      }
+      const directDept = (effectiveProfile as any).department || (effectiveProfile as any).departmentCode;
+      if (directDept) deptCodes.add(String(directDept).toLowerCase());
+
+      if (deptCodes.size === 0) {
+        deptCodes.add('o');
+        deptCodes.add('outreach');
+      }
+
+      if (deptCodes.size > 0) {
+        for (const m of allMinistries) {
+          const code = m.departmentCode?.toLowerCase();
+          const deptStr = typeof m.department === 'string' ? m.department.toLowerCase() : undefined;
+          const deptName = m.department?.name?.toLowerCase();
+          const deptCode = m.department?.code?.toLowerCase();
+          const name = m.name?.toLowerCase() || '';
+
+          const matchesDept =
+            (code && deptCodes.has(code)) ||
+            (deptStr && deptCodes.has(deptStr)) ||
+            (deptName && deptCodes.has(deptName)) ||
+            (deptCode && deptCodes.has(deptCode));
+
+          const isOutreachMinistry =
+            (deptCodes.has('o') || deptCodes.has('outreach')) &&
+            (name.startsWith('cluster') || name === 'weyj' || name === 'tapat');
+
+          if (matchesDept || isOutreachMinistry) {
+            if (m.id) ids.add(m.id);
+          }
+        }
+      }
+    }
+
     return Array.from(ids);
   }, [user, allMinistries, effectiveProfile]);
 
@@ -227,7 +280,7 @@ export function UserRoleSyncerSQL() {
         sa || hasPerm('approvals:manage') || hasPerm('manage_approvals') ||
         isMinistryApprover || isMinistryHead,
       canApproveAllRequests:
-        sa || hasPerm('approvals:manage') || hasPerm('manage_approvals'),
+        sa || ((hasPerm('approvals:manage') || hasPerm('manage_approvals')) && !isMinistryHead && !isMinistryApprover && myMinistryIds.length === 0),
       canOperateScanner:
         sa || hasPerm('attendance:scan') || hasPerm('operate_scanner'),
       canViewAttendance:
@@ -246,7 +299,7 @@ export function UserRoleSyncerSQL() {
         sa || isMinistryHead,
 
       canViewScheduleMasterview:
-        sa || hasPerm('venues:view_calendar') || hasPerm('view_schedule_masterview'),
+        sa,
       canViewTransactionLogs:
         sa || hasPerm('system:view_audit_logs') || hasPerm('view_transaction_logs'),
       canManageOrsSync:

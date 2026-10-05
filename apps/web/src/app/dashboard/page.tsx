@@ -84,7 +84,7 @@ export default function DashboardPage() {
     user?.email?.split("@")[0] ||
     "System";
 
-  const ministryName = workerProfile?.majorMinistry?.name || null;
+  const ministryName = (workerProfile as any)?.majorMinistry?.name || null;
 
   if (userLoading) {
     return (

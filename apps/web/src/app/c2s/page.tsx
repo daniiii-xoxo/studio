@@ -387,6 +387,29 @@ const DevotionForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (devotion) {
+      setManualType(devotion.manualType || "C2S Devotional Manual");
+      setSelectedModule(devotion.moduleName || "");
+      setSelectedLesson(devotion.lessonName || "");
+      setCustomTopic(devotion.topic || "");
+      setScripture(devotion.scripture || "");
+      if (devotion.devotionDate) {
+        const d = toJsDate(devotion.devotionDate);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        setDevotionDateTime(d.toISOString().slice(0, 16));
+      }
+      setGroupId(devotion.groupId || groups[0]?.id || "");
+      setCustomCluster(devotion.clusterName || "");
+      setMentorName(devotion.mentorName || defaultMentorName);
+      setMentorId(devotion.mentorId || currentWorker?.id || "");
+      setSelectedMenteeName(devotion.attendeeNames?.[0] || "");
+      setReflectionNotes(devotion.reflectionNotes || "");
+      setPrayerRequests(devotion.prayerRequests || "");
+      setPhotoUrls(devotion.photoUrls || (devotion.photoUrl ? [devotion.photoUrl] : []));
+    }
+  }, [devotion, groups, currentWorker, defaultMentorName]);
+
   const selectedMenteeRecord = mentees?.find(
     (m) =>
       `${m.firstName} ${m.lastName}`.toLowerCase() === selectedMenteeName.toLowerCase() ||
@@ -526,23 +549,23 @@ const DevotionForm = ({
   };
 
   return (
-    <div className="space-y-4 py-2">
+    <div className="space-y-5 py-1">
       {/* ── ROW 1: MENTEE & DATE ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            MENTEE <span className="text-destructive">*</span>
+          <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+            Mentee <span className="text-red-500 ml-0.5">*</span>
           </Label>
           <Select
             value={selectedMenteeName}
             onValueChange={(val) => setSelectedMenteeName(val)}
           >
-            <SelectTrigger className="h-10 bg-background text-xs">
+            <SelectTrigger className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/30 shadow-2xs font-medium focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
               <SelectValue placeholder="Select mentee" />
             </SelectTrigger>
-            <SelectContent className="max-h-50">
+            <SelectContent className="max-h-56 rounded-xl border border-border shadow-xl">
               {menteeOptions.map((m) => (
-                <SelectItem key={m.id} value={m.name} className="text-xs">
+                <SelectItem key={m.id} value={m.name} className="text-xs font-medium cursor-pointer">
                   {m.name}
                 </SelectItem>
               ))}
@@ -551,132 +574,154 @@ const DevotionForm = ({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            DATE <span className="text-destructive">*</span>
+          <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+            Date & Time <span className="text-red-500 ml-0.5">*</span>
           </Label>
           <Input
             type="datetime-local"
             value={devotionDateTime}
             onChange={(e) => setDevotionDateTime(e.target.value)}
-            className="h-10 text-xs bg-background"
+            className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/30 shadow-2xs font-medium focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar"
           />
         </div>
       </div>
 
-      {/* ── ROW 2: Lessons ── */}
-      <div className="space-y-2 pt-1">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          LESSONS <span className="text-destructive">*</span>
-        </Label>
-        <RadioGroup
-          value={manualType}
-          onValueChange={handleManualChange}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-        >
-          <div
+      {/* ── ROW 2: CURRICULUM & LESSON CARD ── */}
+      <div className="rounded-2xl border border-border/70 bg-slate-50/60 dark:bg-muted/20 p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+            <BookOpen className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-foreground">Curriculum & Lesson <span className="text-red-500 ml-0.5">*</span></p>
+            <p className="text-[11px] text-muted-foreground">Select the manual and devotional topic covered.</p>
+          </div>
+        </div>
+
+        {/* Manual selection buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
             onClick={() => handleManualChange("C2S Devotional Manual")}
-            className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all ${manualType === "C2S Devotional Manual"
-              ? "bg-card border-primary shadow-sm ring-1 ring-primary"
-              : "bg-background/80 hover:bg-background border-border/70"
-              }`}
+            className={cn(
+              "flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer",
+              manualType === "C2S Devotional Manual"
+                ? "border-sidebar bg-sidebar/5 dark:bg-sidebar/10 text-sidebar dark:text-sky-400 font-bold shadow-2xs ring-1 ring-sidebar/30"
+                : "border-slate-200/90 dark:border-border/80 bg-white dark:bg-background hover:bg-slate-50 dark:hover:bg-muted/30 text-muted-foreground"
+            )}
           >
-            <RadioGroupItem value="C2S Devotional Manual" id="m-c2s" />
-            <Label htmlFor="m-c2s" className="cursor-pointer font-semibold text-xs flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-primary" /> C2S Devotional Manual
-            </Label>
-          </div>
+            <div className={cn(
+              "w-4 h-4 rounded-full border flex items-center justify-center shrink-0",
+              manualType === "C2S Devotional Manual" ? "border-sidebar bg-sidebar text-white" : "border-slate-300"
+            )}>
+              {manualType === "C2S Devotional Manual" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </div>
+            <BookOpen className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs">C2S Devotional Manual</span>
+          </button>
 
-          <div
+          <button
+            type="button"
             onClick={() => handleManualChange("Mentor's Manual")}
-            className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all ${manualType === "Mentor's Manual"
-              ? "bg-card border-primary shadow-sm ring-1 ring-primary"
-              : "bg-background/80 hover:bg-background border-border/70"
-              }`}
+            className={cn(
+              "flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer",
+              manualType === "Mentor's Manual"
+                ? "border-sidebar bg-sidebar/5 dark:bg-sidebar/10 text-sidebar dark:text-sky-400 font-bold shadow-2xs ring-1 ring-sidebar/30"
+                : "border-slate-200/90 dark:border-border/80 bg-white dark:bg-background hover:bg-slate-50 dark:hover:bg-muted/30 text-muted-foreground"
+            )}
           >
-            <RadioGroupItem value="Mentor's Manual" id="m-mentor" />
-            <Label htmlFor="m-mentor" className="cursor-pointer font-semibold text-xs flex items-center gap-1.5">
-              <GraduationCap className="h-3.5 w-3.5 text-primary" /> Mentor's Manual
-            </Label>
+            <div className={cn(
+              "w-4 h-4 rounded-full border flex items-center justify-center shrink-0",
+              manualType === "Mentor's Manual" ? "border-sidebar bg-sidebar text-white" : "border-slate-300"
+            )}>
+              {manualType === "Mentor's Manual" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </div>
+            <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs">Mentor's Manual</span>
+          </button>
+        </div>
+
+        {/* Module & Lesson Selects */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Select Module</Label>
+            <Select value={selectedModule} onValueChange={handleModuleChange}>
+              <SelectTrigger className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs font-medium focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+                <SelectValue placeholder="Select Module" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 rounded-xl border border-border shadow-xl">
+                {availableModules.map((m) => (
+                  <SelectItem key={m.module} value={m.module} className="text-xs font-medium cursor-pointer">
+                    {m.module}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </RadioGroup>
-      </div>
 
-      {/* ── ROW 3: SELECT MODULE & SELECT LESSON ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold">Select Module</Label>
-          <Select value={selectedModule} onValueChange={handleModuleChange}>
-            <SelectTrigger className="bg-background h-10 text-xs">
-              <SelectValue placeholder="Select Module" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {availableModules.map((m) => (
-                <SelectItem key={m.module} value={m.module} className="text-xs">
-                  {m.module}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold">Select Lesson</Label>
-          <Select value={selectedLesson} onValueChange={handleLessonChange}>
-            <SelectTrigger className="bg-background h-10 text-xs">
-              <SelectValue placeholder="Select Lesson" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {availableLessons.map((l) => (
-                <SelectItem key={l} value={l} className="text-xs">
-                  {l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Select Lesson</Label>
+            <Select value={selectedLesson} onValueChange={handleLessonChange}>
+              <SelectTrigger className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-background shadow-2xs font-medium focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
+                <SelectValue placeholder="Select Lesson" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 rounded-xl border border-border shadow-xl">
+                {availableLessons.map((l) => (
+                  <SelectItem key={l} value={l} className="text-xs font-medium cursor-pointer">
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* ── ROW 4: REFLECTION ── */}
+      {/* ── ROW 3: REFLECTION ── */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          REFLECTION <span className="text-destructive">*</span>
+        <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+          Reflection & Key Takeaways <span className="text-red-500 ml-0.5">*</span>
         </Label>
         <Textarea
           rows={3}
-          placeholder="Write a reflection on the lesson..."
+          placeholder="Write key reflections on the lesson, mentee's response, or personal insights..."
           value={reflectionNotes}
           onChange={(e) => setReflectionNotes(e.target.value)}
-          className="resize-none text-xs bg-background"
+          className="rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/20 p-3 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar resize-none transition-all placeholder:text-muted-foreground/60"
         />
       </div>
 
-      {/* ── ROW 5: PRAYER REQUESTS ── */}
+      {/* ── ROW 4: PRAYER REQUESTS ── */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          PRAYER REQUESTS
+        <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+          Prayer Requests
         </Label>
         <Textarea
           rows={2}
-          placeholder="Any prayer requests from the mentee..."
+          placeholder="Any prayer requests or prayer items from the mentee..."
           value={prayerRequests}
           onChange={(e) => setPrayerRequests(e.target.value)}
-          className="resize-none text-xs bg-background"
+          className="rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/20 p-3 shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar resize-none transition-all placeholder:text-muted-foreground/60"
         />
       </div>
 
-
-
-      {/* ── ROW 7: PHOTO PROOF ── */}
-      <div className="space-y-2 p-3.5 rounded-xl border border-dashed bg-muted/10">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          PHOTO PROOF <span className="text-destructive">*</span>
-        </Label>
+      {/* ── ROW 5: PHOTO PROOF ── */}
+      <div className="rounded-2xl border border-border/70 bg-slate-50/60 dark:bg-muted/20 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-sidebar/10 text-sidebar dark:text-sky-400 shrink-0">
+            <Camera className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-foreground">Photo Proof <span className="text-red-500 ml-0.5">*</span></p>
+            <p className="text-[11px] text-muted-foreground">Upload picture of the devotion session as verification.</p>
+          </div>
+        </div>
 
         {/* Advice banner for users */}
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed">
-          <Sparkles className="h-3.5 w-3.5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/40 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+          <Sparkles className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <span>
-            <strong>Photo Advice:</strong> Please take or upload your session photo in <strong>Landscape (horizontal)</strong> format, maximum of <strong>25MB</strong> (JPG, PNG, HEIC) for the best display on devotion feeds and dashboards.
+            <strong>Photo Advice:</strong> Take or upload session photo in <strong>Landscape (horizontal)</strong> format, max <strong>25MB</strong> (JPG, PNG, HEIC) for optimal display on feeds.
           </span>
         </div>
 
@@ -688,23 +733,25 @@ const DevotionForm = ({
               onChange={handleFileUpload}
               className="hidden"
             />
-            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg bg-background hover:bg-muted/40 transition-colors text-center">
-              <UploadCloud className="h-6 w-6 text-primary mb-1" />
-              <p className="text-xs font-semibold text-primary">Click to upload photo proof</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Horizontal / Landscape orientation • Up to 25MB (JPG, PNG, HEIC)
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200/90 dark:border-border hover:border-sidebar/60 bg-white dark:bg-background rounded-xl transition-all text-center group">
+              <div className="w-10 h-10 rounded-full bg-sidebar/10 text-sidebar dark:text-sky-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                <UploadCloud className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-bold text-foreground">Click to upload photo proof</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Horizontal / Landscape orientation • Up to 25MB
               </p>
             </div>
           </label>
         ) : (
           <div className="space-y-2">
-            <div className="relative aspect-video max-h-48 w-full rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center">
+            <div className="relative aspect-video max-h-52 w-full rounded-xl overflow-hidden border border-border/80 bg-black/5 flex items-center justify-center shadow-xs">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photoUrls[0]} alt="Proof photo" className="w-full h-full object-contain" />
               <button
                 type="button"
                 onClick={handleRemovePhoto}
-                className="absolute top-2 right-2 bg-black/70 hover:bg-destructive text-white rounded-full p-1.5 shadow-sm transition-colors"
+                className="absolute top-2.5 right-2.5 bg-black/75 hover:bg-destructive text-white rounded-full p-1.5 shadow-md transition-colors cursor-pointer"
                 title="Remove photo"
               >
                 <X className="h-3.5 w-3.5" />
@@ -714,22 +761,32 @@ const DevotionForm = ({
         )}
       </div>
 
-      {/* ── ROW 8: SUBMIT BUTTON ── */}
-      <Button
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        className="w-full h-11 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all mt-2"
-      >
-        {isSubmitting ? (
-          <>
-            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Saving...
-          </>
-        ) : devotion ? (
-          "Update Devotion Record"
-        ) : (
-          "Submit Devotion Record"
-        )}
-      </Button>
+      {/* ── ROW 6: FOOTER ACTIONS ── */}
+      <div className="pt-3 border-t border-border/40 flex items-center justify-end gap-2.5">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          className="h-10 px-4 rounded-xl border-border/70 text-xs font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+        >
+          {isSubmitting ? (
+            <>
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Saving...
+            </>
+          ) : devotion ? (
+            "Update Devotion Record"
+          ) : (
+            "Submit Devotion Record"
+          )}
+        </Button>
+      </div>
     </div>
   );
 };
@@ -760,45 +817,70 @@ const DevotionDetailsModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="rounded-2xl bg-background border shadow-xl p-4 sm:p-6 md:p-7"
-        style={{ width: "min(calc(100vw - 2rem), 48rem)", maxHeight: "min(calc(100svh - 8rem), 92vh)" }}
+        className="rounded-3xl bg-white dark:bg-card border border-border/80 shadow-2xl p-0 overflow-hidden flex flex-col gap-0 [&>button:last-child]:hidden"
+        style={{ width: "min(calc(100vw - 2rem), 48rem)", maxHeight: "min(calc(100svh - 4rem), 90vh)" }}
       >
-        <DialogHeader className="space-y-2.5 text-left pb-1">
-          {/* Top Row: Date & Cluster Pill Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge
-              variant="secondary"
-              className="font-mono text-xs px-3 py-1 bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5 rounded-full"
+        {/* ── MODAL HEADER (Matches Admin Style) ── */}
+        <div className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-2xl bg-sidebar/10 text-sidebar dark:text-sky-400 flex items-center justify-center font-bold shrink-0 border border-sidebar/20 shadow-xs">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-base sm:text-lg font-bold font-headline text-foreground tracking-tight">
+                    {devotion.lessonName || devotion.topic}
+                  </DialogTitle>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20">
+                    <Calendar className="h-3 w-3" />
+                    <span>{formattedDate}</span>
+                    {formattedTime && (
+                      <>
+                        <span className="opacity-40">•</span>
+                        <span>{formattedTime}</span>
+                      </>
+                    )}
+                  </div>
+                  {devotion.clusterName && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>{devotion.clusterName}</span>
+                    </div>
+                  )}
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground truncate mt-0.5">
+                  Mentor: <strong className="text-foreground font-semibold">{devotion.mentorName || "Mentor"}</strong>
+                  {devotion.mentorRole && (
+                    <span className="ml-1 text-[10px] bg-sidebar/10 text-sidebar px-2 py-0.5 rounded-full font-bold">
+                      {devotion.mentorRole}
+                    </span>
+                  )}
+                  {" • "}
+                  Attendees: <strong className="text-foreground font-semibold">{devotion.attendeeNames?.join(", ") || "Mentee"}</strong>
+                </DialogDescription>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
+              title="Close modal"
             >
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{formattedDate}</span>
-              {formattedTime && (
-                <>
-                  <span className="opacity-50">•</span>
-                  <span>{formattedTime}</span>
-                </>
-              )}
-            </Badge>
-
-            {devotion.clusterName && (
-              <Badge
-                variant="outline"
-                className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 flex items-center gap-1.5 rounded-full font-semibold"
-              >
-                <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>{devotion.clusterName}</span>
-              </Badge>
-            )}
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
           </div>
+        </div>
 
-          {/* Title */}
-          <DialogTitle className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-snug">
-            {devotion.lessonName || devotion.topic}
-          </DialogTitle>
-
+        {/* ── MODAL SCROLLABLE BODY ── */}
+        <div className="p-6 overflow-y-auto space-y-5">
           {/* Curriculum Hierarchy Breadcrumb Tag */}
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary/90 flex-wrap bg-primary/5 dark:bg-primary/10 p-2.5 rounded-xl border border-primary/10">
-            <BookOpen className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex items-center gap-2 text-xs font-semibold text-sidebar dark:text-sky-400 flex-wrap bg-sidebar/5 dark:bg-sidebar/10 p-3 rounded-xl border border-sidebar/15">
+            <BookOpen className="h-4 w-4 text-sidebar shrink-0" />
             {devotion.manualType && <span>{devotion.manualType}</span>}
             {devotion.moduleName && (
               <>
@@ -807,73 +889,57 @@ const DevotionDetailsModal = ({
               </>
             )}
             <span className="text-muted-foreground/60">•</span>
-            <span className="font-bold">{devotion.lessonName || devotion.topic}</span>
+            <span className="font-bold text-foreground">{devotion.lessonName || devotion.topic}</span>
           </div>
 
-          {/* Mentee & Mentor Info Box */}
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border/70 text-xs">
-            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0 border border-primary/20">
-              <Users className="h-4 w-4" />
-            </div>
-            <div className="leading-relaxed">
-              <p className="text-foreground font-semibold">
-                <span className="text-muted-foreground font-normal">Attendees: </span>
-                {devotion.attendeeNames?.join(", ") || "Mentees"}
-              </p>
-              <p className="text-xs text-muted-foreground font-normal">
-                Mentor:{" "}
-                <span className="font-bold text-foreground">
-                  {devotion.mentorName || "Mentor"}
-                </span>
-                {devotion.mentorRole && (
-                  <span className="ml-1 text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-semibold">
-                    {devotion.mentorRole}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </DialogHeader>
-
-        {/* Main Photo (Strictly 1 photo only - no carousel thumbnails) */}
-        {mainPhoto && (
-          <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black/10 border shadow-sm mt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={mainPhoto}
-              alt={devotion.topic}
-              className="w-full h-full object-cover rounded-2xl"
-            />
-          </div>
-        )}
-
-        {/* Reflection & Prayer Details */}
-        <div className="space-y-4 pt-3">
-          {devotion.reflectionNotes && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                Reflection Notes
-              </Label>
-              <div className="p-4 rounded-xl bg-muted/30 border text-foreground text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                {devotion.reflectionNotes}
+          {/* Main Photo Proof */}
+          {mainPhoto && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground font-semibold px-0.5">
+                <span className="flex items-center gap-1.5"><Camera className="h-3.5 w-3.5 text-sidebar" /> Session Photo Proof</span>
+              </div>
+              <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black/5 dark:bg-muted/40 border border-border/80 shadow-xs flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mainPhoto}
+                  alt={devotion.topic}
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
           )}
 
-          {devotion.prayerRequests && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                Prayer Request
-              </Label>
-              <div className="p-3.5 bg-muted/30 border rounded-xl text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                {devotion.prayerRequests}
+          {/* Reflection & Prayer Details */}
+          <div className="space-y-4 pt-1">
+            {devotion.reflectionNotes && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-sidebar" /> Reflection Notes & Key Takeaways
+                </Label>
+                <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-muted/20 border border-slate-200/80 dark:border-border text-foreground text-xs leading-relaxed whitespace-pre-wrap">
+                  {devotion.reflectionNotes}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {devotion.prayerRequests && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Heart className="h-3.5 w-3.5 text-rose-500" /> Prayer Requests
+                </Label>
+                <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-muted/20 border border-slate-200/80 dark:border-border text-foreground text-xs leading-relaxed whitespace-pre-wrap">
+                  {devotion.prayerRequests}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <DialogFooter className="border-t pt-3 mt-2">
-          <Button onClick={onClose} variant="outline" className="rounded-lg font-semibold">
+        <DialogFooter className="p-4 sm:p-5 pt-3 border-t border-border/40 flex items-center justify-end bg-muted/10">
+          <Button
+            onClick={onClose}
+            className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+          >
             Close Record
           </Button>
         </DialogFooter>
@@ -2921,7 +2987,7 @@ const C2SAnalytics = ({
       {/* ── GENERATE REPORT DIALOG MODAL ── */}
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl p-6">
-          <DialogHeader>
+          <DialogHeader className="pr-8 space-y-1">
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/10 text-primary font-medium text-xs rounded-full border-transparent">
                 OFFICIAL C2S REPORT
@@ -3822,7 +3888,10 @@ function C2SPageContent() {
     }
   };
 
-  const isLoading = devotionsLoading && !devotions && allDevotions.length === 0;
+  const isDevotionsLoading = devotionsLoading && !devotions && allDevotions.length === 0;
+  const isMenteesLoading = menteesLoading && !rawMentees;
+  const isGroupsLoading = groupsLoading && !rawGroups;
+  const isLoading = isDevotionsLoading;
 
   // Active Cluster Scope Name
   const scopeClusterName =
@@ -3857,6 +3926,7 @@ function C2SPageContent() {
         const parts = group.name.split(" - ");
         return parts[1]?.trim() || parts[0]?.trim();
       }
+      return group.name;
     }
 
     // 2. Check assigned mentor's ministry
@@ -4002,16 +4072,23 @@ function C2SPageContent() {
     if (isAdminUser) return workers || [];
     if (!isMinistryHeadUser) return workers || [];
     const myDeptClusters = activeClusterOptions.map((c) => c.value.toLowerCase());
+    const headDeptLower = headDepartment.toLowerCase().trim();
+
     const list = (workers || []).filter((w) => {
       if (w.id === workerProfile?.id) return true;
       if (w.majorMinistryId === workerProfile?.majorMinistryId) return true;
       if (w.majorMinistryId && myMinistryIds?.includes(w.majorMinistryId)) return true;
       const wMin = allMinistries?.find((m: any) => m.id === w.majorMinistryId);
-      const wDept = (wMin?.department || (w as any)?.department || "").toLowerCase();
-      if (wDept && wDept === headDepartment.toLowerCase()) return true;
-      if (wMin?.name && myDeptClusters.some((c) => wMin.name.toLowerCase().includes(c))) return true;
-      const hasGroupInDept = groups?.some((g) => g.mentorId === w.id);
-      return hasGroupInDept;
+      const wDept = (typeof wMin?.department === "string" ? wMin.department : wMin?.department?.name || (w as any)?.department || "").toLowerCase().trim();
+      if (wDept && (wDept === headDeptLower || wDept.includes(headDeptLower) || headDeptLower.includes(wDept))) return true;
+      if (wMin?.name && myDeptClusters.some((c) => wMin.name.toLowerCase().includes(c) || c.includes(wMin.name.toLowerCase()))) return true;
+      
+      const mentorGroup = groups?.find((g) => g.mentorId === w.id);
+      if (mentorGroup?.name) {
+        const gName = mentorGroup.name.toLowerCase();
+        if (myDeptClusters.some((c) => gName.includes(c) || c.includes(gName))) return true;
+      }
+      return false;
     });
     return list;
   }, [isAdminUser, isMinistryHeadUser, workers, workerProfile, activeClusterOptions, myMinistryIds, allMinistries, headDepartment, groups]);
@@ -4021,26 +4098,35 @@ function C2SPageContent() {
     if (isAdminUser) return mentees || [];
     if (isMentorUser) return myMentees;
 
+    const myDeptClusters = activeClusterOptions.map((c) => c.value.toLowerCase());
+    const headDeptLower = headDepartment.toLowerCase().trim();
     const deptMentorIds = new Set(departmentMentors.map((m) => m.id));
-    const deptGroupIds = new Set(
-      groups?.filter((g) => {
-        if (g.mentorId && deptMentorIds.has(g.mentorId)) return true;
-        const gName = (g.name || "").toLowerCase();
-        const myDeptClusters = activeClusterOptions.map((c) => c.value.toLowerCase());
-        return myDeptClusters.some((c) => gName.includes(c) || c.includes(gName));
-      }).map((g) => g.id) || []
-    );
 
     const scoped = (mentees || []).filter((m) => {
+      const mDept = getMenteeDepartment(m).toLowerCase().trim();
+      const minName = getMenteeMinistry(m).toLowerCase().trim();
+
+      // Check if mentee's ministry belongs to this department's clusters
+      const isMinistryInDept = myDeptClusters.some((c) => minName === c || minName.includes(c) || c.includes(minName));
+      // Check if mentee's derived department matches this department
+      const isDeptMatch = mDept === headDeptLower || mDept.includes(headDeptLower) || headDeptLower.includes(mDept);
+
+      if (!isMinistryInDept && !isDeptMatch) {
+        return false;
+      }
+
       if (m.mentorId && deptMentorIds.has(m.mentorId)) return true;
-      if (m.groupId && deptGroupIds.has(m.groupId)) return true;
+      if (m.groupId) {
+        const group = groups?.find((g) => g.id === m.groupId);
+        if (group && (deptMentorIds.has(group.mentorId) || myDeptClusters.some((c) => group.name?.toLowerCase().includes(c)))) return true;
+      }
       if (m.mentorId === workerProfile?.id) return true;
-      if (!m.mentorId && !m.groupId) return true;
-      return false;
+
+      return isMinistryInDept || isDeptMatch;
     });
 
     return scoped;
-  }, [isAdminUser, isMentorUser, myMentees, departmentMentors, groups, activeClusterOptions, mentees, workerProfile]);
+  }, [isAdminUser, isMentorUser, myMentees, departmentMentors, activeClusterOptions, mentees, workerProfile, headDepartment, groups, workers, allMinistries]);
 
   // Filtered individual mentees for Ministry Head / Admin table view
   const filteredHeadMentees = useMemo(() => {
@@ -4347,7 +4433,7 @@ function C2SPageContent() {
             </div>
 
             {/* Devotions Grid / Feed */}
-            {isLoading ? (
+            {isDevotionsLoading ? (
               <div className="flex justify-center py-16">
                 <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -4429,7 +4515,8 @@ function C2SPageContent() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-lg border border-border bg-popover">
                                 <DropdownMenuItem
-                                  onSelect={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setEditingDevotion(record);
                                     setIsDevotionSheetOpen(true);
                                   }}
@@ -4604,7 +4691,7 @@ function C2SPageContent() {
 
                 {/* Table Container */}
                 <div className="border border-border/60 rounded-2xl mt-4 overflow-hidden flex-grow flex flex-col bg-card">
-                  {isLoading ? (
+                  {isMenteesLoading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3 flex-grow">
                       <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
                       <p className="text-xs text-muted-foreground font-medium">Loading mentees...</p>
@@ -4711,11 +4798,11 @@ function C2SPageContent() {
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[30%]">
+                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-5 text-left w-[28%]">
                               Mentee
                             </TableHead>
-                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[20%]">
-                              Barangay
+                            <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left w-[22%]">
+                              Ministry
                             </TableHead>
                             <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-center w-[15%]">
                               Status
@@ -4735,6 +4822,7 @@ function C2SPageContent() {
                           {filteredMyMentees.map((m) => {
                             const fullName = `${m.firstName} ${m.lastName}`.trim();
                             const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
+                            const menteeMinistry = getMenteeMinistry(m);
                             const menteeDevotions = allDevotions?.filter((d: any) =>
                               d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
                             ) || [];
@@ -4778,8 +4866,10 @@ function C2SPageContent() {
                                   </div>
                                 </TableCell>
 
-                                <TableCell className="px-4 py-3.5 text-xs text-muted-foreground align-middle">
-                                  {m.phone ? `Brgy. ${m.phone.slice(-1) || "1"}` : "Brgy. 1"}
+                                <TableCell className="px-4 py-3.5 align-middle">
+                                  <Badge variant="outline" className="text-[10px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2 py-0.5">
+                                    {menteeMinistry}
+                                  </Badge>
                                 </TableCell>
 
                                 <TableCell className="px-4 py-3.5 text-center align-middle">
@@ -4975,7 +5065,7 @@ function C2SPageContent() {
 
                 {/* Table Container */}
                 <div className="border border-border/60 rounded-2xl mt-4 overflow-hidden flex-grow flex flex-col bg-card">
-                  {isLoading ? (
+                  {isMenteesLoading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3 flex-grow">
                       <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
                       <p className="text-xs text-muted-foreground font-medium">Loading mentees...</p>
@@ -5074,11 +5164,10 @@ function C2SPageContent() {
                     <Table className="w-full">
                       <TableHeader>
                         <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap", isAdminUser ? "w-[20%]" : "w-[24%]")}>Mentee</TableHead>
-                          {isAdminUser && (<TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap w-[12%]">Department</TableHead>)}
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[16%]" : "w-[18%]")}>Assigned Mentor</TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[13%]" : "w-[15%]")}>Ministry</TableHead>
-                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-left whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>Barangay</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-4 text-left whitespace-nowrap", isAdminUser ? "w-[22%]" : "w-[26%]")}>Mentee</TableHead>
+                          {isAdminUser && (<TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap w-[14%]">Department</TableHead>)}
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[18%]" : "w-[20%]")}>Assigned Mentor</TableHead>
+                          <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-left whitespace-nowrap", isAdminUser ? "w-[16%]" : "w-[18%]")}>Ministry</TableHead>
                           <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[8%]" : "w-[9%]")}>Status</TableHead>
                           <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-2.5 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>Progress</TableHead>
                           <TableHead className={cn("bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-3 text-center whitespace-nowrap", isAdminUser ? "w-[10%]" : "w-[10%]")}>Last Session</TableHead>
@@ -5111,7 +5200,6 @@ function C2SPageContent() {
                               {isAdminUser && (<TableCell className="px-3 py-3 text-xs align-middle whitespace-nowrap"><Badge variant="outline" className="text-[10px] font-semibold bg-slate-100 dark:bg-muted/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-border">{menteeDepartment}</Badge></TableCell>)}
                               <TableCell className="px-3 py-3 align-middle whitespace-nowrap"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center shrink-0 border border-primary/20">{mentorInitials}</div><span className="text-xs font-medium text-foreground truncate">{mentorName}</span></div></TableCell>
                               <TableCell className="px-3 py-3 align-middle whitespace-nowrap"><Badge variant="outline" className="text-[10px] font-medium bg-muted/40 text-foreground border-border/80 rounded-lg px-2 py-0.5">{menteeMinistry}</Badge></TableCell>
-                              <TableCell className="px-2.5 py-3 text-xs text-muted-foreground align-middle whitespace-nowrap">{m.phone ? `Brgy. ${m.phone.slice(-1) || "1"}` : "Brgy. 1"}</TableCell>
                               <TableCell className="px-2.5 py-3 text-center align-middle whitespace-nowrap"><Badge variant="secondary" className={`${statusColorClass} font-semibold px-2.5 py-0.5 rounded-full text-[10px] border-transparent`}>{displayStatus}</Badge></TableCell>
                               <TableCell className="px-2.5 py-3 align-middle text-center whitespace-nowrap"><div className="flex items-center justify-center gap-1.5"><div className="w-12 bg-muted h-1.5 rounded-full overflow-hidden"><div className="bg-primary h-full rounded-full transition-all duration-300" style={{ width: `${progressPct}%` }} /></div><span className="font-semibold text-muted-foreground text-[11px]">{progressPct}%</span></div></TableCell>
                               <TableCell className="px-3 py-3 text-xs text-muted-foreground text-center align-middle font-mono whitespace-nowrap">{lastSessionDate}</TableCell>
@@ -5159,25 +5247,55 @@ function C2SPageContent() {
       </div>
 
       {/* ── Submit / Edit Devotion Record Sheet ── */}
-      <Sheet open={isDevotionSheetOpen} onOpenChange={setIsDevotionSheetOpen} modal={false}>
-        <SheetContent className="sm:max-w-2xl overflow-y-auto w-full">
-          <SheetHeader>
-            <SheetTitle className="text-xl font-bold flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              {editingDevotion ? "Edit Devotion Record" : "Submit Devotion Record"}
-            </SheetTitle>
-          </SheetHeader>
-          <DevotionForm
-            devotion={editingDevotion}
-            groups={groups || []}
-            mentees={mentees || []}
-            workers={workers || []}
-            currentWorker={workerProfile}
-            isMinistryHead={isMinistryHead}
-            isSuperAdmin={isSuperAdmin}
-            onSave={handleSaveDevotion}
-            onClose={() => setIsDevotionSheetOpen(false)}
-          />
+      <Sheet open={isDevotionSheetOpen} onOpenChange={setIsDevotionSheetOpen}>
+        <SheetContent className="sm:max-w-2xl max-h-[92vh] flex flex-col p-0 overflow-y-auto rounded-3xl border-border/80 shadow-2xl gap-0 bg-background [&>button:last-child]:hidden">
+          {/* ── MODAL HEADER (Matches Admin Form Style) ── */}
+          <div className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                <div className="h-11 w-11 rounded-2xl bg-sidebar/10 border border-sidebar/20 text-sidebar dark:text-sky-400 flex items-center justify-center shrink-0 shadow-xs">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <SheetTitle className="text-base sm:text-lg font-bold font-headline tracking-tight text-foreground">
+                    {editingDevotion ? "Edit Devotion Record" : "Submit Devotion Record"}
+                  </SheetTitle>
+                  <SheetDescription className="text-xs text-muted-foreground truncate mt-0.5">
+                    {editingDevotion
+                      ? "Update mentorship session details, curriculum lesson, reflections, and proof photo."
+                      : "Record a completed Connect 2 Souls devotion session with key takeaways and photo proof."}
+                  </SheetDescription>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDevotionSheetOpen(false)}
+                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
+                title="Close modal"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            <DevotionForm
+              key={editingDevotion?.id || (isDevotionSheetOpen ? "open-new" : "closed")}
+              devotion={editingDevotion}
+              groups={groups || []}
+              mentees={mentees || []}
+              workers={workers || []}
+              currentWorker={workerProfile}
+              isMinistryHead={isMinistryHead}
+              isSuperAdmin={isSuperAdmin}
+              onSave={handleSaveDevotion}
+              onClose={() => setIsDevotionSheetOpen(false)}
+            />
+          </div>
         </SheetContent>
       </Sheet>
 
@@ -5290,9 +5408,9 @@ function C2SPageContent() {
 
       {/* ── Mentee Sheet ── */}
       <Sheet open={isMenteeSheetOpen} onOpenChange={setIsMenteeSheetOpen}>
-        <SheetContent className="sm:max-w-lg p-0 overflow-y-auto rounded-2xl gap-0 border-border/80 shadow-2xl">
+        <SheetContent className="sm:max-w-lg p-0 overflow-y-auto rounded-2xl gap-0 border-border/80 shadow-2xl [&>button:last-child]:hidden">
           {/* Header */}
-          <SheetHeader className="p-6 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 text-left space-y-0">
+          <SheetHeader className="p-5 pb-4 sm:p-6 sm:pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 text-left space-y-0">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-xs">

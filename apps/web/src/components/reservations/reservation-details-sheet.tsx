@@ -92,8 +92,7 @@ export function ReservationDetailsSheet({
               </div>
               <div className="min-w-0">
                 <SheetTitle className="text-lg font-bold font-headline tracking-tight text-foreground flex items-center gap-2 flex-wrap">
-                  <span className="truncate">{booking.title}</span>
-                  <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/70 shrink-0">
+                  <span className="font-mono text-base font-bold text-foreground">
                     {reqId}
                   </span>
                   <span

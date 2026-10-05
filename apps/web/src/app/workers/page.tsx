@@ -135,6 +135,85 @@ const formatWorkerId = (id: string | null | undefined) => {
   return isNaN(num) ? id : `COG-${String(num).padStart(4, "0")}`;
 };
 
+// ── WORDA Department Matrix ───────────────────────────────────────────────────
+export const WORDA_MINISTRIES_BY_DEPT = {
+  Worship: ["whitelight", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster 1", "cluster 2", "cluster 3", "cluster 4", "cluster 5", "cluster 6", "cluster 7", "cluster 8", "cluster 9", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "cldp", "kid", "children's ministry", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "linkages", "security and shuttle", "technology", "ventures"],
+};
+
+export type WordaDepartment = keyof typeof WORDA_MINISTRIES_BY_DEPT;
+
+export function getWorkerDepartment(
+  workerProfile: any,
+  allMinistries: any[],
+  userRoleDept?: string
+): WordaDepartment {
+  const direct = (workerProfile?.department || workerProfile?.departmentCode || userRoleDept || "").toLowerCase();
+  if (direct.includes("worship") || direct === "w") return "Worship";
+  if (direct.includes("outreach") || direct === "o") return "Outreach";
+  if (direct.includes("relationship") || direct === "r") return "Relationship";
+  if (direct.includes("discipleship") || direct === "d") return "Discipleship";
+  if (direct.includes("administration") || direct === "a") return "Administration";
+
+  const userMinistries = (allMinistries || []).filter(
+    (m: any) =>
+      m.headId === workerProfile?.id ||
+      m.approverId === workerProfile?.id ||
+      m.id === workerProfile?.majorMinistryId ||
+      m.id === workerProfile?.minorMinistryId ||
+      (Array.isArray(workerProfile?.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+
+  for (const m of userMinistries) {
+    const d = (m.department || m.departmentCode || "").toLowerCase();
+    const name = (m.name || "").toLowerCase();
+    if (d.includes("worship") || d === "w" || WORDA_MINISTRIES_BY_DEPT.Worship.some(k => name.includes(k))) return "Worship";
+    if (d.includes("outreach") || d === "o" || WORDA_MINISTRIES_BY_DEPT.Outreach.some(k => name.includes(k))) return "Outreach";
+    if (d.includes("relationship") || d === "r" || WORDA_MINISTRIES_BY_DEPT.Relationship.some(k => name.includes(k))) return "Relationship";
+    if (d.includes("discipleship") || d === "d" || WORDA_MINISTRIES_BY_DEPT.Discipleship.some(k => name.includes(k))) return "Discipleship";
+    if (d.includes("administration") || d === "a" || WORDA_MINISTRIES_BY_DEPT.Administration.some(k => name.includes(k))) return "Administration";
+  }
+
+  return "Outreach";
+}
+
+export function isWorkerInDepartment(
+  worker: any,
+  deptName: WordaDepartment,
+  allMinistries: any[]
+): boolean {
+  const workerMinIds = [
+    worker.majorMinistryId,
+    worker.minorMinistryId,
+    ...(Array.isArray(worker.assignedMinistryIds) ? worker.assignedMinistryIds : []),
+  ].filter(Boolean);
+
+  if (workerMinIds.length === 0) return false;
+
+  const userMinistries = (allMinistries || []).filter((m: any) => workerMinIds.includes(m.id));
+  if (userMinistries.length === 0) return false;
+
+  const deptKeywords = WORDA_MINISTRIES_BY_DEPT[deptName];
+  const targetDeptCode = deptName === "Worship" ? "w" : deptName === "Outreach" ? "o" : deptName === "Relationship" ? "r" : deptName === "Discipleship" ? "d" : "a";
+
+  for (const min of userMinistries) {
+    const minName = (min?.name || "").toLowerCase().trim();
+    const minDept = (typeof min?.department === "string" ? min.department : min?.department?.name || min?.departmentCode || "").toLowerCase().trim();
+
+    if (deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword))) {
+      return true;
+    }
+    if (minDept === deptName.toLowerCase() || minDept === targetDeptCode) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WorkersPage() {
   const router = useRouter();
@@ -175,21 +254,31 @@ export default function WorkersPage() {
     )
   );
 
+  const { ministries, isLoading: ministriesLoading } = useMinistries();
+
+  const effectiveDept = useMemo(() => {
+    return getWorkerDepartment(workerProfile, ministries || [], (workerProfile as any)?.department);
+  }, [workerProfile, ministries]);
+
   const headMinistryIds = useMemo(() => {
     if (isSuperAdmin) return undefined;
     if (ministryFilter !== "all") return [ministryFilter];
-    const ids = new Set<string>();
-    if (myMinistryIds && myMinistryIds.length > 0) {
-      myMinistryIds.forEach(id => ids.add(id));
-    }
-    if (workerProfile?.majorMinistryId) {
-      ids.add(workerProfile.majorMinistryId);
-    }
-    if (workerProfile?.minorMinistryId) {
-      ids.add(workerProfile.minorMinistryId);
-    }
-    return ids.size > 0 ? Array.from(ids) : undefined;
-  }, [isSuperAdmin, ministryFilter, myMinistryIds, workerProfile]);
+
+    const deptKeywords = WORDA_MINISTRIES_BY_DEPT[effectiveDept];
+    const targetDeptCode = effectiveDept === "Worship" ? "w" : effectiveDept === "Outreach" ? "o" : effectiveDept === "Relationship" ? "r" : effectiveDept === "Discipleship" ? "d" : "a";
+
+    const deptMinistries = (ministries || []).filter((m: any) => {
+      const minName = (m?.name || "").toLowerCase().trim();
+      const minDept = (typeof m?.department === "string" ? m.department : m?.department?.name || m?.departmentCode || "").toLowerCase().trim();
+      return (
+        deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword)) ||
+        minDept === effectiveDept.toLowerCase() ||
+        minDept === targetDeptCode
+      );
+    });
+
+    return deptMinistries.map(m => m.id);
+  }, [isSuperAdmin, ministryFilter, effectiveDept, ministries]);
 
   const { workers: allWorkers, pagination, isLoading: workersLoading,
     updateWorker: updateWorkerSql, createWorker: createWorkerSql,
@@ -202,20 +291,26 @@ export default function WorkersPage() {
     ministryIds: headMinistryIds,
     sortField, 
     sortDir,
-    actorId: workerProfile?.id,
+    actorId: isMinistryHeadScoped ? undefined : workerProfile?.id,
+    unrestricted: isMinistryHeadScoped,
   });
 
-  const { ministries, isLoading: ministriesLoading } = useMinistries();
   const availableMinistries = useMemo(() => {
-    if (isSuperAdmin) return ministries;
-    const allowed = (myMinistryIds && myMinistryIds.length > 0)
-      ? myMinistryIds
-      : [workerProfile?.majorMinistryId].filter(Boolean) as string[];
-    if (isMinistryHead && allowed.length > 0) {
-      return ministries.filter(m => allowed.includes(m.id));
-    }
-    return isMinistryHead ? [] : ministries;
-  }, [isSuperAdmin, isMinistryHead, myMinistryIds, workerProfile?.majorMinistryId, ministries]);
+    if (isSuperAdmin) return ministries || [];
+    const deptKeywords = WORDA_MINISTRIES_BY_DEPT[effectiveDept];
+    const targetDeptCode = effectiveDept === "Worship" ? "w" : effectiveDept === "Outreach" ? "o" : effectiveDept === "Relationship" ? "r" : effectiveDept === "Discipleship" ? "d" : "a";
+
+    return (ministries || []).filter((m: any) => {
+      const minName = (m?.name || "").toLowerCase().trim();
+      const minDept = (typeof m?.department === "string" ? m.department : m?.department?.name || m?.departmentCode || "").toLowerCase().trim();
+      return (
+        deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword)) ||
+        minDept === effectiveDept.toLowerCase() ||
+        minDept === targetDeptCode
+      );
+    });
+  }, [isSuperAdmin, effectiveDept, ministries]);
+
   const { roles, isLoading: rolesLoading } = useRoles();
   const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
   const { mealStubs: allMealStubs } = useMealStubs({ dateFrom: thirtyDaysAgo });
@@ -246,9 +341,8 @@ export default function WorkersPage() {
   }, [isDepartmentHead, userDepartment, ministries]);
 
   const { data: statsData } = useWorkerStats(
-    isSuperAdmin || (canManageWorkers && !workerProfile?.majorMinistryId) ? undefined :
-      isDepartmentHead ? departmentMinistries.map(m => m.id) :
-        [workerProfile?.majorMinistryId, workerProfile?.minorMinistryId].filter(Boolean) as string[]
+    isSuperAdmin ? undefined : headMinistryIds,
+    isMinistryHeadScoped ? undefined : workerProfile?.id
   );
 
   const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
@@ -465,29 +559,28 @@ export default function WorkersPage() {
   const baseWorkers = useMemo(() => {
     let list = allWorkers || [];
 
-    if (isMinistryHeadScoped) {
-      const allowedIds = headMinistryIds || (workerProfile?.majorMinistryId ? [workerProfile.majorMinistryId] : []);
+    if (!isSuperAdmin) {
       list = list.filter(w => {
         // Hierarchy rule: A Ministry Head manages the mentors/workers of their ministry.
         // Admins and Ministry Heads (and the logged-in head themselves) must NOT appear here.
         if (isWorkerAdminOrHead(w)) return false;
         if (workerProfile?.id && w.id === workerProfile.id) return false;
 
-        // Must belong to the head's ministry if allowedIds are defined
-        if (allowedIds.length > 0) {
-          const inMajor = w.majorMinistryId && allowedIds.includes(w.majorMinistryId);
-          const inMinor = w.minorMinistryId && allowedIds.includes(w.minorMinistryId);
-          const inAssigned = Array.isArray((w as any).assignedMinistryIds) &&
-            (w as any).assignedMinistryIds.some((id: string) => allowedIds.includes(id));
+        // If a specific ministry is selected in the dropdown
+        if (ministryFilter !== "all") {
+          const inMajor = w.majorMinistryId === ministryFilter;
+          const inMinor = w.minorMinistryId === ministryFilter;
+          const inAssigned = Array.isArray((w as any).assignedMinistryIds) && (w as any).assignedMinistryIds.includes(ministryFilter);
           if (!inMajor && !inMinor && !inAssigned) return false;
         }
 
-        return true;
+        // Must belong to the head's department (e.g. Outreach: Cluster 1 to 9, WEYJ, TAPAT)
+        return isWorkerInDepartment(w, effectiveDept, ministries || []);
       });
     }
 
     return list;
-  }, [allWorkers, isMinistryHeadScoped, headMinistryIds, workerProfile, ministries, roles]);
+  }, [allWorkers, isSuperAdmin, workerProfile, effectiveDept, ministries, ministryFilter]);
 
   const displayedWorkers = useMemo(() => {
     let list = baseWorkers;
@@ -636,7 +729,7 @@ export default function WorkersPage() {
         )}
 
         {/* Main Content Card Container (Connect2Souls Style) */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
           {/* Top Controls Row (Search Left, Dropdowns Right) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Search bar (Left side) */}
@@ -715,7 +808,7 @@ export default function WorkersPage() {
           </div>
 
           {/* Main Table Container */}
-          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card shadow-card-dark">
+          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
 
           {/* Mobile list view */}
           <div className="md:hidden divide-y divide-border/30">

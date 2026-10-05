@@ -118,6 +118,12 @@
     -webkit-user-select: text;
   }
 
+  /* Hide default browser password reveal / clear buttons to avoid duplicate eye icons in Edge/IE */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none !important;
+  }
+
   h1,
   h2,
   h3,

@@ -127,7 +127,7 @@ export function EditReservationDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[480px] p-6 rounded-2xl bg-white dark:bg-card border shadow-xl">
-        <DialogHeader className="space-y-1 text-left pb-2">
+        <DialogHeader className="space-y-1 text-left pb-2 pr-8">
           <DialogTitle className="text-xl font-bold font-headline text-gray-900 dark:text-white">
             Edit Reservation
           </DialogTitle>

@@ -57,12 +57,12 @@ function MinistryForm({ ministry, workers, departments, onSave, onClose }: {
 
   return (
     <div className="space-y-6">
-      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+      <DialogHeader className="space-y-2 pb-1 border-b border-border/40 pr-8">
+        <div className="flex items-start gap-3.5">
+          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0 mt-0.5">
             <Building2 className="h-5 w-5" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <DialogTitle className="text-xl font-bold font-headline text-foreground">
               {ministry?.id ? "Edit Ministry" : "Add New Ministry"}
             </DialogTitle>
@@ -184,12 +184,12 @@ function AppointDialog({ ministry, workers, onSave, onClose, type = "approver" }
 
   return (
     <div className="space-y-6">
-      <DialogHeader className="space-y-2 pb-1 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+      <DialogHeader className="space-y-2 pb-1 border-b border-border/40 pr-8">
+        <div className="flex items-start gap-3.5">
+          <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0 mt-0.5">
             <UserCog className="h-5 w-5" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <DialogTitle className="text-xl font-bold font-headline text-foreground">
               Appoint {label}
             </DialogTitle>
@@ -454,7 +454,6 @@ export default function MinistryManagementPage() {
             <p className="col-span-full py-12 text-center text-sm text-muted-foreground">No ministries found.</p>
           ) : filteredMinistries.map(ministry => {
             const head = getWorker(ministry.headId);
-            const approver = getWorker(ministry.approverId);
             const memberCount = (workers || []).filter(w => w.majorMinistryId === ministry.id || w.minorMinistryId === ministry.id).length;
             const weeklyPool = (ministry as any).mealStubWeeklyLimit || 0;
 
@@ -503,14 +502,6 @@ export default function MinistryManagementPage() {
                       <span className="text-xs italic">No head assigned</span>
                     </div>
                   )}
-                </div>
-
-                {/* Approver */}
-                <div className="rounded-xl border border-border/60 bg-muted/[0.12] p-2.5 text-xs">
-                  <p className="text-muted-foreground flex items-center gap-1 mb-0.5 text-[11px]">
-                    <UserCog className="h-3 w-3" /> Approver
-                  </p>
-                  <p className="font-semibold text-foreground truncate">{approver ? `${approver.firstName} ${approver.lastName}` : "—"}</p>
                 </div>
 
                 {/* Members + Weekly pool */}
@@ -567,16 +558,15 @@ export default function MinistryManagementPage() {
           {detailsMinistry && (() => {
             const m = detailsMinistry;
             const head = getWorker(m.headId);
-            const approver = getWorker(m.approverId);
             const members = (workers || []).filter(w => w.majorMinistryId === m.id || w.minorMinistryId === m.id);
             return (
               <div className="flex flex-col gap-5">
-                <DialogHeader className="space-y-1 pb-3 border-b border-border/40">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0">
+                <DialogHeader className="space-y-1 pb-3 border-b border-border/40 pr-8">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-sidebar/10 text-sidebar dark:text-sky-400 border border-sidebar/20 shrink-0 mt-0.5">
                       <Building2 className="h-5 w-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <DialogTitle className="text-xl font-bold font-headline text-foreground">{m.name}</DialogTitle>
                       <DialogDescription className="text-xs text-muted-foreground">{m.department} Department</DialogDescription>
                     </div>
@@ -585,14 +575,16 @@ export default function MinistryManagementPage() {
 
                 {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
 
-                <div className="grid grid-cols-2 gap-3">
-                  {[{ label: "Ministry Head", w: head }, { label: "Approver", w: approver }].map(({ label, w }) => (
-                    <div key={label} className="rounded-xl border border-border/60 bg-muted/20 p-3">
-                      <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mb-1.5">{label}</p>
-                      {w ? <div className="flex items-center gap-2"><WorkerInitials name={`${w.firstName} ${w.lastName}`} /><p className="text-xs font-semibold text-foreground truncate">{w.firstName} {w.lastName}</p></div>
-                        : <p className="text-xs text-muted-foreground italic">Unassigned</p>}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5">
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider mb-1.5">Ministry Head</p>
+                  {head ? (
+                    <div className="flex items-center gap-2">
+                      <WorkerInitials name={`${head.firstName} ${head.lastName}`} />
+                      <p className="text-xs font-semibold text-foreground truncate">{head.firstName} {head.lastName}</p>
                     </div>
-                  ))}
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Unassigned</p>
+                  )}
                 </div>
 
                 <div>

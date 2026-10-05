@@ -85,6 +85,77 @@ import { ReservationDetailsSheet } from "@/components/reservations/reservation-d
 import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import type { Booking, Room, Area, VenueElement, Ministry, Worker } from "@studio/types";
 
+// ── WORDA Department Matrix ───────────────────────────────────────────────────
+export const WORDA_MINISTRIES_BY_DEPT = {
+  Worship: ["whitelight", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster 1", "cluster 2", "cluster 3", "cluster 4", "cluster 5", "cluster 6", "cluster 7", "cluster 8", "cluster 9", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "cldp", "kid", "children's ministry", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "linkages", "security and shuttle", "technology", "ventures"],
+};
+
+export type WordaDepartment = keyof typeof WORDA_MINISTRIES_BY_DEPT;
+
+export function getWorkerDepartment(
+  workerProfile: any,
+  allMinistries: any[],
+  userRoleDept?: string
+): WordaDepartment {
+  const direct = (workerProfile?.department || workerProfile?.departmentCode || userRoleDept || "").toLowerCase();
+  if (direct.includes("worship") || direct === "w") return "Worship";
+  if (direct.includes("outreach") || direct === "o") return "Outreach";
+  if (direct.includes("relationship") || direct === "r") return "Relationship";
+  if (direct.includes("discipleship") || direct === "d") return "Discipleship";
+  if (direct.includes("administration") || direct === "a") return "Administration";
+
+  const userMinistries = (allMinistries || []).filter(
+    (m: any) =>
+      m.headId === workerProfile?.id ||
+      m.approverId === workerProfile?.id ||
+      m.id === workerProfile?.majorMinistryId ||
+      m.id === workerProfile?.minorMinistryId ||
+      (Array.isArray(workerProfile?.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+
+  for (const m of userMinistries) {
+    const d = (m.department || m.departmentCode || "").toLowerCase();
+    const name = (m.name || "").toLowerCase();
+    if (d.includes("worship") || d === "w" || WORDA_MINISTRIES_BY_DEPT.Worship.some(k => name.includes(k))) return "Worship";
+    if (d.includes("outreach") || d === "o" || WORDA_MINISTRIES_BY_DEPT.Outreach.some(k => name.includes(k))) return "Outreach";
+    if (d.includes("relationship") || d === "r" || WORDA_MINISTRIES_BY_DEPT.Relationship.some(k => name.includes(k))) return "Relationship";
+    if (d.includes("discipleship") || d === "d" || WORDA_MINISTRIES_BY_DEPT.Discipleship.some(k => name.includes(k))) return "Discipleship";
+    if (d.includes("administration") || d === "a" || WORDA_MINISTRIES_BY_DEPT.Administration.some(k => name.includes(k))) return "Administration";
+  }
+
+  return "Outreach";
+}
+
+export function isBookingInDepartment(
+  booking: any,
+  deptName: WordaDepartment,
+  allMinistries: any[],
+  workers: any[]
+): boolean {
+  const worker = workers?.find((w: any) => w.id === booking.workerProfileId);
+  const targetMinistryId = booking.ministryId || worker?.majorMinistryId;
+  const ministry = targetMinistryId ? allMinistries?.find((m: any) => m.id === targetMinistryId) : null;
+
+  const minName = (ministry?.name || "").toLowerCase().trim();
+  const minDept = (typeof ministry?.department === 'string' ? ministry.department : ministry?.department?.name || ministry?.departmentCode || "").toLowerCase().trim();
+  const targetDeptCode = deptName === "Worship" ? "w" : deptName === "Outreach" ? "o" : deptName === "Relationship" ? "r" : deptName === "Discipleship" ? "d" : "a";
+
+  const deptKeywords = WORDA_MINISTRIES_BY_DEPT[deptName];
+  if (deptKeywords.some(keyword => minName === keyword || minName.includes(keyword))) {
+    return true;
+  }
+
+  if (minDept === deptName.toLowerCase() || minDept === targetDeptCode) {
+    return true;
+  }
+
+  return false;
+}
+
 const ITEMS_PER_PAGE = 10;
 
 export default function AllReservationsPage() {
@@ -162,21 +233,29 @@ export default function AllReservationsPage() {
     return name.slice(0, 2).toUpperCase();
   };
 
+  // Scoped bookings based on user role (Ministry Heads strictly see only their department's reservations)
+  const scopedBookings = useMemo(() => {
+    if (!allBookings) return [];
+    const list = allBookings as any[];
+    if (isSuperAdmin) return list;
+
+    const effectiveDept = getWorkerDepartment(workerProfile, ministries || [], (workerProfile as any)?.department);
+    return list.filter((b: any) => isBookingInDepartment(b, effectiveDept, ministries || [], workers || []));
+  }, [allBookings, isSuperAdmin, workerProfile, ministries, workers]);
+
   // Stats calculation
   const stats = useMemo(() => {
-    if (!allBookings) return { total: 0, pending: 0, approved: 0, rejected: 0 };
-    const list = allBookings as any[];
+    const list = scopedBookings;
     return {
       total: list.length,
       pending: list.filter((b) => b.status?.toLowerCase().startsWith("pending")).length,
       approved: list.filter((b) => b.status === "Approved").length,
       rejected: list.filter((b) => b.status === "Rejected").length,
     };
-  }, [allBookings]);
+  }, [scopedBookings]);
 
   const filteredBookings = useMemo(() => {
-    if (!allBookings) return [];
-    return (allBookings as any[])
+    return scopedBookings
       .filter((b: any) => {
         const room = getRoom(b.roomId);
         const area = getArea(room?.areaId);

@@ -194,6 +194,26 @@ export default function NewWorkerPage() {
   const [employmentType, setEmploymentType]   = useState("Full-Time");
   const [startDate, setStartDate]             = useState("");
 
+  const DEPT_OPTIONS = useMemo(() => [
+    "Worship",
+    "Outreach",
+    "Relationship",
+    "Discipleship",
+    "Administration",
+  ], []);
+
+  const selectedRole = useMemo(() => roles.find(r => r.id === roleId), [roles, roleId]);
+  const isMinistryHeadRole = useMemo(() => 
+    roleId === "ministry_head" || 
+    Boolean(selectedRole && (selectedRole.name.toLowerCase().includes("ministry head") || selectedRole.name.toLowerCase() === "head")),
+    [roleId, selectedRole]
+  );
+  const isAdminRole = useMemo(() => 
+    roleId === "admin" || 
+    Boolean(selectedRole && (selectedRole.name.toLowerCase().includes("admin") || selectedRole.isSuperAdmin)),
+    [roleId, selectedRole]
+  );
+
   // Auto-select role based on permissions
   useEffect(() => {
     if (roles.length > 0) {
@@ -210,17 +230,25 @@ export default function NewWorkerPage() {
 
   // Auto-select first ministry when loaded
   useEffect(() => {
+    if (isAdminRole) {
+      if (majorMinistryId) setMajorMinistryId("");
+      return;
+    }
     if (!majorMinistryId && ministries.length > 0) {
-      const firstDept = Object.keys(groupedMinistries)[0];
-      const mins = groupedMinistries[firstDept];
-      const firstSorted = mins && mins.length > 0
-        ? [...mins].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))[0]
-        : ministries[0];
-      if (firstSorted) {
-        setMajorMinistryId(firstSorted.id);
+      if (isMinistryHeadRole) {
+        setMajorMinistryId("Worship");
+      } else {
+        const firstDept = Object.keys(groupedMinistries)[0];
+        const mins = groupedMinistries[firstDept];
+        const firstSorted = mins && mins.length > 0
+          ? [...mins].sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))[0]
+          : ministries[0];
+        if (firstSorted) {
+          setMajorMinistryId(firstSorted.id);
+        }
       }
     }
-  }, [ministries, groupedMinistries, majorMinistryId]);
+  }, [ministries, groupedMinistries, majorMinistryId, isMinistryHeadRole, isAdminRole]);
 
   // Form state — Step 3: Additional Information
   const [remarks, setRemarks]             = useState("");
@@ -268,19 +296,55 @@ export default function NewWorkerPage() {
       });
       return false;
     }
+    if (!birthDate.trim()) { toast({ variant: "destructive", title: "Birth date is required" }); return false; }
+    if (!address.trim())   { toast({ variant: "destructive", title: "Address is required" }); return false; }
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (!isAdminRole && !majorMinistryId) {
+      toast({ variant: "destructive", title: "Ministry is required" });
+      return false;
+    }
+    if (!startDate) {
+      toast({ variant: "destructive", title: "Start date is required" });
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep3 = () => {
+    if (!emergencyName.trim()) {
+      toast({ variant: "destructive", title: "Emergency contact name is required" });
+      return false;
+    }
+    if (!isValidName(emergencyName.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Emergency Contact Name",
+        description: "Emergency contact name can only contain letters, spaces, hyphens, and apostrophes.",
+      });
+      return false;
+    }
+    if (!emergencyPhone.trim()) {
+      toast({ variant: "destructive", title: "Emergency contact phone is required" });
+      return false;
+    }
+    if (!isValidPhilippineNumber(emergencyPhone.trim())) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Emergency Phone",
+        description: "Emergency phone must be exactly 11 digits starting with 09 (e.g. 09171234567) and numbers only.",
+      });
+      return false;
+    }
     return true;
   };
 
   const handleNext = () => {
     if (step === 1 && !validateStep1()) return;
-    if (step === 3 && emergencyPhone.trim() && !isValidPhilippineNumber(emergencyPhone.trim())) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Emergency Phone",
-        description: "Emergency phone must be exactly 11 digits starting with 09 (e.g. 09171234567).",
-      });
-      return;
-    }
+    if (step === 2 && !validateStep2()) return;
+    if (step === 3 && !validateStep3()) return;
     setStep(s => Math.min(4, s + 1));
   };
 
@@ -288,15 +352,8 @@ export default function NewWorkerPage() {
 
   const handleSubmit = async () => {
     if (!validateStep1()) { setStep(1); return; }
-    if (emergencyPhone.trim() && !isValidPhilippineNumber(emergencyPhone.trim())) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Emergency Phone",
-        description: "Emergency phone must be exactly 11 digits starting with 09 (e.g. 09171234567).",
-      });
-      setStep(3);
-      return;
-    }
+    if (!validateStep2()) { setStep(2); return; }
+    if (!validateStep3()) { setStep(3); return; }
     setSaving(true);
     try {
       const workerId = String(20000 + Math.floor(Math.random() * 10000)).padStart(6, "0");
@@ -410,10 +467,10 @@ export default function NewWorkerPage() {
                       className="h-10 rounded-xl border-border/60 bg-background"
                     />
                   </Field>
-                  <Field label="Birth date">
+                  <Field label="Birth date" required>
                     <Input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
                   </Field>
-                  <Field label="Address">
+                  <Field label="Address" required>
                     <Input value={address} onChange={e => setAddress(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
                   </Field>
                 </div>
@@ -434,7 +491,29 @@ export default function NewWorkerPage() {
                           <button
                             key={card.id}
                             type="button"
-                            onClick={() => setRoleId(role?.id || card.id)}
+                            onClick={() => {
+                              const newRoleId = role?.id || card.id;
+                              setRoleId(newRoleId);
+                              if (card.id === "admin" || role?.name?.toLowerCase().includes("admin") || role?.isSuperAdmin) {
+                                setMajorMinistryId("");
+                                setMinorMinistryId("");
+                              } else if (card.id === "ministry_head" || role?.name?.toLowerCase().includes("ministry head") || role?.name?.toLowerCase() === "head") {
+                                if (!DEPT_OPTIONS.includes(majorMinistryId)) {
+                                  const currentMin = ministries.find((m) => m.id === majorMinistryId);
+                                  const matchedDept = currentMin?.department && DEPT_OPTIONS.includes(currentMin.department as string)
+                                    ? (currentMin.department as string)
+                                    : "Worship";
+                                  setMajorMinistryId(matchedDept);
+                                }
+                              } else {
+                                if (DEPT_OPTIONS.includes(majorMinistryId) || !majorMinistryId) {
+                                  const mins = (majorMinistryId && groupedMinistries[majorMinistryId]) || groupedMinistries[Object.keys(groupedMinistries)[0]] || ministries;
+                                  if (mins.length > 0) {
+                                    setMajorMinistryId(mins[0].id);
+                                  }
+                                }
+                              }
+                            }}
                             className={cn(
                               "relative w-full flex flex-col items-center justify-center text-center gap-3 py-6 px-6 rounded-2xl border-2 transition-colors shadow-xs",
                               availableRoleCards.length === 1 ? "cursor-default" : "cursor-pointer",
@@ -460,34 +539,63 @@ export default function NewWorkerPage() {
 
                   {/* Ministry, Worker type, Start date */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
-                    <Field label="Ministry" required>
-                      <Select
-                        value={majorMinistryId}
-                        onValueChange={(v) => {
-                          setMajorMinistryId(v);
-                          setMinorMinistryId("");
-                        }}
-                      >
-                        <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background text-sm" disabled={ministries.length === 0}>
-                          <SelectValue placeholder={ministries.length === 0 ? "No ministry assignment available" : "Select ministry"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(groupedMinistries).map(([dept, mins]) => (
-                            <SelectGroup key={dept}>
-                              <SelectLabel className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
-                                {dept}
-                              </SelectLabel>
-                              {[...mins]
-                                .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))
-                                .map((m) => (
-                                  <SelectItem key={m.id} value={m.id} className="text-xs">
-                                    {m.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Field label="Ministry" required={!isAdminRole}>
+                      {isAdminRole ? (
+                        <div className="h-10 rounded-xl border border-border/60 bg-muted/40 px-3 flex items-center text-sm text-muted-foreground select-none cursor-not-allowed">
+                          General / All Ministries (Admin)
+                        </div>
+                      ) : (
+                        <Select
+                          value={majorMinistryId || undefined}
+                          onValueChange={(v) => {
+                            setMajorMinistryId(v || "");
+                            setMinorMinistryId("");
+                          }}
+                          disabled={ministries.length === 0}
+                        >
+                          <SelectTrigger 
+                            className="h-10 rounded-xl border-border/60 bg-background text-sm" 
+                            disabled={ministries.length === 0}
+                          >
+                            <SelectValue 
+                              placeholder={
+                                ministries.length === 0 
+                                  ? "No ministry assignment available" 
+                                  : (isMinistryHeadRole ? "Select department" : "Select ministry")
+                              } 
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isMinistryHeadRole ? (
+                              DEPT_OPTIONS.map((dept) => (
+                                <SelectItem key={dept} value={dept} className="text-xs">
+                                  {dept}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              Object.entries(groupedMinistries).map(([dept, mins]) => (
+                                <SelectGroup key={dept}>
+                                  <SelectLabel className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
+                                    {dept}
+                                  </SelectLabel>
+                                  {[...mins]
+                                    .sort((a, b) => (a.weight ?? 0) - (b.weight ?? 0) || a.name.localeCompare(b.name))
+                                    .map((m) => (
+                                      <SelectItem key={m.id} value={m.id} className="text-xs">
+                                        {m.name}
+                                      </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {isAdminRole && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          General role with system-wide access to all ministries.
+                        </p>
+                      )}
                     </Field>
                     <Field label="Worker type" required>
                       <Select
@@ -558,10 +666,15 @@ export default function NewWorkerPage() {
 
                   {/* Emergency contact */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-                    <Field label="Emergency contact name">
-                      <Input value={emergencyName} onChange={e => setEmergencyName(e.target.value)} className="h-10 rounded-xl border-border/60 bg-background" />
+                    <Field label="Emergency contact name" required>
+                      <Input 
+                        value={emergencyName} 
+                        onChange={e => setEmergencyName(cleanName(e.target.value))} 
+                        placeholder="e.g. Maria Santos"
+                        className="h-10 rounded-xl border-border/60 bg-background" 
+                      />
                     </Field>
-                    <Field label="Emergency contact phone">
+                    <Field label="Emergency contact phone" required>
                       <Input
                         type="tel"
                         inputMode="numeric"
@@ -599,7 +712,7 @@ export default function NewWorkerPage() {
                       ["Email", email], ["Phone", phone],
                       ["Birth Date", birthDate || "—"], ["Address", address || "—"],
                       ["Role", roles.find(r => r.id === roleId)?.name || "—"],
-                      ["Ministry", ministries.find(m => m.id === majorMinistryId)?.name || "—"],
+                      ["Ministry", isAdminRole || !majorMinistryId ? "General / All Ministries (Admin)" : (DEPT_OPTIONS.includes(majorMinistryId) ? majorMinistryId : (ministries.find(m => m.id === majorMinistryId)?.name || majorMinistryId || "—"))],
                       ["Worker Type", employmentType], ["Start Date", startDate || "—"],
                       ["Emergency Contact", emergencyName ? `${emergencyName}${emergencyPhone ? ` (${emergencyPhone})` : ''}` : "—"],
                       ["Default Password", "COGDASMA2026"],
