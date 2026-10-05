@@ -743,19 +743,9 @@ const DevotionForm = ({
                       key={m.module}
                       value={m.module}
                       disabled={!isModuleUnlocked}
-                      className={cn(
-                        "text-xs font-medium",
-                        !isModuleUnlocked && "opacity-50 cursor-not-allowed text-muted-foreground"
-                      )}
+                      className="text-xs font-medium cursor-pointer"
                     >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className="truncate">{m.module}</span>
-                        {!isModuleUnlocked && (
-                          <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">
-                            <Lock className="h-3 w-3" /> Locked
-                          </span>
-                        )}
-                      </div>
+                      {m.module}
                     </SelectItem>
                   );
                 })}
@@ -788,34 +778,9 @@ const DevotionForm = ({
                       key={l}
                       value={l}
                       disabled={!isUnlocked}
-                      className={cn(
-                        "text-xs font-medium",
-                        !isUnlocked && "opacity-50 cursor-not-allowed text-muted-foreground"
-                      )}
+                      className="text-xs font-medium cursor-pointer"
                     >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span
-                          className={cn(
-                            "truncate",
-                            isCompleted ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""
-                          )}
-                        >
-                          {l}
-                        </span>
-                        {isCompleted ? (
-                          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
-                            <CheckCircle2 className="h-3 w-3" /> Done
-                          </span>
-                        ) : !isUnlocked ? (
-                          <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">
-                            <Lock className="h-3 w-3" /> Locked
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-primary font-semibold shrink-0">
-                            Next
-                          </span>
-                        )}
-                      </div>
+                      {l}
                     </SelectItem>
                   );
                 })}
