@@ -118,9 +118,65 @@ const fmtId = (id: string | null | undefined) => {
   return isNaN(num) ? id : `COG-${String(num).padStart(4, "0")}`;
 };
 
+// ── Department Scoping Helpers ────────────────────────────────────────────────
+export const WORDA_DEPARTMENTS: Record<string, string[]> = {
+  Worship: ["whitelight", "white light", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "men's", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "one liner", "cldp", "kid", "children", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "in-house", "linkages", "security and shuttle", "security & shuttle", "technology", "ventures"],
+};
+
+export function resolveMinistryDepartment(min: any): string | null {
+  if (!min) return null;
+  const deptCode = (min.departmentCode || min.department?.code || (typeof min.department === 'string' ? min.department : min.department?.name) || "").toLowerCase().trim();
+  if (deptCode === "w" || deptCode.includes("worship")) return "Worship";
+  if (deptCode === "o" || deptCode.includes("outreach")) return "Outreach";
+  if (deptCode === "r" || deptCode.includes("relationship")) return "Relationship";
+  if (deptCode === "d" || deptCode.includes("discipleship")) return "Discipleship";
+  if (deptCode === "a" || deptCode.includes("admin")) return "Administration";
+
+  const name = (min.name || "").toLowerCase().trim();
+  for (const [dept, keywords] of Object.entries(WORDA_DEPARTMENTS)) {
+    if (keywords.some(k => name.includes(k) || name.startsWith(k))) {
+      return dept;
+    }
+  }
+  return null;
+}
+
+export function resolveUserHeadDepartment(workerProfile: any, allMinistries: any[]): string | null {
+  if (!workerProfile) return null;
+  const direct = (workerProfile.department || workerProfile.departmentCode || "").toLowerCase().trim();
+  if (direct === "w" || direct.includes("worship")) return "Worship";
+  if (direct === "o" || direct.includes("outreach")) return "Outreach";
+  if (direct === "r" || direct.includes("relationship")) return "Relationship";
+  if (direct === "d" || direct.includes("discipleship")) return "Discipleship";
+  if (direct === "a" || direct.includes("admin")) return "Administration";
+
+  const roleName = ((workerProfile.role?.name || '') + ' ' + (workerProfile.roles?.map((r: any) => r.role?.name || '').join(' ') || '')).toLowerCase();
+  if (roleName.includes("worship")) return "Worship";
+  if (roleName.includes("outreach")) return "Outreach";
+  if (roleName.includes("relationship")) return "Relationship";
+  if (roleName.includes("discipleship")) return "Discipleship";
+  if (roleName.includes("admin")) return "Administration";
+
+  const userMins = (allMinistries || []).filter(m =>
+    m.id === workerProfile.majorMinistryId ||
+    m.id === workerProfile.minorMinistryId ||
+    m.headId === workerProfile.id ||
+    (Array.isArray(workerProfile.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+  for (const m of userMins) {
+    const dept = resolveMinistryDepartment(m);
+    if (dept) return dept;
+  }
+  return null;
+}
+
 // ── Attendance Tab ────────────────────────────────────────────────────────────
 function AttendanceTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -139,38 +195,39 @@ function AttendanceTab() {
   const [range, setRange] = useState<"today" | "this-week" | "this-month" | "all-time">("this-month");
   const [page, setPage] = useState(1);
 
-  const allowedMinistryIdSet = useMemo(() => {
-    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
-    return new Set(myMinistryIds);
-  }, [isSuperAdmin, myMinistryIds]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
 
   const filteredMinistries = useMemo(() => {
     if (!ministries) return [];
-    if (allowedMinistryIdSet) {
-      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
     }
     return ministries as any[];
-  }, [ministries, allowedMinistryIdSet]);
+  }, [ministries, headDept]);
 
   const scopedWorkers = useMemo(() => {
     if (!workers) return [];
-    if (allowedMinistryIdSet) {
+    if (headDept) {
       return workers.filter(w => {
-        const mId = w.majorMinistryId || w.minorMinistryId;
-        return mId && allowedMinistryIdSet.has(mId);
+        const min = (ministries as any[])?.find(m => m.id === w.majorMinistryId || m.id === w.minorMinistryId);
+        const wDept = min ? resolveMinistryDepartment(min) : resolveUserHeadDepartment(w, ministries as any[]);
+        return wDept === headDept;
       });
     }
     return workers;
-  }, [workers, allowedMinistryIdSet]);
+  }, [workers, headDept, ministries]);
 
   const scopedAttendance = useMemo(() => {
     if (!attendance) return [];
-    if (allowedMinistryIdSet) {
+    if (headDept) {
       const vIds = new Set(scopedWorkers.map(w => w.id));
       return attendance.filter(r => vIds.has(r.workerProfileId));
     }
     return attendance;
-  }, [attendance, scopedWorkers, allowedMinistryIdSet]);
+  }, [attendance, scopedWorkers, headDept]);
 
   // Ministry distribution chart
   const ministryChartData = useMemo(() => {
@@ -594,7 +651,7 @@ function AttendanceTab() {
 
 // ── Meal Stub Claims Tab ──────────────────────────────────────────────────────
 function MealStubClaimsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -612,18 +669,18 @@ function MealStubClaimsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const allowedMinistryIdSet = useMemo(() => {
-    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
-    return new Set(myMinistryIds);
-  }, [isSuperAdmin, myMinistryIds]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
 
   const filteredMinistries = useMemo(() => {
     if (!ministries) return [];
-    if (allowedMinistryIdSet) {
-      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
     }
     return ministries as any[];
-  }, [ministries, allowedMinistryIdSet]);
+  }, [ministries, headDept]);
 
   const rows = useMemo(() => {
     return (mealstubs || []).map(s => {
@@ -631,13 +688,13 @@ function MealStubClaimsTab() {
       const min = w ? (ministries as any[] || []).find(m => m.id === w.majorMinistryId) : null;
       return { ...s, worker: w, ministry: min };
     }).filter(r => {
-      if (allowedMinistryIdSet) {
-        const minId = r.worker?.majorMinistryId || r.worker?.minorMinistryId || r.ministry?.id;
-        if (!minId || !allowedMinistryIdSet.has(minId)) return false;
+      if (headDept) {
+        const wDept = r.ministry ? resolveMinistryDepartment(r.ministry) : resolveUserHeadDepartment(r.worker, ministries as any[]);
+        return wDept === headDept;
       }
       return true;
     });
-  }, [mealstubs, workers, ministries, allowedMinistryIdSet]);
+  }, [mealstubs, workers, ministries, headDept]);
 
   const stats = useMemo(() => {
     const claimed = rows.filter(s => s.status === "Claimed").length;
@@ -930,7 +987,7 @@ function MealStubClaimsTab() {
 
 // ── Allocations Tab ───────────────────────────────────────────────────────────
 function AllocationsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -947,39 +1004,40 @@ function AllocationsTab() {
   const [workerTypeFilter, setWorkerTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const allowedMinistryIdSet = useMemo(() => {
-    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
-    return new Set(myMinistryIds);
-  }, [isSuperAdmin, myMinistryIds]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
 
   const filteredMinistries = useMemo(() => {
     if (!ministries) return [];
-    if (allowedMinistryIdSet) {
-      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
     }
     return ministries as any[];
-  }, [ministries, allowedMinistryIdSet]);
+  }, [ministries, headDept]);
 
   const getMinistry = useCallback((id: string) => (filteredMinistries || []).find(m => m.id === id), [filteredMinistries]);
 
   const eligibleWorkers = useMemo(() => {
     return (workers || []).filter(w => {
-      if (allowedMinistryIdSet) {
-        const mId = w.majorMinistryId || w.minorMinistryId;
-        if (!mId || !allowedMinistryIdSet.has(mId)) return false;
+      if (headDept) {
+        const min = (ministries as any[])?.find(m => m.id === w.majorMinistryId || m.id === w.minorMinistryId);
+        const wDept = min ? resolveMinistryDepartment(min) : resolveUserHeadDepartment(w, ministries as any[]);
+        if (wDept !== headDept) return false;
       }
       return w.employmentType === "Full-Time" || w.employmentType === "On-Call" || w.employmentType === "Part-Time" || w.employmentType === "Volunteer";
     });
-  }, [workers, allowedMinistryIdSet]);
+  }, [workers, headDept, ministries]);
 
   const scopedMealStubs = useMemo(() => {
     if (!mealstubs) return [];
-    if (allowedMinistryIdSet) {
+    if (headDept) {
       const vIds = new Set(eligibleWorkers.map(w => w.id));
       return mealstubs.filter(s => vIds.has(s.workerId));
     }
     return mealstubs;
-  }, [mealstubs, eligibleWorkers, allowedMinistryIdSet]);
+  }, [mealstubs, eligibleWorkers, headDept]);
 
   const getStats = useCallback((wId: string) => {
     const stubs = scopedMealStubs.filter(s => s.workerId === wId);
@@ -1243,7 +1301,7 @@ function AllocationsTab() {
 
 // ── Reservations Tab ──────────────────────────────────────────────────────────
 function ReservationsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -1260,30 +1318,32 @@ function ReservationsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const allowedMinistryIdSet = useMemo(() => {
-    if (isSuperAdmin || !myMinistryIds || myMinistryIds.length === 0) return null;
-    return new Set(myMinistryIds);
-  }, [isSuperAdmin, myMinistryIds]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
 
   const filteredMinistries = useMemo(() => {
     if (!ministries) return [];
-    if (allowedMinistryIdSet) {
-      return (ministries as any[]).filter(m => allowedMinistryIdSet.has(m.id));
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
     }
     return ministries as any[];
-  }, [ministries, allowedMinistryIdSet]);
+  }, [ministries, headDept]);
 
   const scopedReservations = useMemo(() => {
     if (!reservations) return [];
-    if (allowedMinistryIdSet) {
+    if (headDept) {
       return reservations.filter(r => {
+        const min = (ministries as any[])?.find(m => m.id === r.ministryId);
         const w = (workers as any[])?.find((x: any) => x.id === r.workerProfileId);
-        const minId = r.ministryId || w?.majorMinistryId || w?.minorMinistryId;
-        return minId && allowedMinistryIdSet.has(minId);
+        const wMin = w ? (ministries as any[])?.find(m => m.id === w.majorMinistryId) : null;
+        const targetDept = min ? resolveMinistryDepartment(min) : (wMin ? resolveMinistryDepartment(wMin) : resolveUserHeadDepartment(w, ministries as any[]));
+        return targetDept === headDept;
       });
     }
     return reservations;
-  }, [reservations, workers, allowedMinistryIdSet]);
+  }, [reservations, workers, ministries, headDept]);
 
   const getWorkerName = useCallback((id: string) => { const w = (workers as any[])?.find((x: any) => x.id === id); return w ? `${w.firstName} ${w.lastName}` : "Unknown"; }, [workers]);
   const getRoomName = useCallback((id: string) => rooms?.find(r => r.id === id)?.name ?? "Unknown", [rooms]);
