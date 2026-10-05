@@ -108,6 +108,7 @@ import {
   User,
   Mail,
   Phone,
+  Lock,
 } from "lucide-react";
 import {
   PieChart as RePieChart,
@@ -278,6 +279,7 @@ interface DevotionFormProps {
   currentWorker: Worker | null;
   isMinistryHead: boolean;
   isSuperAdmin: boolean;
+  allDevotions?: C2SDevotionRecord[];
   onSave: (data: any) => Promise<void>;
   onClose: () => void;
 }
@@ -290,6 +292,7 @@ const DevotionForm = ({
   currentWorker,
   isMinistryHead,
   isSuperAdmin,
+  allDevotions = [],
   onSave,
   onClose,
 }: DevotionFormProps) => {
@@ -317,19 +320,113 @@ const DevotionForm = ({
   const [customTopic, setCustomTopic] = useState(devotion?.topic || "");
   const [scripture, setScripture] = useState(devotion?.scripture || "");
 
+  // Mentee & Attendance State
+  const [selectedMenteeName, setSelectedMenteeName] = useState<string>(
+    devotion?.attendeeNames?.[0] || ""
+  );
+  const [attendanceStatus, setAttendanceStatus] = useState<"Present" | "Absent">("Present");
+  const [nextScheduleDate, setNextScheduleDate] = useState<string>("");
+
+  const menteeOptions = useMemo(() => {
+    return mentees?.map((m) => ({ id: m.id, name: `${m.firstName} ${m.lastName}` })) || [];
+  }, [mentees]);
+
+  // Flatten curriculum for progression tracking
+  const flatCurriculum = useMemo(() => {
+    const modules = C2S_CURRICULUM[manualType] || [];
+    const list: {
+      moduleName: string;
+      moduleIndex: number;
+      lessonName: string;
+      lessonIndex: number;
+      globalIndex: number;
+    }[] = [];
+    let gIdx = 0;
+    modules.forEach((mod, mIdx) => {
+      mod.lessons.forEach((les, lIdx) => {
+        list.push({
+          moduleName: mod.module,
+          moduleIndex: mIdx,
+          lessonName: les,
+          lessonIndex: lIdx,
+          globalIndex: gIdx++,
+        });
+      });
+    });
+    return list;
+  }, [manualType]);
+
+  // Compute completed lessons and unlocked boundaries for selected mentee
+  const {
+    completedGlobalIndices,
+    maxUnlockedIndex,
+    highestUnlockedModuleIndex,
+    nextAvailableModule,
+    nextAvailableLesson,
+  } = useMemo(() => {
+    const modules = C2S_CURRICULUM[manualType] || [];
+    const menteeNameLower = selectedMenteeName.toLowerCase().trim();
+
+    // Find all past devotions for the selected mentee under this manual
+    const menteeDevos = (allDevotions || []).filter((d) => {
+      if (!menteeNameLower) return false;
+      const isMentee = d.attendeeNames?.some(
+        (n) => n.toLowerCase().trim() === menteeNameLower
+      );
+      if (!isMentee) return false;
+      if (devotion?.id && d.id === devotion.id) return false;
+      const dManual = d.manualType || "C2S Devotional Manual";
+      return dManual === manualType;
+    });
+
+    const completedIndices = new Set<number>();
+    menteeDevos.forEach((d) => {
+      const found = flatCurriculum.find(
+        (item) =>
+          (d.lessonName && item.lessonName.toLowerCase() === d.lessonName.toLowerCase()) ||
+          (d.topic && item.lessonName.toLowerCase() === d.topic.toLowerCase()) ||
+          (d.moduleName && d.lessonName && item.moduleName === d.moduleName && item.lessonName === d.lessonName)
+      );
+      if (found) {
+        completedIndices.add(found.globalIndex);
+      }
+    });
+
+    // Determine the next uncompleted lesson in sequence
+    let nextIdx = 0;
+    while (completedIndices.has(nextIdx) && nextIdx < flatCurriculum.length - 1) {
+      nextIdx++;
+    }
+
+    const nextItem = flatCurriculum[nextIdx] || flatCurriculum[0];
+    const unlockedModuleIdx = nextItem ? nextItem.moduleIndex : 0;
+
+    return {
+      completedGlobalIndices: completedIndices,
+      maxUnlockedIndex: nextIdx,
+      highestUnlockedModuleIndex: unlockedModuleIdx,
+      nextAvailableModule: nextItem?.moduleName || modules[0]?.module || "",
+      nextAvailableLesson: nextItem?.lessonName || modules[0]?.lessons[0] || "",
+    };
+  }, [manualType, selectedMenteeName, allDevotions, devotion, flatCurriculum]);
+
+  // Automatically select the next available lesson when mentee or manual changes (for new devotion)
+  useEffect(() => {
+    if (!devotion && selectedMenteeName) {
+      setSelectedModule(nextAvailableModule);
+      setSelectedLesson(nextAvailableLesson);
+      setCustomTopic(nextAvailableLesson);
+    }
+  }, [selectedMenteeName, manualType, nextAvailableModule, nextAvailableLesson, devotion]);
+
   const handleManualChange = (newManual: string) => {
     setManualType(newManual);
-    const newModules = C2S_CURRICULUM[newManual] || [];
-    const firstMod = newModules[0]?.module || "";
-    setSelectedModule(firstMod);
-    const firstLesson = newModules[0]?.lessons[0] || "";
-    setSelectedLesson(firstLesson);
-    setCustomTopic(firstLesson);
   };
 
   const handleModuleChange = (newModule: string) => {
     setSelectedModule(newModule);
     const mod = availableModules.find((m) => m.module === newModule);
+    // Find the first unlocked lesson in this module
     const firstLesson = mod?.lessons[0] || "";
     setSelectedLesson(firstLesson);
     setCustomTopic(firstLesson);
@@ -362,17 +459,6 @@ const DevotionForm = ({
   const [mentorId, setMentorId] = useState(
     devotion?.mentorId || currentWorker?.id || ""
   );
-
-  // Mentee & Attendance State
-  const [selectedMenteeName, setSelectedMenteeName] = useState<string>(
-    devotion?.attendeeNames?.[0] || ""
-  );
-  const [attendanceStatus, setAttendanceStatus] = useState<"Present" | "Absent">("Present");
-  const [nextScheduleDate, setNextScheduleDate] = useState<string>("");
-
-  const menteeOptions = useMemo(() => {
-    return mentees?.map((m) => ({ id: m.id, name: `${m.firstName} ${m.lastName}` })) || [];
-  }, [mentees]);
 
   // Session Details
   const [reflectionNotes, setReflectionNotes] = useState(
@@ -650,11 +736,29 @@ const DevotionForm = ({
                 <SelectValue placeholder="Select Module" />
               </SelectTrigger>
               <SelectContent className="max-h-60 rounded-xl border border-border shadow-xl">
-                {availableModules.map((m) => (
-                  <SelectItem key={m.module} value={m.module} className="text-xs font-medium cursor-pointer">
-                    {m.module}
-                  </SelectItem>
-                ))}
+                {availableModules.map((m, mIdx) => {
+                  const isModuleUnlocked = isSuperAdmin || mIdx <= highestUnlockedModuleIndex;
+                  return (
+                    <SelectItem
+                      key={m.module}
+                      value={m.module}
+                      disabled={!isModuleUnlocked}
+                      className={cn(
+                        "text-xs font-medium",
+                        !isModuleUnlocked && "opacity-50 cursor-not-allowed text-muted-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span className="truncate">{m.module}</span>
+                        {!isModuleUnlocked && (
+                          <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">
+                            <Lock className="h-3 w-3" /> Locked
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -666,11 +770,55 @@ const DevotionForm = ({
                 <SelectValue placeholder="Select Lesson" />
               </SelectTrigger>
               <SelectContent className="max-h-60 rounded-xl border border-border shadow-xl">
-                {availableLessons.map((l) => (
-                  <SelectItem key={l} value={l} className="text-xs font-medium cursor-pointer">
-                    {l}
-                  </SelectItem>
-                ))}
+                {availableLessons.map((l) => {
+                  const lessonItem = flatCurriculum.find(
+                    (item) => item.moduleName === selectedModule && item.lessonName === l
+                  );
+                  const isCompleted = lessonItem
+                    ? completedGlobalIndices.has(lessonItem.globalIndex)
+                    : false;
+                  const isUnlocked =
+                    isSuperAdmin ||
+                    (lessonItem
+                      ? lessonItem.globalIndex <= maxUnlockedIndex || isCompleted
+                      : true);
+
+                  return (
+                    <SelectItem
+                      key={l}
+                      value={l}
+                      disabled={!isUnlocked}
+                      className={cn(
+                        "text-xs font-medium",
+                        !isUnlocked && "opacity-50 cursor-not-allowed text-muted-foreground"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span
+                          className={cn(
+                            "truncate",
+                            isCompleted ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""
+                          )}
+                        >
+                          {l}
+                        </span>
+                        {isCompleted ? (
+                          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
+                            <CheckCircle2 className="h-3 w-3" /> Done
+                          </span>
+                        ) : !isUnlocked ? (
+                          <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold shrink-0">
+                            <Lock className="h-3 w-3" /> Locked
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-primary font-semibold shrink-0">
+                            Next
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -5292,6 +5440,7 @@ function C2SPageContent() {
               currentWorker={workerProfile}
               isMinistryHead={isMinistryHead}
               isSuperAdmin={isSuperAdmin}
+              allDevotions={allDevotions || []}
               onSave={handleSaveDevotion}
               onClose={() => setIsDevotionSheetOpen(false)}
             />
