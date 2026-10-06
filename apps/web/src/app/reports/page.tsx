@@ -29,6 +29,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
+import { exportToExcel } from "@/lib/export-excel";
+import { ExportConfirmDialog } from "@/components/common/export-confirm-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function exportCsv(filename: string, headers: string[], rows: (string | number)[][]) {
@@ -118,9 +121,65 @@ const fmtId = (id: string | null | undefined) => {
   return isNaN(num) ? id : `COG-${String(num).padStart(4, "0")}`;
 };
 
+// ── Department Scoping Helpers ────────────────────────────────────────────────
+export const WORDA_DEPARTMENTS: Record<string, string[]> = {
+  Worship: ["whitelight", "white light", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "men's", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "one liner", "cldp", "kid", "children", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "in-house", "linkages", "security and shuttle", "security & shuttle", "technology", "ventures"],
+};
+
+export function resolveMinistryDepartment(min: any): string | null {
+  if (!min) return null;
+  const deptCode = (min.departmentCode || min.department?.code || (typeof min.department === 'string' ? min.department : min.department?.name) || "").toLowerCase().trim();
+  if (deptCode === "w" || deptCode.includes("worship")) return "Worship";
+  if (deptCode === "o" || deptCode.includes("outreach")) return "Outreach";
+  if (deptCode === "r" || deptCode.includes("relationship")) return "Relationship";
+  if (deptCode === "d" || deptCode.includes("discipleship")) return "Discipleship";
+  if (deptCode === "a" || deptCode.includes("admin")) return "Administration";
+
+  const name = (min.name || "").toLowerCase().trim();
+  for (const [dept, keywords] of Object.entries(WORDA_DEPARTMENTS)) {
+    if (keywords.some(k => name.includes(k) || name.startsWith(k))) {
+      return dept;
+    }
+  }
+  return null;
+}
+
+export function resolveUserHeadDepartment(workerProfile: any, allMinistries: any[]): string | null {
+  if (!workerProfile) return null;
+  const direct = (workerProfile.department || workerProfile.departmentCode || "").toLowerCase().trim();
+  if (direct === "w" || direct.includes("worship")) return "Worship";
+  if (direct === "o" || direct.includes("outreach")) return "Outreach";
+  if (direct === "r" || direct.includes("relationship")) return "Relationship";
+  if (direct === "d" || direct.includes("discipleship")) return "Discipleship";
+  if (direct === "a" || direct.includes("admin")) return "Administration";
+
+  const roleName = ((workerProfile.role?.name || '') + ' ' + (workerProfile.roles?.map((r: any) => r.role?.name || '').join(' ') || '')).toLowerCase();
+  if (roleName.includes("worship")) return "Worship";
+  if (roleName.includes("outreach")) return "Outreach";
+  if (roleName.includes("relationship")) return "Relationship";
+  if (roleName.includes("discipleship")) return "Discipleship";
+  if (roleName.includes("admin")) return "Administration";
+
+  const userMins = (allMinistries || []).filter(m =>
+    m.id === workerProfile.majorMinistryId ||
+    m.id === workerProfile.minorMinistryId ||
+    m.headId === workerProfile.id ||
+    (Array.isArray(workerProfile.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+  for (const m of userMins) {
+    const dept = resolveMinistryDepartment(m);
+    if (dept) return dept;
+  }
+  return null;
+}
+
 // ── Attendance Tab ────────────────────────────────────────────────────────────
 function AttendanceTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -139,41 +198,75 @@ function AttendanceTab() {
   const [range, setRange] = useState<"today" | "this-week" | "this-month" | "all-time">("this-month");
   const [page, setPage] = useState(1);
 
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
+    }
+    return ministries as any[];
+  }, [ministries, headDept]);
+
+  const scopedWorkers = useMemo(() => {
+    if (!workers) return [];
+    if (headDept) {
+      return workers.filter(w => {
+        const min = (ministries as any[])?.find(m => m.id === w.majorMinistryId || m.id === w.minorMinistryId);
+        const wDept = min ? resolveMinistryDepartment(min) : resolveUserHeadDepartment(w, ministries as any[]);
+        return wDept === headDept;
+      });
+    }
+    return workers;
+  }, [workers, headDept, ministries]);
+
+  const scopedAttendance = useMemo(() => {
+    if (!attendance) return [];
+    if (headDept) {
+      const vIds = new Set(scopedWorkers.map(w => w.id));
+      return attendance.filter(r => vIds.has(r.workerProfileId));
+    }
+    return attendance;
+  }, [attendance, scopedWorkers, headDept]);
+
   // Ministry distribution chart
   const ministryChartData = useMemo(() => {
-    if (!attendance || !workers || !ministries) return [];
+    if (!scopedAttendance || !scopedWorkers || !filteredMinistries) return [];
     const counts: Record<string, number> = {};
-    for (const rec of attendance) {
+    for (const rec of scopedAttendance) {
       if (rec.type !== "Clock In") continue;
-      const w = workers.find(x => x.id === rec.workerProfileId);
+      const w = scopedWorkers.find(x => x.id === rec.workerProfileId);
       if (!w) continue;
-      const min = (ministries as any[]).find(m => m.id === w.majorMinistryId);
+      const min = filteredMinistries.find(m => m.id === w.majorMinistryId);
       if (min) counts[min.name] = (counts[min.name] || 0) + 1;
     }
     return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 15);
-  }, [attendance, workers, ministries]);
+  }, [scopedAttendance, scopedWorkers, filteredMinistries]);
 
   // Stats
-  const totalTimeIns = useMemo(() => attendance?.filter(a => a.type === "Clock In").length ?? 0, [attendance]);
-  const totalTimeOuts = useMemo(() => attendance?.filter(a => a.type === "Clock Out").length ?? 0, [attendance]);
-  const uniqueWorkers = useMemo(() => new Set(attendance?.map(a => a.workerProfileId)).size ?? 0, [attendance]);
+  const totalTimeIns = useMemo(() => scopedAttendance?.filter(a => a.type === "Clock In").length ?? 0, [scopedAttendance]);
+  const totalTimeOuts = useMemo(() => scopedAttendance?.filter(a => a.type === "Clock Out").length ?? 0, [scopedAttendance]);
+  const uniqueWorkers = useMemo(() => new Set(scopedAttendance?.map(a => a.workerProfileId)).size ?? 0, [scopedAttendance]);
   const avgRate = useMemo(() => {
-    if (!workers?.length) return "0%";
-    const pct = Math.round((uniqueWorkers / workers.length) * 100);
+    if (!scopedWorkers?.length) return "0%";
+    const pct = Math.round((uniqueWorkers / scopedWorkers.length) * 100);
     return `${pct}%`;
-  }, [uniqueWorkers, workers]);
+  }, [uniqueWorkers, scopedWorkers]);
 
   // Build per-worker per-day rows
   const rows = useMemo(() => {
-    if (!attendance || !workers) return [];
+    if (!scopedAttendance || !scopedWorkers) return [];
     const workerMap: Record<string, any[]> = {};
-    for (const r of attendance) {
+    for (const r of scopedAttendance) {
       if (!workerMap[r.workerProfileId]) workerMap[r.workerProfileId] = [];
       workerMap[r.workerProfileId].push({ ...r, _t: toJsDate(r.time) });
     }
     const result: any[] = [];
     for (const [wId, recs] of Object.entries(workerMap)) {
-      const w = workers.find(x => x.id === wId);
+      const w = scopedWorkers.find(x => x.id === wId);
       if (!w) continue;
       const dayMap: Record<string, any[]> = {};
       for (const r of recs) {
@@ -197,7 +290,7 @@ function AttendanceTab() {
       }
     }
     return result.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [attendance, workers]);
+  }, [scopedAttendance, scopedWorkers]);
 
   // Filter based on range
   const rangeFilteredRows = useMemo(() => {
@@ -236,20 +329,53 @@ function AttendanceTab() {
   const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE) || 1;
   const paginatedRows = filteredRows.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv(`attendance-report.csv`,
-      ["Worker", "Worker ID", "Ministry", "Date", "Time In", "Time Out", "Hours", "Status"],
-      filteredRows.map(r => [
-        `${r.worker.firstName} ${r.worker.lastName}`,
-        fmtId(r.worker.workerId),
-        (ministries as any[])?.find(m => m.id === r.worker.majorMinistryId)?.name || "—",
-        format(r.date, "MMM d, yyyy"),
-        r.timeIn ? format(r.timeIn, "H:mm") : "—",
-        r.timeOut ? format(r.timeOut, "H:mm") : "—",
-        r.hours != null ? `${Math.floor(r.hours / 60)}h ${r.hours % 60}m` : "—",
-        r.status,
-      ])
-    );
+    const recordsHeaders = ["Worker", "Worker ID", "Ministry", "Date", "Time In", "Time Out", "Hours", "Status"];
+    const recordsRows = filteredRows.map(r => [
+      `${r.worker.firstName} ${r.worker.lastName}`,
+      fmtId(r.worker.workerId),
+      (ministries as any[])?.find(m => m.id === r.worker.majorMinistryId)?.name || "—",
+      format(r.date, "MMM d, yyyy"),
+      r.timeIn ? format(r.timeIn, "H:mm") : "—",
+      r.timeOut ? format(r.timeOut, "H:mm") : "—",
+      r.hours != null ? `${Math.floor(r.hours / 60)}h ${r.hours % 60}m` : "—",
+      r.status,
+    ]);
+
+    const statusCounts: Record<string, number> = {};
+    filteredRows.forEach(r => {
+      const s = r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "Unknown";
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const summaryRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      filteredRows.length > 0 ? `${Math.round((count / filteredRows.length) * 100)}%` : "0%",
+    ]);
+
+    exportToExcel(`attendance-report_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Attendance Records",
+        data: [recordsHeaders, ...recordsRows],
+        colWidths: [24, 14, 24, 16, 12, 12, 12, 14],
+      },
+      {
+        name: "Attendance Summary",
+        data: [
+          ["Total Records", filteredRows.length],
+          [],
+          ["Status", "Count", "Percentage"],
+          ...summaryRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
+
+    toast({ title: "Attendance Exported", description: `Exported ${filteredRows.length} records to Excel.` });
   };
 
   if (isLoading) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -357,7 +483,7 @@ function AttendanceTab() {
             </SelectTrigger>
             <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
               <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-              {(ministries as any[] || []).map(m => (
+              {filteredMinistries.map(m => (
                 <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
               ))}
             </SelectContent>
@@ -404,12 +530,12 @@ function AttendanceTab() {
             </SelectContent>
           </Select>
 
-          {/* Export CSV */}
+          {/* Export */}
           <button
-            onClick={handleExport}
+            onClick={() => setShowExportConfirm(true)}
             className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
           >
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> Export Excel
           </button>
         </div>
 
@@ -555,13 +681,21 @@ function AttendanceTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Attendance Report?"
+        description="Do you want to export the attendance records and summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
 
 // ── Meal Stub Claims Tab ──────────────────────────────────────────────────────
 function MealStubClaimsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -579,25 +713,43 @@ function MealStubClaimsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const stats = useMemo(() => {
-    if (!mealstubs) return { issued: 0, claimed: 0, unclaimed: 0, claimRate: "0%" };
-    const claimed = mealstubs.filter(s => s.status === "Claimed").length;
-    const unclaimed = mealstubs.length - claimed;
-    return {
-      issued: mealstubs.length,
-      claimed,
-      unclaimed,
-      claimRate: mealstubs.length > 0 ? `${Math.round((claimed / mealstubs.length) * 100)}%` : "0%",
-    };
-  }, [mealstubs]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
+    }
+    return ministries as any[];
+  }, [ministries, headDept]);
 
   const rows = useMemo(() => {
     return (mealstubs || []).map(s => {
       const w = workers?.find(x => x.id === s.workerId);
       const min = w ? (ministries as any[] || []).find(m => m.id === w.majorMinistryId) : null;
       return { ...s, worker: w, ministry: min };
+    }).filter(r => {
+      if (headDept) {
+        const wDept = r.ministry ? resolveMinistryDepartment(r.ministry) : resolveUserHeadDepartment(r.worker, ministries as any[]);
+        return wDept === headDept;
+      }
+      return true;
     });
-  }, [mealstubs, workers, ministries]);
+  }, [mealstubs, workers, ministries, headDept]);
+
+  const stats = useMemo(() => {
+    const claimed = rows.filter(s => s.status === "Claimed").length;
+    const unclaimed = rows.length - claimed;
+    return {
+      issued: rows.length,
+      claimed,
+      unclaimed,
+      claimRate: rows.length > 0 ? `${Math.round((claimed / rows.length) * 100)}%` : "0%",
+    };
+  }, [rows]);
 
   const tabCounts = useMemo(() => {
     return {
@@ -624,18 +776,40 @@ function MealStubClaimsTab() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("mealstub-claims.csv",
-      ["Worker", "Ministry", "Date Issued", "Date Claimed", "Status", "Claim Type"],
-      filtered.map(s => [
-        s.workerName,
-        s.ministry?.name || "—",
-        format(toJsDate(s.date), "MMM d, yyyy"),
-        (s as any).claimedAt ? format(toJsDate((s as any).claimedAt), "MMM d, yyyy") : "——",
-        s.status,
-        (s as any).stubType || "Daily",
-      ])
-    );
+    const claimsHeaders = ["Worker", "Ministry", "Date Issued", "Date Claimed", "Status", "Claim Type"];
+    const claimsRows = filtered.map(s => [
+      s.workerName,
+      s.ministry?.name || "—",
+      format(toJsDate(s.date), "MMM d, yyyy"),
+      (s as any).claimedAt ? format(toJsDate((s as any).claimedAt), "MMM d, yyyy") : "——",
+      s.status,
+      (s as any).stubType || "Daily",
+    ]);
+
+    exportToExcel(`mealstub-claims_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Meal Claims",
+        data: [claimsHeaders, ...claimsRows],
+        colWidths: [24, 24, 16, 16, 14, 14],
+      },
+      {
+        name: "Claims Summary",
+        data: [
+          ["Metric", "Value"],
+          ["Total Issued", stats.issued],
+          ["Claimed", stats.claimed],
+          ["Unclaimed", stats.unclaimed],
+          ["Claim Rate", stats.claimRate],
+        ],
+        colWidths: [20, 16],
+      },
+    ]);
+
+    toast({ title: "Meal Claims Exported", description: `Exported ${filtered.length} claims records to Excel.` });
   };
 
   // Donut chart data
@@ -722,7 +896,7 @@ function MealStubClaimsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -756,10 +930,10 @@ function MealStubClaimsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -873,13 +1047,21 @@ function MealStubClaimsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Meal Claims Report?"
+        description="Do you want to export the meal claims and claims summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
 
 // ── Allocations Tab ───────────────────────────────────────────────────────────
 function AllocationsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -896,24 +1078,55 @@ function AllocationsTab() {
   const [workerTypeFilter, setWorkerTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const getMinistry = useCallback((id: string) => (ministries as any[] || []).find(m => m.id === id), [ministries]);
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
 
-  const eligibleWorkers = useMemo(() => (workers || []).filter(w => w.employmentType === "Full-Time" || w.employmentType === "On-Call" || w.employmentType === "Part-Time" || w.employmentType === "Volunteer"), [workers]);
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
+    }
+    return ministries as any[];
+  }, [ministries, headDept]);
+
+  const getMinistry = useCallback((id: string) => (filteredMinistries || []).find(m => m.id === id), [filteredMinistries]);
+
+  const eligibleWorkers = useMemo(() => {
+    return (workers || []).filter(w => {
+      if (headDept) {
+        const min = (ministries as any[])?.find(m => m.id === w.majorMinistryId || m.id === w.minorMinistryId);
+        const wDept = min ? resolveMinistryDepartment(min) : resolveUserHeadDepartment(w, ministries as any[]);
+        if (wDept !== headDept) return false;
+      }
+      return w.employmentType === "Full-Time" || w.employmentType === "On-Call" || w.employmentType === "Part-Time" || w.employmentType === "Volunteer";
+    });
+  }, [workers, headDept, ministries]);
+
+  const scopedMealStubs = useMemo(() => {
+    if (!mealstubs) return [];
+    if (headDept) {
+      const vIds = new Set(eligibleWorkers.map(w => w.id));
+      return mealstubs.filter(s => vIds.has(s.workerId));
+    }
+    return mealstubs;
+  }, [mealstubs, eligibleWorkers, headDept]);
 
   const getStats = useCallback((wId: string) => {
-    const stubs = (mealstubs || []).filter(s => s.workerId === wId);
+    const stubs = scopedMealStubs.filter(s => s.workerId === wId);
     const weekday = stubs.filter(s => !isSunday(toJsDate(s.date))).length;
     const sunday = stubs.filter(s => isSunday(toJsDate(s.date))).length;
     const weekdayLimit = 5;
     const sundayLimit = 2;
     const remaining = Math.max(0, (weekdayLimit - weekday) + (sundayLimit - sunday));
     return { weekday, sunday, weekdayLimit, sundayLimit, remaining };
-  }, [mealstubs]);
+  }, [scopedMealStubs]);
 
   // Summary stats
-  const totalAllocations = useMemo(() => (mealstubs || []).length, [mealstubs]);
-  const fullTimeCount = useMemo(() => (workers || []).filter(w => w.employmentType === "Full-Time").length, [workers]);
-  const onCallCount = useMemo(() => (workers || []).filter(w => w.employmentType === "On-Call").length, [workers]);
+  const totalAllocations = useMemo(() => scopedMealStubs.length, [scopedMealStubs]);
+  const fullTimeCount = useMemo(() => eligibleWorkers.filter(w => w.employmentType === "Full-Time").length, [eligibleWorkers]);
+  const onCallCount = useMemo(() => eligibleWorkers.filter(w => w.employmentType === "On-Call").length, [eligibleWorkers]);
   const remainingAllocations = useMemo(() => {
     const maxPerWorker = 7;
     const total = eligibleWorkers.length * maxPerWorker;
@@ -921,13 +1134,13 @@ function AllocationsTab() {
   }, [eligibleWorkers, totalAllocations]);
 
   // Allocation usage
-  const weekdayUsed = useMemo(() => (mealstubs || []).filter(s => !isSunday(toJsDate(s.date))).length, [mealstubs]);
-  const sundayUsed = useMemo(() => (mealstubs || []).filter(s => isSunday(toJsDate(s.date))).length, [mealstubs]);
+  const weekdayUsed = useMemo(() => scopedMealStubs.filter(s => !isSunday(toJsDate(s.date))).length, [scopedMealStubs]);
+  const sundayUsed = useMemo(() => scopedMealStubs.filter(s => isSunday(toJsDate(s.date))).length, [scopedMealStubs]);
   const weekdayMax = eligibleWorkers.length * 5;
   const sundayMax = eligibleWorkers.length * 2;
-  const ftAllocated = useMemo(() => (mealstubs || []).filter(s => { const w = workers?.find(x => x.id === s.workerId); return w?.employmentType === "Full-Time"; }).length, [mealstubs, workers]);
+  const ftAllocated = useMemo(() => scopedMealStubs.filter(s => { const w = eligibleWorkers.find(x => x.id === s.workerId); return w?.employmentType === "Full-Time"; }).length, [scopedMealStubs, eligibleWorkers]);
   const ftMax = fullTimeCount * 7;
-  const ocAllocated = useMemo(() => (mealstubs || []).filter(s => { const w = workers?.find(x => x.id === s.workerId); return w?.employmentType === "On-Call"; }).length, [mealstubs, workers]);
+  const ocAllocated = useMemo(() => scopedMealStubs.filter(s => { const w = eligibleWorkers.find(x => x.id === s.workerId); return w?.employmentType === "On-Call"; }).length, [scopedMealStubs, eligibleWorkers]);
   const ocMax = onCallCount * 7;
 
   const tabCounts = useMemo(() => {
@@ -954,14 +1167,25 @@ function AllocationsTab() {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("allocations.csv",
-      ["Worker", "Ministry", "Worker Type", "Weekday Used", "Sunday Used", "Remaining"],
-      filtered.map(w => {
-        const s = getStats(w.id);
-        return [`${w.firstName} ${w.lastName}`, getMinistry(w.majorMinistryId)?.name || "—", w.employmentType || "—", `${s.weekday}/${s.weekdayLimit}`, `${s.sunday}/${s.sundayLimit}`, s.remaining];
-      })
-    );
+    const headers = ["Worker", "Ministry", "Worker Type", "Weekday Used", "Sunday Used", "Remaining"];
+    const rows = filtered.map(w => {
+      const s = getStats(w.id);
+      return [`${w.firstName} ${w.lastName}`, getMinistry(w.majorMinistryId)?.name || "—", w.employmentType || "—", `${s.weekday}/${s.weekdayLimit}`, `${s.sunday}/${s.sundayLimit}`, s.remaining];
+    });
+
+    exportToExcel(`meal-allocations_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Allocations",
+        data: [headers, ...rows],
+        colWidths: [24, 24, 18, 16, 16, 14],
+      },
+    ]);
+
+    toast({ title: "Allocations Exported", description: `Exported ${filtered.length} worker allocations to Excel.` });
   };
 
   if (wL || mL || msL) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1025,7 +1249,7 @@ function AllocationsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -1047,10 +1271,10 @@ function AllocationsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -1156,13 +1380,21 @@ function AllocationsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Meal Allocations Report?"
+        description="Do you want to export the worker meal allocations as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }
 
 // ── Reservations Tab ──────────────────────────────────────────────────────────
 function ReservationsTab() {
-  const { workerProfile, myMinistryIds, isSuperAdmin } = useUserRole();
+  const { workerProfile, isSuperAdmin } = useUserRole();
   const actorId = workerProfile?.id;
   const monthStart = useMemo(() => startOfMonth(new Date()), []);
   const monthEnd = useMemo(() => endOfMonth(new Date()), []);
@@ -1179,23 +1411,50 @@ function ReservationsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
+  const headDept = useMemo(() => {
+    if (isSuperAdmin) return null;
+    return resolveUserHeadDepartment(workerProfile, ministries as any[]);
+  }, [isSuperAdmin, workerProfile, ministries]);
+
+  const filteredMinistries = useMemo(() => {
+    if (!ministries) return [];
+    if (headDept) {
+      return (ministries as any[]).filter(m => resolveMinistryDepartment(m) === headDept);
+    }
+    return ministries as any[];
+  }, [ministries, headDept]);
+
+  const scopedReservations = useMemo(() => {
+    if (!reservations) return [];
+    if (headDept) {
+      return reservations.filter(r => {
+        const min = (ministries as any[])?.find(m => m.id === r.ministryId);
+        const w = (workers as any[])?.find((x: any) => x.id === r.workerProfileId);
+        const wMin = w ? (ministries as any[])?.find(m => m.id === w.majorMinistryId) : null;
+        const targetDept = min ? resolveMinistryDepartment(min) : (wMin ? resolveMinistryDepartment(wMin) : resolveUserHeadDepartment(w, ministries as any[]));
+        return targetDept === headDept;
+      });
+    }
+    return reservations;
+  }, [reservations, workers, ministries, headDept]);
+
   const getWorkerName = useCallback((id: string) => { const w = (workers as any[])?.find((x: any) => x.id === id); return w ? `${w.firstName} ${w.lastName}` : "Unknown"; }, [workers]);
   const getRoomName = useCallback((id: string) => rooms?.find(r => r.id === id)?.name ?? "Unknown", [rooms]);
   const getWorkerMinistry = useCallback((wId: string) => {
     const w = (workers as any[])?.find((x: any) => x.id === wId);
     if (!w) return null;
-    return (ministries as any[] || []).find(m => m.id === w.majorMinistryId);
-  }, [workers, ministries]);
+    return (filteredMinistries || []).find(m => m.id === w.majorMinistryId);
+  }, [workers, filteredMinistries]);
 
   const stats = useMemo(() => {
-    if (!reservations) return { total: 0, approved: 0, pending: 0, rejected: 0 };
+    if (!scopedReservations) return { total: 0, approved: 0, pending: 0, rejected: 0 };
     return {
-      total: reservations.length,
-      approved: reservations.filter(r => r.status === "Approved").length,
-      pending: reservations.filter(r => r.status?.startsWith("Pending")).length,
-      rejected: reservations.filter(r => r.status === "Rejected").length,
+      total: scopedReservations.length,
+      approved: scopedReservations.filter(r => r.status === "Approved").length,
+      pending: scopedReservations.filter(r => r.status?.startsWith("Pending")).length,
+      rejected: scopedReservations.filter(r => r.status === "Rejected").length,
     };
-  }, [reservations]);
+  }, [scopedReservations]);
 
   const donutData = [
     { name: "Approved", value: stats.approved, color: "#10b981" },
@@ -1204,32 +1463,32 @@ function ReservationsTab() {
   ];
 
   const topRooms = useMemo(() => {
-    if (!reservations || !rooms) return [];
+    if (!scopedReservations || !rooms) return [];
     const counts: Record<string, number> = {};
-    for (const r of reservations) {
+    for (const r of scopedReservations) {
       counts[r.roomId] = (counts[r.roomId] || 0) + 1;
     }
     return Object.entries(counts)
       .map(([roomId, count]) => ({ name: getRoomName(roomId), count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [reservations, rooms, getRoomName]);
+  }, [scopedReservations, rooms, getRoomName]);
 
   const maxRoomCount = topRooms[0]?.count || 1;
 
   const tabCounts = useMemo(() => {
-    const res = reservations || [];
+    const res = scopedReservations || [];
     return {
       all: res.length,
       approved: res.filter(r => r.status === "Approved").length,
       pending: res.filter(r => r.status?.startsWith("Pending")).length,
       rejected: res.filter(r => r.status === "Rejected").length,
     };
-  }, [reservations]);
+  }, [scopedReservations]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (reservations || []).filter(r => {
+    return (scopedReservations || []).filter(r => {
       if (q && !r.title.toLowerCase().includes(q) && !getWorkerName(r.workerProfileId).toLowerCase().includes(q)) return false;
       if (ministryFilter !== "all") {
         const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
@@ -1242,29 +1501,61 @@ function ReservationsTab() {
       }
       return true;
     });
-  }, [reservations, search, ministryFilter, statusFilter, getWorkerName, getWorkerMinistry]);
+  }, [scopedReservations, search, ministryFilter, statusFilter, getWorkerName, getWorkerMinistry]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const { toast } = useToast();
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
   const handleExport = () => {
-    exportCsv("reservations.csv",
-      ["Worker", "Ministry", "Facility", "Date", "Time", "Purpose", "Status"],
-      filtered.map(r => {
-        const start = toJsDate(r.start);
-        const end = toJsDate(r.end);
-        const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
-        return [
-          r.workerProfileId ? getWorkerName(r.workerProfileId) : "N/A",
-          min?.name || "—",
-          getRoomName(r.roomId),
-          format(start, "MMM d, yyyy"),
-          `${format(start, "H:mm")} - ${format(end, "H:mm")}`,
-          r.purpose || r.title || "—",
-          r.status,
-        ];
-      })
-    );
+    const headers = ["Worker", "Ministry", "Facility", "Date", "Time", "Purpose", "Status"];
+    const rows = filtered.map(r => {
+      const start = toJsDate(r.start);
+      const end = toJsDate(r.end);
+      const min = r.workerProfileId ? getWorkerMinistry(r.workerProfileId) : null;
+      return [
+        r.workerProfileId ? getWorkerName(r.workerProfileId) : "N/A",
+        min?.name || "—",
+        getRoomName(r.roomId),
+        format(start, "MMM d, yyyy"),
+        `${format(start, "H:mm")} - ${format(end, "H:mm")}`,
+        r.purpose || r.title || "—",
+        r.status,
+      ];
+    });
+
+    const statusCounts: Record<string, number> = {};
+    filtered.forEach(r => {
+      statusCounts[r.status] = (statusCounts[r.status] || 0) + 1;
+    });
+
+    const summaryRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      filtered.length > 0 ? `${Math.round((count / filtered.length) * 100)}%` : "0%",
+    ]);
+
+    exportToExcel(`facility-reservations_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+      {
+        name: "Reservations",
+        data: [headers, ...rows],
+        colWidths: [24, 24, 22, 16, 18, 30, 14],
+      },
+      {
+        name: "Summary by Status",
+        data: [
+          ["Total Reservations", filtered.length],
+          [],
+          ["Status", "Count", "Percentage"],
+          ...summaryRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
+
+    toast({ title: "Reservations Exported", description: `Exported ${filtered.length} reservations to Excel.` });
   };
 
   if (isLoading) return <div className="flex justify-center py-16"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1313,7 +1604,7 @@ function ReservationsTab() {
               </SelectTrigger>
               <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
                 <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                {(ministries as any[] || []).map(m => (
+                {filteredMinistries.map(m => (
                   <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">{m.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -1334,10 +1625,10 @@ function ReservationsTab() {
 
             {/* Export */}
             <button
-              onClick={handleExport}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              <Download className="h-4 w-4" /> Export
+              <Download className="h-4 w-4" /> Export Excel
             </button>
           </div>
 
@@ -1482,6 +1773,14 @@ function ReservationsTab() {
           </div>
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Reservations Report?"
+        description="Do you want to export facility reservations and status summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExport}
+      />
     </div>
   );
 }

@@ -145,6 +145,54 @@ export async function getActorMinistryAccess(actorId?: string): Promise<{
 
     const isMinistryHead = isExplicitHeadOrApprover || Boolean(hasHeadRole);
 
+    // 4. If Ministry Head with department, include all ministries under that department
+    if (isMinistryHead) {
+        const actorMinistries = await prisma.ministry.findMany({
+            where: {
+                OR: [
+                    { id: { in: Array.from(ministryIds) } },
+                    { headId: actor.id },
+                    { approverId: actor.id },
+                ],
+            },
+            select: { departmentCode: true, department: { select: { code: true, name: true } } },
+        });
+
+        const deptCodes = new Set<string>();
+        for (const m of actorMinistries) {
+            if (m.departmentCode) deptCodes.add(m.departmentCode);
+            if (m.department?.code) deptCodes.add(m.department.code);
+            if (m.department?.name) deptCodes.add(m.department.name);
+        }
+        if ((actor as any).department) {
+            deptCodes.add((actor as any).department);
+        }
+
+        if (deptCodes.size === 0) {
+            deptCodes.add('O');
+            deptCodes.add('Outreach');
+        }
+
+        if (deptCodes.size > 0) {
+            const deptMinistries = await prisma.ministry.findMany({
+                where: {
+                    OR: [
+                        { departmentCode: { in: Array.from(deptCodes) } },
+                        { department: { name: { in: Array.from(deptCodes) } } },
+                        { department: { code: { in: Array.from(deptCodes) } } },
+                        { name: { startsWith: 'Cluster' } },
+                        { name: { equals: 'WEYJ', mode: 'insensitive' } },
+                        { name: { equals: 'TAPAT', mode: 'insensitive' } },
+                    ],
+                },
+                select: { id: true },
+            });
+            for (const m of deptMinistries) {
+                if (m.id) ministryIds.add(m.id);
+            }
+        }
+    }
+
     return {
         isSuperAdmin: false,
         isMinistryHead,
@@ -312,7 +360,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                     SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${effectiveIds}::text[]
                 `;
                 extraIds = rawMatches.map(r => r.id);
-            } catch {}
+            } catch { }
 
             where.OR = [
                 { majorMinistryId: { in: effectiveIds } },
@@ -326,7 +374,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                     SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
                 `;
                 extraIds = rawMatches.map(r => r.id);
-            } catch {}
+            } catch { }
 
             where.OR = [
                 { majorMinistryId: { in: filters.ministryIds } },
@@ -341,7 +389,7 @@ export async function getWorkers(filters?: { ministryIds?: string[]; actorId?: s
                 SELECT id FROM "Worker" WHERE "assignedMinistryIds" && ${filters.ministryIds}::text[]
             `;
             extraIds = rawMatches.map(r => r.id);
-        } catch {}
+        } catch { }
 
         where.OR = [
             { majorMinistryId: { in: filters.ministryIds } },
@@ -645,32 +693,32 @@ export async function createWorker(data: any) {
 export async function createWorkerWithAuth(data: any, roleIds: string[], assignedBy?: string) {
     const supabaseAdmin = getSupabaseAdminClient();
     const defaultPassword = "COGDASMA2026";
-    
+
     // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email?.trim(),
-      password: defaultPassword,
-      email_confirm: true,
-      user_metadata: {
-        firstName: data.firstName,
-        lastName: data.lastName
-      }
+        email: data.email?.trim(),
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+            firstName: data.firstName,
+            lastName: data.lastName
+        }
     });
 
     if (authError) {
-      if (authError.message.includes('already registered')) {
-        throw new Error('Email is already registered. Please use another email.');
-      }
-      throw new Error(`Failed to create Auth user: ${authError.message}`);
+        if (authError.message.includes('already registered')) {
+            throw new Error('Email is already registered. Please use another email.');
+        }
+        throw new Error(`Failed to create Auth user: ${authError.message}`);
     }
 
     // Now create in DB
-    const { 
-        roleId, role, roles, approvals, attendanceRecords, bookings, 
-        venueBookings, InventoryBorrowing, InventoryLog, mealStubs, 
-        legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt, 
+    const {
+        roleId, role, roles, approvals, attendanceRecords, bookings,
+        venueBookings, InventoryBorrowing, InventoryLog, mealStubs,
+        legacyMigratedAt, legacyMigratedFrom, createdAt, updatedAt,
         emergencyName, emergencyPhone, startDate,
-        ...dbData 
+        ...dbData
     } = data;
 
     // Format startYear and startMonth if startDate is provided
@@ -687,7 +735,35 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
         const emergencyPart = `Emergency Contact: ${emergencyName || 'N/A'}${emergencyPhone ? ` (${emergencyPhone})` : ''}`;
         dbData.remarks = dbData.remarks ? `${dbData.remarks}\n${emergencyPart}` : emergencyPart;
     }
-    
+
+    // Check if majorMinistryId is a Department name (e.g. Worship, Outreach, Relationship, Discipleship, Administration)
+    const DEPARTMENTS = ["Worship", "Outreach", "Relationship", "Discipleship", "Administration"];
+    const isDeptSelection = typeof data.majorMinistryId === 'string' && DEPARTMENTS.includes(data.majorMinistryId);
+    let deptMinistries: any[] = [];
+    if (isDeptSelection) {
+        try {
+            deptMinistries = await prisma.ministry.findMany({
+                where: {
+                    OR: [
+                        { department: { name: data.majorMinistryId } },
+                        { departmentCode: data.majorMinistryId[0].toUpperCase() },
+                    ]
+                },
+                orderBy: [{ weight: 'asc' }, { name: 'asc' }]
+            });
+            if (deptMinistries.length > 0) {
+                dbData.majorMinistryId = deptMinistries[0].id;
+                dbData.assignedMinistryIds = deptMinistries.map(m => m.id);
+            }
+        } catch (e) {
+            console.error("Failed to query department ministries:", e);
+        }
+    }
+
+    // Ensure majorMinistryId and minorMinistryId default safely
+    dbData.majorMinistryId = dbData.majorMinistryId || "";
+    dbData.minorMinistryId = dbData.minorMinistryId || "";
+
     const workerData = {
         ...dbData,
         status: dbData.status || 'Active',
@@ -702,15 +778,34 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
         data: workerData,
     });
 
+    // If department selection was made, update headId for all ministries in this department
+    if (isDeptSelection && deptMinistries.length > 0) {
+        try {
+            await prisma.ministry.updateMany({
+                where: {
+                    id: { in: deptMinistries.map(m => m.id) }
+                },
+                data: {
+                    headId: worker.id
+                }
+            });
+        } catch (e) {
+            console.error("Failed to update ministry headId assignments:", e);
+        }
+    }
+
     // Assign roles
     if (roleIds && roleIds.length > 0) {
         await assignRolesToWorker(worker.id, roleIds, assignedBy);
     }
 
     // Look up ministry name and department
-    let ministryName = "N/A";
-    let departmentName = "";
-    if (data.majorMinistryId) {
+    let ministryName = "All Ministries";
+    let departmentName = "All Departments";
+    if (isDeptSelection) {
+        departmentName = data.majorMinistryId;
+        ministryName = `${data.majorMinistryId} (Head - All Ministries)`;
+    } else if (data.majorMinistryId) {
         try {
             const min = await prisma.ministry.findUnique({
                 where: { id: data.majorMinistryId },
@@ -809,7 +904,7 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
           <tr>
             <td style="padding: 32px 32px 24px;">
               <h2 style="margin: 0 0 12px; color: #0f172a; font-size: 20px; font-weight: 700;">
-                Welcome to the Ministry, ${data.firstName}!
+                Welcome to the ${ministryName}, ${data.firstName}!
               </h2>
               <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6;">
                 Your worker account has been created by your Ministry Head / Administrator in the COG App portal. Below are your account login credentials and registered profile details.
@@ -992,7 +1087,7 @@ Next Steps:
         emailErrorMsg = emailError?.message || String(emailError);
         console.error(`[createWorkerWithAuth] Failed to send welcome email to ${data.email}:`, emailError);
     }
-    
+
     revalidatePath('/workers');
     return {
         ...worker,
@@ -1121,14 +1216,16 @@ export async function getApprovals(filters?: { ministryIds?: string[]; actorId?:
     const bookingMinistryMap = new Map(bookings.map(b => [b.id, b.ministryId]));
 
     return approvals.filter(app => {
+        const bookingMinistry = app.reservationId ? bookingMinistryMap.get(app.reservationId) : null;
+        if (bookingMinistry) {
+            return allowedIds!.includes(bookingMinistry);
+        }
         const workerMajor = app.worker?.majorMinistryId;
         const workerMinor = app.worker?.minorMinistryId;
-        const bookingMinistry = app.reservationId ? bookingMinistryMap.get(app.reservationId) : null;
 
         return (
             (workerMajor && allowedIds!.includes(workerMajor)) ||
             (workerMinor && allowedIds!.includes(workerMinor)) ||
-            (bookingMinistry && allowedIds!.includes(bookingMinistry)) ||
             (app.oldMajorId && allowedIds!.includes(app.oldMajorId)) ||
             (app.newMajorId && allowedIds!.includes(app.newMajorId))
         );
@@ -1453,7 +1550,7 @@ export async function createBooking(data: any) {
         try {
             revalidatePath('/reservations');
             revalidatePath('/dashboard');
-        } catch {}
+        } catch { }
         return booking;
     } catch (err: any) {
         if (err.message?.includes('Unauthorized') || err.message?.includes('No ministry assignment')) {
@@ -1487,7 +1584,7 @@ export async function updateBooking(id: string, data: any, actorId?: string) {
     try {
         revalidatePath('/reservations');
         revalidatePath('/dashboard');
-    } catch {}
+    } catch { }
     return booking;
 }
 
@@ -1511,7 +1608,7 @@ export async function deleteBooking(id: string, actorId?: string) {
     try {
         revalidatePath('/reservations');
         revalidatePath('/dashboard');
-    } catch {}
+    } catch { }
 }
 
 // --- Meal Stubs ---
@@ -2061,83 +2158,93 @@ export async function createScanLog(data: any) {
 // --- C2S ---
 
 export async function getC2SGroups(params?: { ministryIds?: string[]; actorId?: string }) {
-    let allowedIds: string[] | null = null;
-    if (params?.actorId) {
-        const access = await getActorMinistryAccess(params.actorId);
-        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            allowedIds = params.ministryIds && params.ministryIds.length > 0
-                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
-                : access.allowedMinistryIds;
-            if (allowedIds.length === 0) return [];
+    try {
+        let allowedIds: string[] | null = null;
+        if (params?.actorId) {
+            const access = await getActorMinistryAccess(params.actorId);
+            if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+                allowedIds = params.ministryIds && params.ministryIds.length > 0
+                    ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                    : access.allowedMinistryIds;
+                if (allowedIds.length === 0) return [];
+            }
+        } else if (params?.ministryIds && params.ministryIds.length > 0) {
+            allowedIds = params.ministryIds;
         }
-    } else if (params?.ministryIds && params.ministryIds.length > 0) {
-        allowedIds = params.ministryIds;
-    }
 
-    const where: any = {};
-    if (allowedIds !== null) {
-        const workers = await prisma.worker.findMany({
-            where: {
-                OR: [
-                    { majorMinistryId: { in: allowedIds } },
-                    { minorMinistryId: { in: allowedIds } },
-                ],
+        const where: any = {};
+        if (allowedIds !== null) {
+            const workers = await prisma.worker.findMany({
+                where: {
+                    OR: [
+                        { majorMinistryId: { in: allowedIds } },
+                        { minorMinistryId: { in: allowedIds } },
+                    ],
+                },
+                select: { id: true },
+            });
+            const mentorIds = workers.map(w => w.id);
+            where.mentorId = { in: mentorIds };
+        }
+
+        return await prisma.c2SGroup.findMany({
+            where,
+            include: {
+                mentees: true,
             },
-            select: { id: true },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
-        const mentorIds = workers.map(w => w.id);
-        where.mentorId = { in: mentorIds };
+    } catch (error) {
+        console.error("Error fetching C2S groups:", error);
+        return [];
     }
-
-    return await prisma.c2SGroup.findMany({
-        where,
-        include: {
-            mentees: true,
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
-    });
 }
 
 export async function getC2SMentees(params?: { ministryIds?: string[]; actorId?: string }) {
-    let allowedIds: string[] | null = null;
-    if (params?.actorId) {
-        const access = await getActorMinistryAccess(params.actorId);
-        if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            allowedIds = params.ministryIds && params.ministryIds.length > 0
-                ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
-                : access.allowedMinistryIds;
-            if (allowedIds.length === 0) return [];
+    try {
+        let allowedIds: string[] | null = null;
+        if (params?.actorId) {
+            const access = await getActorMinistryAccess(params.actorId);
+            if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
+                allowedIds = params.ministryIds && params.ministryIds.length > 0
+                    ? params.ministryIds.filter(id => access.allowedMinistryIds!.includes(id))
+                    : access.allowedMinistryIds;
+                if (allowedIds.length === 0) return [];
+            }
+        } else if (params?.ministryIds && params.ministryIds.length > 0) {
+            allowedIds = params.ministryIds;
         }
-    } else if (params?.ministryIds && params.ministryIds.length > 0) {
-        allowedIds = params.ministryIds;
-    }
 
-    const where: any = {};
-    if (allowedIds !== null) {
-        const workers = await prisma.worker.findMany({
-            where: {
-                OR: [
-                    { majorMinistryId: { in: allowedIds } },
-                    { minorMinistryId: { in: allowedIds } },
-                ],
+        const where: any = {};
+        if (allowedIds !== null) {
+            const workers = await prisma.worker.findMany({
+                where: {
+                    OR: [
+                        { majorMinistryId: { in: allowedIds } },
+                        { minorMinistryId: { in: allowedIds } },
+                    ],
+                },
+                select: { id: true },
+            });
+            const mentorIds = workers.map(w => w.id);
+            where.mentorId = { in: mentorIds };
+        }
+
+        return await prisma.c2SMentee.findMany({
+            where,
+            include: {
+                group: true,
             },
-            select: { id: true },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
-        const mentorIds = workers.map(w => w.id);
-        where.mentorId = { in: mentorIds };
+    } catch (error) {
+        console.error("Error fetching C2S mentees:", error);
+        return [];
     }
-
-    return await prisma.c2SMentee.findMany({
-        where,
-        include: {
-            group: true,
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
-    });
 }
 
 export async function createC2SGroup(data: {
@@ -2472,7 +2579,7 @@ export async function updateC2SDevotionRecord(id: string, data: {
     }
     if (data.reflectionNotes !== undefined) updateData.reflectionNotes = data.reflectionNotes;
     if (data.prayerRequests !== undefined) updateData.prayerRequests = data.prayerRequests;
-    
+
     // Use uploaded URLs if available
     if (uploadedPhotoUrls.length > 0) {
         updateData.photoUrls = uploadedPhotoUrls;
@@ -2484,7 +2591,7 @@ export async function updateC2SDevotionRecord(id: string, data: {
         updateData.photoUrl = data.photoUrl;
         updateData.photoUrls = data.photoUrl ? [data.photoUrl] : [];
     }
-    
+
     if (data.status !== undefined) updateData.status = data.status;
 
     const record = await prisma.c2SDevotionRecord.update({
@@ -2649,18 +2756,18 @@ export async function getWorkerLogs(workerId: string) {
 
 export async function adminForcePasswordReset(workerId: string) {
     const supabaseAdmin = getSupabaseAdminClient();
-    
+
     const worker = await prisma.worker.findUnique({ where: { id: workerId } });
     if (!worker) throw new Error("Worker not found");
 
     const defaultPassword = "StudioUser2026!";
     const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      workerId,
-      { password: defaultPassword }
+        workerId,
+        { password: defaultPassword }
     );
 
     if (error) {
-       throw new Error(`Failed to forcibly reset password: ${error.message}`);
+        throw new Error(`Failed to forcibly reset password: ${error.message}`);
     }
 
     // Force sign out the user from all sessions so they have to login again
@@ -2671,7 +2778,7 @@ export async function adminForcePasswordReset(workerId: string) {
 
 export async function adminSendPasswordResetEmail(workerId: string, appUrl: string) {
     const supabaseAdmin = getSupabaseAdminClient();
-    
+
     // Get worker to find their email
     const worker = await prisma.worker.findUnique({ where: { id: workerId } });
     if (!worker || !worker.email) {
@@ -2690,7 +2797,7 @@ export async function adminSendPasswordResetEmail(workerId: string, appUrl: stri
     if (linkError) {
         throw new Error(`Failed to generate reset link: ${linkError.message}`);
     }
-    
+
     // Send email using Resend
     const link = linkData.properties.action_link;
     await EmailService.sendEmail({
@@ -2709,6 +2816,6 @@ export async function adminSendPasswordResetEmail(workerId: string, appUrl: stri
         `,
         text: `You have requested to reset your password. Reset it here: ${link}`
     });
-    
+
     return true;
 }

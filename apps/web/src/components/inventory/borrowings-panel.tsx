@@ -66,6 +66,8 @@ import {
 import { useInventory, type InventoryBorrowing } from '@/hooks/use-inventory';
 import { useWorkers } from '@/hooks/use-workers';
 import { useToast } from '@/hooks/use-toast';
+import { exportToExcel } from '@/lib/export-excel';
+import { ExportConfirmDialog } from '@/components/common/export-confirm-dialog';
 import { QRModal } from './qr-modal';
 import { cn } from '@/lib/utils';
 import Papa from 'papaparse';
@@ -274,34 +276,69 @@ export function BorrowingsPanel() {
     setIsReturnOpen(true);
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const exportData = borrowings.map((b) => ({
-      'Item Name': b.item?.name || '',
-      'Item Code': b.item?.inventoryCode || '',
-      'Borrower Name': b.borrowerName || '',
-      'Borrower Email': b.borrowerEmail || '',
-      'Borrowed Date': b.borrowedAt ? new Date(b.borrowedAt).toLocaleDateString() : '',
-      'Due Date': b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A',
-      'Returned Date': b.returnedAt ? new Date(b.returnedAt).toLocaleDateString() : 'N/A',
-      Status: b.status,
-      Condition: b.status === 'RETURNED' ? b.returnCondition || 'Good' : b.checkoutCondition || 'Good',
-      Notes: b.status === 'RETURNED' ? b.returnNotes || '' : b.checkoutNotes || '',
-    }));
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `borrowings_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Export Excel
+  const handleExportExcel = () => {
+    const exportHeaders = [
+      'Item Name',
+      'Item Code',
+      'Borrower Name',
+      'Borrower Email',
+      'Borrowed Date',
+      'Due Date',
+      'Returned Date',
+      'Status',
+      'Condition',
+      'Notes',
+    ];
+
+    const exportRows = borrowings.map((b) => [
+      b.item?.name || '—',
+      b.item?.inventoryCode || '—',
+      b.borrowerName || '—',
+      b.borrowerEmail || '—',
+      b.borrowedAt ? new Date(b.borrowedAt).toLocaleDateString() : '—',
+      b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A',
+      b.returnedAt ? new Date(b.returnedAt).toLocaleDateString() : 'N/A',
+      b.status,
+      b.status === 'RETURNED' ? b.returnCondition || 'Good' : b.checkoutCondition || 'Good',
+      b.status === 'RETURNED' ? b.returnNotes || '' : b.checkoutNotes || '',
+    ]);
+
+    const statusCounts: Record<string, number> = {};
+    borrowings.forEach((b) => {
+      const s = b.status || 'Active';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const summaryRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      borrowings.length > 0 ? `${Math.round((count / borrowings.length) * 100)}%` : '0%',
+    ]);
+
+    exportToExcel(`borrowings_export_${new Date().toISOString().split('T')[0]}.xlsx`, [
+      {
+        name: 'Borrowings List',
+        data: [exportHeaders, ...exportRows],
+        colWidths: [24, 16, 22, 26, 16, 16, 16, 14, 16, 30],
+      },
+      {
+        name: 'Status Summary',
+        data: [
+          ['Total Borrowings', borrowings.length],
+          [],
+          ['Status', 'Count', 'Percentage'],
+          ...summaryRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
 
     toast({
       title: 'Export generated',
-      description: `Exported ${borrowings.length} borrowing records to CSV.`,
+      description: `Exported ${borrowings.length} borrowing records to Excel.`,
     });
   };
 
@@ -446,10 +483,10 @@ export function BorrowingsPanel() {
                 variant="outline"
                 size="sm"
                 className="h-10 px-3.5 text-xs font-semibold rounded-2xl gap-1.5 border-slate-200/90 dark:border-border shadow-2xs cursor-pointer hover:bg-muted/60 bg-white dark:bg-muted/30 text-foreground"
-                onClick={handleExportCSV}
+                onClick={() => setShowExportConfirm(true)}
               >
                 <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </Button>
 
               <Button
@@ -1335,6 +1372,15 @@ export function BorrowingsPanel() {
             item={qrItem}
           />
         )}
+
+        {/* ── EXPORT CONFIRMATION MODAL (YES/NO) ── */}
+        <ExportConfirmDialog
+          open={showExportConfirm}
+          onOpenChange={setShowExportConfirm}
+          title="Export Borrowings Report?"
+          description="Do you want to export borrowing records and status summary as an Excel file (.xlsx) with clean, organized formatting?"
+          onConfirm={handleExportExcel}
+        />
       </div>
     </TooltipProvider>
   );

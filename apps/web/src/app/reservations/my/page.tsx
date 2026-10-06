@@ -424,7 +424,7 @@ export default function MyReservationsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-center w-[14%]">ID</TableHead>
+                        <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[14%]">ID</TableHead>
                         <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[24%]">Floor / Room</TableHead>
                         <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">Date</TableHead>
                         <TableHead className="bg-sidebar font-bold text-white text-[11px] uppercase tracking-wider h-11 px-6 text-left w-[18%]">Time</TableHead>
@@ -444,15 +444,15 @@ export default function MyReservationsPage() {
                         const isPending = booking.status?.toLowerCase().startsWith("pending");
                         return (
                           <TableRow key={booking.id} className="hover:bg-gray-50/60 dark:hover:bg-muted/30 border-b border-gray-100 dark:border-border/60 transition-colors">
-                            <TableCell className="py-4 px-6 text-center align-middle font-medium text-xs text-gray-700 dark:text-gray-300 font-mono">{reqId}</TableCell>
-                            <TableCell className="py-4 px-6 text-center align-middle">
+                            <TableCell className="py-4 px-6 text-left align-middle font-medium text-xs text-gray-700 dark:text-gray-300 font-mono">{reqId}</TableCell>
+                            <TableCell className="py-4 px-6 text-left align-middle">
                               <div>
                                 <p className="text-xs text-muted-foreground font-medium">{area?.name || "5th Floor"},</p>
                                 <p className="text-xs text-gray-800 dark:text-gray-200 font-semibold mt-0.5">{room?.name || "Sapphire"}</p>
                               </div>
                             </TableCell>
-                            <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{format(startTime, "MMMM d, yyyy")}</TableCell>
-                            <TableCell className="py-4 px-6 text-center align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">{format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}</TableCell>
+                            <TableCell className="py-4 px-6 text-left align-middle text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{format(startTime, "MMMM d, yyyy")}</TableCell>
+                            <TableCell className="py-4 px-6 text-left align-middle text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">{format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}</TableCell>
                             <TableCell className="py-4 px-4 text-center align-middle text-xs font-semibold text-gray-700 dark:text-gray-300">{booking.pax || 0}</TableCell>
                             <TableCell className="py-4 px-6 text-center align-middle">
                               {isApproved ? (

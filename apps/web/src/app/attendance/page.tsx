@@ -26,6 +26,8 @@ import {
 } from "@studio/ui";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
+import { exportToExcel } from "@/lib/export-excel";
+import { ExportConfirmDialog } from "@/components/common/export-confirm-dialog";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function generateToken() {
@@ -124,7 +126,8 @@ function AttendanceStatusBadge({ status }: { status: "timed-in" | "timed-out" | 
 // ── Main Content ──────────────────────────────────────────────────────────────
 function AttendanceContent() {
   const { user } = useAuthStore();
-  const { canViewAttendance, workerProfile, isLoading: isRoleLoading, isMinistryHead, canManageWorkers, canOperateScanner } = useUserRole();
+  const { canViewAttendance, workerProfile, isLoading: isRoleLoading, isMinistryHead, isSuperAdmin, canManageWorkers, canOperateScanner } = useUserRole();
+  const isMinistryHeadOnly = isMinistryHead && !isSuperAdmin;
   const { toast } = useToast();
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [localToken, setLocalToken] = useState<string | null>(null);
@@ -194,9 +197,183 @@ function AttendanceContent() {
       await updateWorkerSql({ id: workerProfile.id, data: { qrToken: newToken } });
       setLocalToken(newToken);
       toast({ title: "QR Code Regenerated", description: "Your old QR is now invalid." });
-    } catch { toast({ variant: "destructive", title: "Failed to regenerate QR" }); }
-    finally { setIsRegenerating(false); }
-  }, [workerProfile?.id, updateWorkerSql, toast]);
+    } catch {
+      toast({ variant: "destructive", title: "Failed to regenerate QR" });
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [workerProfile?.id]);
+
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
+  const handleExportAttendance = () => {
+    if (activeTab === "manual") {
+      if (filteredWorkers.length === 0) {
+        toast({ variant: "destructive", title: "No data to export" });
+        return;
+      }
+
+      const headers = [
+        "Worker Name",
+        "Worker ID",
+        "Role",
+        "Ministry",
+        "Today Status",
+        "Last Activity Time",
+        "Last Activity Type",
+      ];
+
+      const rows = filteredWorkers.map((w) => {
+        const ws = workerStatusMap[w.id];
+        const statusLabel =
+          ws?.status === "timed-in"
+            ? "Timed In"
+            : ws?.status === "timed-out"
+            ? "Timed Out"
+            : "Not Yet Timed In";
+
+        return [
+          `${w.firstName} ${w.lastName}`,
+          fmtId(w.workerId),
+          getRoleName(w),
+          ministries.find((m) => m.id === w.majorMinistryId)?.name || "—",
+          statusLabel,
+          ws?.lastTime ? format(ws.lastTime, "h:mm a") : "—",
+          ws?.lastType || "—",
+        ];
+      });
+
+      exportToExcel(`attendance_manual_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+        {
+          name: "Today Attendance",
+          data: [
+            ["ATTENDANCE - TODAY'S WORKER STATUS"],
+            ["Generated Date", format(new Date(), "yyyy-MM-dd HH:mm:ss")],
+            [],
+            headers,
+            ...rows,
+          ],
+          colWidths: [24, 16, 20, 24, 18, 20, 20],
+        },
+        {
+          name: "Status Summary",
+          data: [
+            ["Metric", "Count", "Percentage"],
+            [
+              "Timed In",
+              manualStatusCounts["timed-in"],
+              manualStatusCounts.all > 0
+                ? `${Math.round((manualStatusCounts["timed-in"] / manualStatusCounts.all) * 100)}%`
+                : "0%",
+            ],
+            [
+              "Timed Out",
+              manualStatusCounts["timed-out"],
+              manualStatusCounts.all > 0
+                ? `${Math.round((manualStatusCounts["timed-out"] / manualStatusCounts.all) * 100)}%`
+                : "0%",
+            ],
+            [
+              "Not Yet Timed In",
+              manualStatusCounts["not-yet"],
+              manualStatusCounts.all > 0
+                ? `${Math.round((manualStatusCounts["not-yet"] / manualStatusCounts.all) * 100)}%`
+                : "0%",
+            ],
+            ["Total Workers", manualStatusCounts.all, "100%"],
+          ],
+          colWidths: [22, 14, 14],
+        },
+      ]);
+
+      toast({
+        title: "Attendance Exported",
+        description: `Exported ${filteredWorkers.length} worker statuses to Excel.`,
+      });
+    } else if (activeTab === "records") {
+      if (filteredRecordRows.length === 0) {
+        toast({ variant: "destructive", title: "No data to export" });
+        return;
+      }
+
+      const headers = [
+        "Worker Name",
+        "Worker ID",
+        "Ministry",
+        "Date",
+        "Time In",
+        "Time Out",
+        "Total Hours",
+        "Status",
+      ];
+
+      const rows = filteredRecordRows.map((r) => [
+        `${r.worker.firstName} ${r.worker.lastName}`,
+        fmtId(r.worker.workerId),
+        ministries.find((m) => m.id === r.worker.majorMinistryId)?.name || "—",
+        format(r.date, "yyyy-MM-dd"),
+        r.timeIn ? format(r.timeIn, "h:mm a") : "—",
+        r.timeOut ? format(r.timeOut, "h:mm a") : "—",
+        r.hours != null ? `${Math.floor(r.hours / 60)}h ${r.hours % 60}m` : "—",
+        r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : "—",
+      ]);
+
+      exportToExcel(`attendance_records_${format(new Date(), "yyyyMMdd")}.xlsx`, [
+        {
+          name: "Attendance History",
+          data: [
+            ["ATTENDANCE - HISTORICAL RECORDS"],
+            ["Generated Date", format(new Date(), "yyyy-MM-dd HH:mm:ss")],
+            [],
+            headers,
+            ...rows,
+          ],
+          colWidths: [24, 16, 24, 14, 14, 14, 14, 14],
+        },
+        {
+          name: "Summary",
+          data: [
+            ["Metric", "Count", "Percentage"],
+            [
+              "Present",
+              recordStats.present,
+              recordStats.total > 0
+                ? `${Math.round((recordStats.present / recordStats.total) * 100)}%`
+                : "0%",
+            ],
+            [
+              "Late",
+              recordStats.late,
+              recordStats.total > 0
+                ? `${Math.round((recordStats.late / recordStats.total) * 100)}%`
+                : "0%",
+            ],
+            [
+              "Absent",
+              recordStats.absent,
+              recordStats.total > 0
+                ? `${Math.round((recordStats.absent / recordStats.total) * 100)}%`
+                : "0%",
+            ],
+            [
+              "Incomplete",
+              recordStats.incomplete,
+              recordStats.total > 0
+                ? `${Math.round((recordStats.incomplete / recordStats.total) * 100)}%`
+                : "0%",
+            ],
+            ["Total Records", recordStats.total, "100%"],
+          ],
+          colWidths: [20, 14, 14],
+        },
+      ]);
+
+      toast({
+        title: "Attendance Records Exported",
+        description: `Exported ${filteredRecordRows.length} attendance records to Excel.`,
+      });
+    }
+  };
 
   const sessions = useMemo(() => pairSessions(allAttendance || []), [allAttendance]);
   const presentCount = sessions.filter(s => s.timeOut !== null).length;
@@ -217,22 +394,6 @@ function AttendanceContent() {
     return map;
   }, [todayAttendance]);
 
-  const manualStatusCounts = useMemo(() => {
-    let timedIn = 0, timedOut = 0, notYet = 0;
-    for (const w of allWorkers || []) {
-      const st = workerStatusMap[w.id]?.status ?? "not-yet";
-      if (st === "timed-in") timedIn++;
-      else if (st === "timed-out") timedOut++;
-      else notYet++;
-    }
-    return {
-      all: (allWorkers || []).length,
-      "timed-in": timedIn,
-      "timed-out": timedOut,
-      "not-yet": notYet,
-    };
-  }, [allWorkers, workerStatusMap]);
-
   const fmtId = (id: string | null | undefined) => {
     if (!id) return "—";
     const n = parseInt(id, 10);
@@ -244,15 +405,43 @@ function AttendanceContent() {
     return (roles as any[]).find(r => r.id === w.roleId)?.name || "Worker";
   };
 
-  const filteredWorkers = useMemo(() => {
+  // For Ministry Head, restrict visible workers strictly to those with the "Worker" role
+  const visibleWorkers = useMemo(() => {
     if (!allWorkers) return [];
-    return allWorkers.filter(w => {
+    if (isMinistryHeadOnly) {
+      return allWorkers.filter(w => {
+        const rn = getRoleName(w).toLowerCase();
+        return rn === "worker" || (!rn.includes("head") && !rn.includes("admin"));
+      });
+    }
+    return allWorkers;
+  }, [allWorkers, isMinistryHeadOnly, roles]);
+
+  const manualStatusCounts = useMemo(() => {
+    let timedIn = 0, timedOut = 0, notYet = 0;
+    for (const w of visibleWorkers) {
+      const st = workerStatusMap[w.id]?.status ?? "not-yet";
+      if (st === "timed-in") timedIn++;
+      else if (st === "timed-out") timedOut++;
+      else notYet++;
+    }
+    return {
+      all: visibleWorkers.length,
+      "timed-in": timedIn,
+      "timed-out": timedOut,
+      "not-yet": notYet,
+    };
+  }, [visibleWorkers, workerStatusMap]);
+
+  const filteredWorkers = useMemo(() => {
+    if (!visibleWorkers) return [];
+    return visibleWorkers.filter(w => {
       const name = `${w.firstName} ${w.lastName}`.toLowerCase();
       const wId = fmtId(w.workerId).toLowerCase();
       const q = assignSearch.trim().toLowerCase();
       if (q && !name.includes(q) && !wId.includes(q)) return false;
       if (ministryFilter !== "all" && w.majorMinistryId !== ministryFilter) return false;
-      if (roleFilter !== "all") {
+      if (!isMinistryHeadOnly && roleFilter !== "all") {
         const rn = getRoleName(w).toLowerCase();
         if (!rn.includes(roleFilter.toLowerCase())) return false;
       }
@@ -261,7 +450,7 @@ function AttendanceContent() {
       if (statusFilter !== "all" && cs !== statusFilter) return false;
       return true;
     });
-  }, [allWorkers, assignSearch, ministryFilter, roleFilter, statusFilter, workerStatusMap]);
+  }, [visibleWorkers, assignSearch, ministryFilter, roleFilter, statusFilter, workerStatusMap, isMinistryHeadOnly, roles]);
 
   // Records tab: build rows
   const recordRows = useMemo(() => {
@@ -272,7 +461,7 @@ function AttendanceContent() {
     }
     const rows: { worker: any; date: Date; timeIn: Date | null; timeOut: Date | null; hours: number | null; status: "present" | "late" | "absent" | "incomplete" }[] = [];
     for (const [wId, recs] of Object.entries(workerRecordsMap)) {
-      const w = allWorkers?.find(x => x.id === wId);
+      const w = visibleWorkers?.find(x => x.id === wId);
       if (!w) continue;
       const dayMap: Record<string, any[]> = {};
       for (const r of recs) {
@@ -347,8 +536,11 @@ function AttendanceContent() {
               </button>
             </Link>
             {(activeTab === "manual" || activeTab === "records") && (
-              <button className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer">
-                <Download className="h-4 w-4 text-white" /> Export
+              <button
+                onClick={() => setShowExportConfirm(true)}
+                className="h-10 px-4 flex items-center gap-2 rounded-2xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                <Download className="h-4 w-4 text-white" /> Export Excel
               </button>
             )}
           </div>
@@ -487,17 +679,19 @@ function AttendanceContent() {
                   </SelectContent>
                 </Select>
 
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="h-10 w-[130px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                    <SelectValue placeholder="All Roles" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
-                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
-                    {(roles as any[]).map(r => (
-                      <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!isMinistryHeadOnly && (
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="h-10 w-[130px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                      <SelectValue placeholder="All Roles" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
+                      <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
+                      {(roles as any[]).map(r => (
+                        <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 {/* Status Filter Dropdown */}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -759,17 +953,19 @@ function AttendanceContent() {
                   </Select>
 
                   {/* Role */}
-                  <Select value={recordsRoleFilter} onValueChange={setRecordsRoleFilter}>
-                    <SelectTrigger className="h-10 w-[125px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                      <SelectValue placeholder="All Roles" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
-                      <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
-                      {(roles as any[]).map(r => (
-                        <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {!isMinistryHeadOnly && (
+                    <Select value={recordsRoleFilter} onValueChange={setRecordsRoleFilter}>
+                      <SelectTrigger className="h-10 w-[125px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                        <SelectValue placeholder="All Roles" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border border-border shadow-lg bg-popover max-h-72">
+                        <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
+                        {(roles as any[]).map(r => (
+                          <SelectItem key={r.id} value={r.name} className="text-xs font-medium cursor-pointer">{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
 
                   {/* Range */}
                   <Select value={recordsRange} onValueChange={(val: any) => setRecordsRange(val)}>
@@ -957,6 +1153,18 @@ function AttendanceContent() {
         )}
         </div>
       </div>
+
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title={activeTab === "manual" ? "Export Today's Attendance?" : "Export Attendance Records?"}
+        description={
+          activeTab === "manual"
+            ? "Do you want to export today's worker attendance statuses and summary as an Excel file (.xlsx)?"
+            : "Do you want to export the attendance history records and summary as an Excel file (.xlsx)?"
+        }
+        onConfirm={handleExportAttendance}
+      />
     </AppLayout>
   );
 }

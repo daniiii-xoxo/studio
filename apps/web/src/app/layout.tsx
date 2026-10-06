@@ -33,6 +33,38 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={ibmPlexSans.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('cog_app_theme') || localStorage.getItem('theme');
+                  var isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                  if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                    document.documentElement.dataset.theme = 'dark';
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
+                    document.documentElement.dataset.theme = 'light';
+                  }
+
+                  var s = localStorage.getItem('cog_app_font_scale') || localStorage.getItem('app_font_scale');
+                  if (s) {
+                    var parsed = parseFloat(s);
+                    if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.6) {
+                      document.documentElement.style.setProperty('--font-scale', parsed.toString());
+                      document.documentElement.dataset.fontScale = parsed.toString();
+                    }
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="font-body antialiased">
         <ReactQueryProvider>
           <AuthSync>

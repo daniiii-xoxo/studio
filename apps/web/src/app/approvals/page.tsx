@@ -13,6 +13,7 @@ import { Input, Checkbox } from "@studio/ui";
 import { cn } from "@/lib/utils";
 import type { ApprovalRequest, Worker, Ministry } from "@studio/types";
 import { useApprovals } from "@/hooks/use-approvals";
+import { useBookings } from "@/hooks/use-bookings";
 import { useWorkers } from "@/hooks/use-workers";
 import { useMinistries } from "@/hooks/use-ministries";
 import { useUserRole } from "@/hooks/use-user-role";
@@ -105,6 +106,79 @@ function StatCard({
   );
 }
 
+// ── WORDA Department Matrix ───────────────────────────────────────────────────
+export const WORDA_MINISTRIES_BY_DEPT = {
+  Worship: ["whitelight", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster 1", "cluster 2", "cluster 3", "cluster 4", "cluster 5", "cluster 6", "cluster 7", "cluster 8", "cluster 9", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "cldp", "kid", "children's ministry", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "linkages", "security and shuttle", "technology", "ventures"],
+};
+
+export type WordaDepartment = keyof typeof WORDA_MINISTRIES_BY_DEPT;
+
+export function getWorkerDepartment(
+  workerProfile: any,
+  allMinistries: any[],
+  userRoleDept?: string
+): WordaDepartment {
+  const direct = (workerProfile?.department || workerProfile?.departmentCode || userRoleDept || "").toLowerCase();
+  if (direct.includes("worship") || direct === "w") return "Worship";
+  if (direct.includes("outreach") || direct === "o") return "Outreach";
+  if (direct.includes("relationship") || direct === "r") return "Relationship";
+  if (direct.includes("discipleship") || direct === "d") return "Discipleship";
+  if (direct.includes("administration") || direct === "a") return "Administration";
+
+  const userMinistries = (allMinistries || []).filter(
+    (m: any) =>
+      m.headId === workerProfile?.id ||
+      m.approverId === workerProfile?.id ||
+      m.id === workerProfile?.majorMinistryId ||
+      m.id === workerProfile?.minorMinistryId ||
+      (Array.isArray(workerProfile?.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+
+  for (const m of userMinistries) {
+    const d = (m.department || m.departmentCode || "").toLowerCase();
+    const name = (m.name || "").toLowerCase();
+    if (d.includes("worship") || d === "w" || WORDA_MINISTRIES_BY_DEPT.Worship.some(k => name.includes(k))) return "Worship";
+    if (d.includes("outreach") || d === "o" || WORDA_MINISTRIES_BY_DEPT.Outreach.some(k => name.includes(k))) return "Outreach";
+    if (d.includes("relationship") || d === "r" || WORDA_MINISTRIES_BY_DEPT.Relationship.some(k => name.includes(k))) return "Relationship";
+    if (d.includes("discipleship") || d === "d" || WORDA_MINISTRIES_BY_DEPT.Discipleship.some(k => name.includes(k))) return "Discipleship";
+    if (d.includes("administration") || d === "a" || WORDA_MINISTRIES_BY_DEPT.Administration.some(k => name.includes(k))) return "Administration";
+  }
+
+  return "Outreach";
+}
+
+export function isRequestInDepartment(
+  req: ApprovalRequest,
+  deptName: WordaDepartment,
+  allMinistries: any[],
+  bookings: any[],
+  workers: any[]
+): boolean {
+  const booking = bookings?.find((b) => b.id === req.reservationId);
+  const worker = workers?.find((w) => w.id === req.workerId);
+  const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+  const ministry = targetMinistryId ? allMinistries?.find((m: any) => m.id === targetMinistryId) : null;
+
+  const minName = (ministry?.name || "").toLowerCase().trim();
+  const minDept = (typeof ministry?.department === 'string' ? ministry.department : ministry?.department?.name || ministry?.departmentCode || "").toLowerCase().trim();
+  const targetDeptCode = deptName === "Worship" ? "w" : deptName === "Outreach" ? "o" : deptName === "Relationship" ? "r" : deptName === "Discipleship" ? "d" : "a";
+
+  const deptKeywords = WORDA_MINISTRIES_BY_DEPT[deptName];
+  if (deptKeywords.some(keyword => minName === keyword || minName.includes(keyword))) {
+    return true;
+  }
+
+  if (minDept === deptName.toLowerCase() || minDept === targetDeptCode) {
+    return true;
+  }
+
+  return false;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ApprovalsPage() {
   const {
@@ -120,11 +194,12 @@ export default function ApprovalsPage() {
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
 
   const { approvals: requests, isLoading: approvalsLoading } = useApprovals();
+  const { bookings, isLoading: bookingsLoading } = useBookings();
   const { workers, isLoading: workersLoading } = useWorkers();
   const { ministries, allMinistries, isLoading: ministriesLoading } = useMinistries();
   const { updateStatus, isUpdating } = useApprovalMutations();
 
-  const isLoading = isRoleLoading || approvalsLoading || workersLoading || ministriesLoading;
+  const isLoading = isRoleLoading || approvalsLoading || bookingsLoading || workersLoading || ministriesLoading;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "completed">("all");
@@ -137,40 +212,24 @@ export default function ApprovalsPage() {
     return (requests || []).filter(r => r.type === "Room Booking");
   }, [requests]);
 
-  // Role logic
-  const filteredRequests = useMemo(() => {
+  // Scoped requests based on user role & ministry
+  const scopedRequests = useMemo(() => {
     let results = [...roomBookingRequests] as ApprovalRequest[];
-    const explicitHeadIds = (ministries || allMinistries || [])
-      .filter(m => m.headId === workerProfile?.id || m.approverId === workerProfile?.id)
-      .map(m => m.id);
-    const myMinistryIds = Array.from(new Set([...explicitHeadIds, ...(userRoleMinistryIds || [])]));
-    const isMinistryHead = Boolean(userIsMinistryHead || myMinistryIds.length > 0);
-    const isAdmin = isSuperAdmin || canApproveAllRequests;
 
-    results = results.filter(r => {
-      // Super admins / full admins see all room booking requests
-      if (isAdmin) return true;
+    // Super Admin sees everything across all departments
+    if (isSuperAdmin) return results;
 
-      // Resolve the requester worker to check their ministry
-      const requesterWorker = workers?.find(w => w.id === r.workerId);
-      const workerInMyMinistry = requesterWorker
-        ? myMinistryIds.includes(requesterWorker.majorMinistryId ?? "") ||
-          myMinistryIds.includes(requesterWorker.minorMinistryId ?? "") ||
-          (Array.isArray((requesterWorker as any).assignedMinistryIds) &&
-            (requesterWorker as any).assignedMinistryIds.some((mid: string) => myMinistryIds.includes(mid)))
-        : false;
+    // Ministry Head is strictly scoped to requests in their department (e.g. Outreach -> Cluster 1 to 9, WEYJ, TAPAT)
+    const effectiveDept = getWorkerDepartment(workerProfile, allMinistries || ministries, (workerProfile as any)?.department);
 
-      if (r.status === "Pending Ministry Approval") {
-        // Ministry head can approve only their own ministry's bookings
-        return isMinistryHead && workerInMyMinistry;
-      }
-      if (r.status === "Pending Admin Approval") {
-        // Only admins can approve; ministry heads can still see (read-only) their own ministry's
-        return isMinistryHead && workerInMyMinistry;
-      }
-      // For Approved/Rejected bookings, show only own ministry
-      return isMinistryHead && workerInMyMinistry;
+    return results.filter(req => {
+      return isRequestInDepartment(req, effectiveDept, allMinistries || ministries || [], bookings || [], workers || []);
     });
+  }, [roomBookingRequests, isSuperAdmin, workerProfile, allMinistries, ministries, bookings, workers]);
+
+  // Filtered requests by search and status
+  const filteredRequests = useMemo(() => {
+    let results = [...scopedRequests];
 
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -189,7 +248,7 @@ export default function ApprovalsPage() {
     }
 
     return results.sort((a, b) => new Date(b.date as any).getTime() - new Date(a.date as any).getTime());
-  }, [roomBookingRequests, searchTerm, statusFilter, ministries, allMinistries, workerProfile, workers, isSuperAdmin, canApproveAllRequests, userIsMinistryHead, userRoleMinistryIds]);
+  }, [scopedRequests, searchTerm, statusFilter]);
 
   const checkIsApprover = (request: ApprovalRequest) => {
     if (!workerProfile || !request.workerId) return false;
@@ -202,7 +261,7 @@ export default function ApprovalsPage() {
   };
 
   const checkCanManage = (request: ApprovalRequest) => {
-    if (canApproveAllRequests || isSuperAdmin) return true;
+    if (isSuperAdmin) return true;
     if (request.type === "Ministry Change") {
       if (!workerProfile) return false;
       if (request.status === "Pending Outgoing Approval") {
@@ -219,10 +278,10 @@ export default function ApprovalsPage() {
       }
     }
     if (request.type === "Room Booking") {
-      if (request.status === "Pending Admin Approval") return canApproveAllRequests || isSuperAdmin;
-      if (request.status === "Pending Ministry Approval") {
-        const myIds = ministries?.filter(m => m.headId === workerProfile?.id || m.approverId === workerProfile?.id).map(m => m.id) ?? [];
-        return myIds.length > 0 || canApproveAllRequests || isSuperAdmin;
+      if (request.status === "Pending Admin Approval") return isSuperAdmin;
+      if (request.status === "Pending Ministry Approval" || request.status === "Pending") {
+        const effectiveDept = getWorkerDepartment(workerProfile, allMinistries || ministries, (workerProfile as any)?.department);
+        return isRequestInDepartment(request, effectiveDept, allMinistries || ministries || [], bookings || [], workers || []);
       }
       return checkIsApprover(request);
     }
@@ -297,18 +356,18 @@ export default function ApprovalsPage() {
   }
 
   const stats = {
-    total: roomBookingRequests.length,
-    pending: roomBookingRequests.filter(r => r.status.startsWith("Pending")).length,
-    approved: roomBookingRequests.filter(r => r.status === "Approved").length,
-    rejected: roomBookingRequests.filter(r => r.status === "Rejected").length,
+    total: scopedRequests.length,
+    pending: scopedRequests.filter(r => r.status.startsWith("Pending")).length,
+    approved: scopedRequests.filter(r => r.status === "Approved").length,
+    rejected: scopedRequests.filter(r => r.status === "Rejected").length,
   };
 
   const statusCounts = {
-    all: roomBookingRequests.length,
-    pending: roomBookingRequests.filter(r => r.status.startsWith("Pending")).length,
-    approved: roomBookingRequests.filter(r => r.status === "Approved").length,
-    rejected: roomBookingRequests.filter(r => r.status === "Rejected").length,
-    completed: roomBookingRequests.filter(r => r.status === "Approved" || r.status === "Rejected").length,
+    all: scopedRequests.length,
+    pending: scopedRequests.filter(r => r.status.startsWith("Pending")).length,
+    approved: scopedRequests.filter(r => r.status === "Approved").length,
+    rejected: scopedRequests.filter(r => r.status === "Rejected").length,
+    completed: scopedRequests.filter(r => r.status === "Approved" || r.status === "Rejected").length,
   };
 
   const pendingRequests = filteredRequests.filter(r => r.status.startsWith("Pending"));
@@ -403,7 +462,11 @@ export default function ApprovalsPage() {
                 ) : (
                   filteredRequests.map(req => {
                     const worker = workers?.find(w => w.id === req.workerId);
-                    const ministry = worker ? ministries?.find(m => m.id === worker.majorMinistryId) : null;
+                    const booking = bookings?.find(b => b.id === req.reservationId);
+                    const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                    const ministry = targetMinistryId
+                      ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
+                      : null;
                     const reqId = req.id || "";
                     const reqDate = req.date ? new Date(req.date as any) : null;
 
@@ -475,7 +538,8 @@ export default function ApprovalsPage() {
                   ) : (
                     filteredRequests.map(req => {
                       const worker = workers?.find(w => w.id === req.workerId);
-                      const targetMinistryId = worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                      const booking = bookings?.find(b => b.id === req.reservationId);
+                      const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
                       const ministry = targetMinistryId
                         ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
                         : null;
@@ -580,7 +644,8 @@ export default function ApprovalsPage() {
                 const isPending = req.status.startsWith("Pending");
                 const reqDate = req.date ? new Date(req.date as any) : null;
                 const worker = workers?.find(w => w.id === req.workerId);
-                const targetMinistryId = worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                const booking = bookings?.find(b => b.id === req.reservationId);
+                const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
                 const ministry = targetMinistryId
                   ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
                   : null;
@@ -691,7 +756,11 @@ export default function ApprovalsPage() {
                       </div>
                     ) : col.requests.map(req => {
                       const worker = workers?.find(w => w.id === req.workerId);
-                      const ministry = worker ? ministries?.find(m => m.id === worker.majorMinistryId) : null;
+                      const booking = bookings?.find(b => b.id === req.reservationId);
+                      const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
+                      const ministry = targetMinistryId
+                        ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
+                        : null;
                       const canManage = checkCanManage(req);
                       const isPending = req.status.startsWith("Pending");
                       const reqDate = req.date ? new Date(req.date as any) : null;

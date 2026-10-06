@@ -45,9 +45,9 @@ import {
   updateWorkersMinistries,
   createMealStub as createMealStubSql,
   deleteWorker as deleteWorkerSql,
-  deleteWorkers as deleteWorkersSql,
 } from "@/actions/db";
-import { ImportSheet } from "@/components/workers/import-sheet";
+import { exportToExcel } from "@/lib/export-excel";
+import { ExportConfirmDialog } from "@/components/common/export-confirm-dialog";
 import { BatchMinistrySheet } from "@/components/workers/batch-ministry-sheet";
 import { BatchMealStubSheet } from "@/components/workers/batch-meal-stub-sheet";
 import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
@@ -135,6 +135,85 @@ const formatWorkerId = (id: string | null | undefined) => {
   return isNaN(num) ? id : `COG-${String(num).padStart(4, "0")}`;
 };
 
+// ── WORDA Department Matrix ───────────────────────────────────────────────────
+export const WORDA_MINISTRIES_BY_DEPT = {
+  Worship: ["whitelight", "dance", "pmt", "crusade", "singers", "musicians", "audio"],
+  Outreach: ["cluster 1", "cluster 2", "cluster 3", "cluster 4", "cluster 5", "cluster 6", "cluster 7", "cluster 8", "cluster 9", "weyj", "tapat"],
+  Relationship: ["sports", "gem", "ushering", "mens", "ladies", "youth empowered", "young adults"],
+  Discipleship: ["j12", "oneliner", "cldp", "kid", "children's ministry", "life institute", "kca"],
+  Administration: ["arts", "engineering", "finance", "in house", "linkages", "security and shuttle", "technology", "ventures"],
+};
+
+export type WordaDepartment = keyof typeof WORDA_MINISTRIES_BY_DEPT;
+
+export function getWorkerDepartment(
+  workerProfile: any,
+  allMinistries: any[],
+  userRoleDept?: string
+): WordaDepartment {
+  const direct = (workerProfile?.department || workerProfile?.departmentCode || userRoleDept || "").toLowerCase();
+  if (direct.includes("worship") || direct === "w") return "Worship";
+  if (direct.includes("outreach") || direct === "o") return "Outreach";
+  if (direct.includes("relationship") || direct === "r") return "Relationship";
+  if (direct.includes("discipleship") || direct === "d") return "Discipleship";
+  if (direct.includes("administration") || direct === "a") return "Administration";
+
+  const userMinistries = (allMinistries || []).filter(
+    (m: any) =>
+      m.headId === workerProfile?.id ||
+      m.approverId === workerProfile?.id ||
+      m.id === workerProfile?.majorMinistryId ||
+      m.id === workerProfile?.minorMinistryId ||
+      (Array.isArray(workerProfile?.assignedMinistryIds) && workerProfile.assignedMinistryIds.includes(m.id))
+  );
+
+  for (const m of userMinistries) {
+    const d = (m.department || m.departmentCode || "").toLowerCase();
+    const name = (m.name || "").toLowerCase();
+    if (d.includes("worship") || d === "w" || WORDA_MINISTRIES_BY_DEPT.Worship.some(k => name.includes(k))) return "Worship";
+    if (d.includes("outreach") || d === "o" || WORDA_MINISTRIES_BY_DEPT.Outreach.some(k => name.includes(k))) return "Outreach";
+    if (d.includes("relationship") || d === "r" || WORDA_MINISTRIES_BY_DEPT.Relationship.some(k => name.includes(k))) return "Relationship";
+    if (d.includes("discipleship") || d === "d" || WORDA_MINISTRIES_BY_DEPT.Discipleship.some(k => name.includes(k))) return "Discipleship";
+    if (d.includes("administration") || d === "a" || WORDA_MINISTRIES_BY_DEPT.Administration.some(k => name.includes(k))) return "Administration";
+  }
+
+  return "Outreach";
+}
+
+export function isWorkerInDepartment(
+  worker: any,
+  deptName: WordaDepartment,
+  allMinistries: any[]
+): boolean {
+  const workerMinIds = [
+    worker.majorMinistryId,
+    worker.minorMinistryId,
+    ...(Array.isArray(worker.assignedMinistryIds) ? worker.assignedMinistryIds : []),
+  ].filter(Boolean);
+
+  if (workerMinIds.length === 0) return false;
+
+  const userMinistries = (allMinistries || []).filter((m: any) => workerMinIds.includes(m.id));
+  if (userMinistries.length === 0) return false;
+
+  const deptKeywords = WORDA_MINISTRIES_BY_DEPT[deptName];
+  const targetDeptCode = deptName === "Worship" ? "w" : deptName === "Outreach" ? "o" : deptName === "Relationship" ? "r" : deptName === "Discipleship" ? "d" : "a";
+
+  for (const min of userMinistries) {
+    const minName = (min?.name || "").toLowerCase().trim();
+    const minDept = (typeof min?.department === "string" ? min.department : min?.department?.name || min?.departmentCode || "").toLowerCase().trim();
+
+    if (deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword))) {
+      return true;
+    }
+    if (minDept === deptName.toLowerCase() || minDept === targetDeptCode) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WorkersPage() {
   const router = useRouter();
@@ -175,47 +254,63 @@ export default function WorkersPage() {
     )
   );
 
+  const { ministries, isLoading: ministriesLoading } = useMinistries();
+
+  const effectiveDept = useMemo(() => {
+    return getWorkerDepartment(workerProfile, ministries || [], (workerProfile as any)?.department);
+  }, [workerProfile, ministries]);
+
   const headMinistryIds = useMemo(() => {
     if (isSuperAdmin) return undefined;
     if (ministryFilter !== "all") return [ministryFilter];
-    const ids = new Set<string>();
-    if (myMinistryIds && myMinistryIds.length > 0) {
-      myMinistryIds.forEach(id => ids.add(id));
-    }
-    if (workerProfile?.majorMinistryId) {
-      ids.add(workerProfile.majorMinistryId);
-    }
-    if (workerProfile?.minorMinistryId) {
-      ids.add(workerProfile.minorMinistryId);
-    }
-    return ids.size > 0 ? Array.from(ids) : undefined;
-  }, [isSuperAdmin, ministryFilter, myMinistryIds, workerProfile]);
+
+    const deptKeywords = WORDA_MINISTRIES_BY_DEPT[effectiveDept];
+    const targetDeptCode = effectiveDept === "Worship" ? "w" : effectiveDept === "Outreach" ? "o" : effectiveDept === "Relationship" ? "r" : effectiveDept === "Discipleship" ? "d" : "a";
+
+    const deptMinistries = (ministries || []).filter((m: any) => {
+      const minName = (m?.name || "").toLowerCase().trim();
+      const minDept = (typeof m?.department === "string" ? m.department : m?.department?.name || m?.departmentCode || "").toLowerCase().trim();
+      return (
+        deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword)) ||
+        minDept === effectiveDept.toLowerCase() ||
+        minDept === targetDeptCode
+      );
+    });
+
+    return deptMinistries.map(m => m.id);
+  }, [isSuperAdmin, ministryFilter, effectiveDept, ministries]);
 
   const { workers: allWorkers, pagination, isLoading: workersLoading,
     updateWorker: updateWorkerSql, createWorker: createWorkerSql,
     deleteWorker: deleteWorkerSqlMut, deleteWorkers: deleteWorkersSqlMut,
-  } = useWorkers({ 
-    page: currentPage, 
-    limit: itemsPerPage, 
-    search: searchQuery, 
-    searchMode, 
+  } = useWorkers({
+    page: currentPage,
+    limit: itemsPerPage,
+    search: searchQuery,
+    searchMode,
     ministryIds: headMinistryIds,
-    sortField, 
+    sortField,
     sortDir,
-    actorId: workerProfile?.id,
+    actorId: isMinistryHeadScoped ? undefined : workerProfile?.id,
+    unrestricted: isMinistryHeadScoped,
   });
 
-  const { ministries, isLoading: ministriesLoading } = useMinistries();
   const availableMinistries = useMemo(() => {
-    if (isSuperAdmin) return ministries;
-    const allowed = (myMinistryIds && myMinistryIds.length > 0)
-      ? myMinistryIds
-      : [workerProfile?.majorMinistryId].filter(Boolean) as string[];
-    if (isMinistryHead && allowed.length > 0) {
-      return ministries.filter(m => allowed.includes(m.id));
-    }
-    return isMinistryHead ? [] : ministries;
-  }, [isSuperAdmin, isMinistryHead, myMinistryIds, workerProfile?.majorMinistryId, ministries]);
+    if (isSuperAdmin) return ministries || [];
+    const deptKeywords = WORDA_MINISTRIES_BY_DEPT[effectiveDept];
+    const targetDeptCode = effectiveDept === "Worship" ? "w" : effectiveDept === "Outreach" ? "o" : effectiveDept === "Relationship" ? "r" : effectiveDept === "Discipleship" ? "d" : "a";
+
+    return (ministries || []).filter((m: any) => {
+      const minName = (m?.name || "").toLowerCase().trim();
+      const minDept = (typeof m?.department === "string" ? m.department : m?.department?.name || m?.departmentCode || "").toLowerCase().trim();
+      return (
+        deptKeywords.some((keyword) => minName === keyword || minName.includes(keyword)) ||
+        minDept === effectiveDept.toLowerCase() ||
+        minDept === targetDeptCode
+      );
+    });
+  }, [isSuperAdmin, effectiveDept, ministries]);
+
   const { roles, isLoading: rolesLoading } = useRoles();
   const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
   const { mealStubs: allMealStubs } = useMealStubs({ dateFrom: thirtyDaysAgo });
@@ -246,12 +341,10 @@ export default function WorkersPage() {
   }, [isDepartmentHead, userDepartment, ministries]);
 
   const { data: statsData } = useWorkerStats(
-    isSuperAdmin || (canManageWorkers && !workerProfile?.majorMinistryId) ? undefined :
-      isDepartmentHead ? departmentMinistries.map(m => m.id) :
-        [workerProfile?.majorMinistryId, workerProfile?.minorMinistryId].filter(Boolean) as string[]
+    isSuperAdmin ? undefined : headMinistryIds,
+    isMinistryHeadScoped ? undefined : workerProfile?.id
   );
 
-  const [isImportSheetOpen, setIsImportSheetOpen] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
   const [isBatchMoveSheetOpen, setIsBatchMoveSheetOpen] = useState(false);
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false);
@@ -259,6 +352,8 @@ export default function WorkersPage() {
   const [isAssigningStubs, setIsAssigningStubs] = useState(false);
   const [selectedWorkerForDetails, setSelectedWorkerForDetails] = useState<Worker | null>(null);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
   const handleAddNew = () => router.push("/workers/new");
   const handleEdit = (worker: Worker) => setEditingWorker(worker);
@@ -268,28 +363,93 @@ export default function WorkersPage() {
       toast({ variant: "destructive", title: "No data to export" });
       return;
     }
-    const exportData = allWorkers.map(w => ({
-      "Worker ID": formatWorkerId(w.workerId),
-      "First Name": w.firstName,
-      "Last Name": w.lastName,
-      "Email": w.email || "",
-      "Phone": w.phone || "",
-      "Role": getWorkerRoleLabel(w),
-      "Ministry": ministries.find(m => m.id === w.majorMinistryId)?.name || "",
-      "Worker Type": w.employmentType || "",
-      "Status": w.status,
-      "Registered": w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
-    }));
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `workers_export_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Workers Exported", description: `Exported ${exportData.length} records.` });
+
+    // ── Sheet 1: Workers Directory ──
+    const directoryHeaders = [
+      "Worker ID",
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone",
+      "Role",
+      "Ministry",
+      "Worker Type",
+      "Status",
+      "Registered Date",
+    ];
+
+    const directoryRows = allWorkers.map((w) => [
+      formatWorkerId(w.workerId),
+      w.firstName || "",
+      w.lastName || "",
+      w.email || "",
+      w.phone || "",
+      getWorkerRoleLabel(w),
+      ministries.find((m) => m.id === w.majorMinistryId)?.name || "Unassigned",
+      w.employmentType || "Volunteer",
+      w.status || "Active",
+      w.createdAt ? new Date(w.createdAt as any).toLocaleDateString() : "",
+    ]);
+
+    // ── Sheet 2: Ministry Breakdown ──
+    const ministryCounts: Record<string, { total: number; active: number }> = {};
+    ministries.forEach((m) => {
+      ministryCounts[m.name] = { total: 0, active: 0 };
+    });
+    ministryCounts["Unassigned"] = { total: 0, active: 0 };
+
+    allWorkers.forEach((w) => {
+      const minName = ministries.find((m) => m.id === w.majorMinistryId)?.name || "Unassigned";
+      if (!ministryCounts[minName]) ministryCounts[minName] = { total: 0, active: 0 };
+      ministryCounts[minName].total += 1;
+      if (w.status === "Active") ministryCounts[minName].active += 1;
+    });
+
+    const ministryRows = Object.entries(ministryCounts).map(([name, data]) => [
+      name,
+      data.total,
+      data.active,
+      data.total > 0 ? `${Math.round((data.active / data.total) * 100)}%` : "0%",
+    ]);
+
+    // ── Sheet 3: Status Summary ──
+    const statusCounts: Record<string, number> = {};
+    allWorkers.forEach((w) => {
+      const s = w.status || "Active";
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const statusRows = Object.entries(statusCounts).map(([status, count]) => [
+      status,
+      count,
+      `${Math.round((count / allWorkers.length) * 100)}%`,
+    ]);
+
+    exportToExcel(`workers_export_${new Date().toISOString().split("T")[0]}.xlsx`, [
+      {
+        name: "Workers Directory",
+        data: [directoryHeaders, ...directoryRows],
+        colWidths: [14, 18, 18, 28, 16, 20, 24, 16, 12, 16],
+      },
+      {
+        name: "Ministry Breakdown",
+        data: [
+          ["Ministry Name", "Total Workers", "Active Workers", "Active Rate"],
+          ...ministryRows,
+        ],
+        colWidths: [28, 16, 16, 14],
+      },
+      {
+        name: "Status Summary",
+        data: [["Status", "Total Workers", "Percentage"], ...statusRows],
+        colWidths: [20, 16, 14],
+      },
+    ]);
+
+    toast({
+      title: "Workers Exported",
+      description: `Exported ${allWorkers.length} workers with multiple summary tabs.`,
+    });
   };
 
   const handlePasswordReset = async (worker: Worker) => {
@@ -370,29 +530,6 @@ export default function WorkersPage() {
   };
   const toggleSelectWorker = (id: string) => setSelectedWorkerIds(prev => prev.includes(id) ? prev.filter(wId => wId !== id) : [...prev, id]);
 
-  const handleImportWorkers = (csvData: string) => {
-    Papa.parse(csvData, {
-      header: true, skipEmptyLines: true,
-      complete: async results => {
-        const newWorkers = results.data;
-        if (newWorkers.length === 0) { toast({ variant: "destructive", title: "No Data Found" }); return; }
-        try {
-          let importedCount = 0;
-          for (let index = 0; index < newWorkers.length; index++) {
-            const nw = newWorkers[index] as any;
-            if (!nw.firstName || !nw.lastName || !nw.email) continue;
-            const workerId = String(100000 + (allWorkers?.length || 0) + index).slice(-6);
-            const phone = cleanPhoneNumber(nw.phone || "");
-            await createWorkerSql({ firstName: nw.firstName || "", lastName: nw.lastName || "", email: nw.email || "", phone, roleId: nw.roleId || "viewer", status: "Active", majorMinistryId: nw.majorMinistryId || "", minorMinistryId: nw.minorMinistryId || "", employmentType: nw.employmentType || "Volunteer", workerId, avatarUrl: `https://picsum.photos/seed/${workerId}/100/100` });
-            importedCount++;
-          }
-          toast({ title: "Import Successful", description: `${importedCount} workers imported.` });
-          setIsImportSheetOpen(false);
-        } catch { toast({ variant: "destructive", title: "Import Failed" }); }
-      },
-    });
-  };
-
   const getRoleName = (roleId?: string | null) => {
     if (!roleId) return "Worker";
     return roles.find(r => r.id === roleId)?.name || "Worker";
@@ -465,29 +602,28 @@ export default function WorkersPage() {
   const baseWorkers = useMemo(() => {
     let list = allWorkers || [];
 
-    if (isMinistryHeadScoped) {
-      const allowedIds = headMinistryIds || (workerProfile?.majorMinistryId ? [workerProfile.majorMinistryId] : []);
+    if (!isSuperAdmin) {
       list = list.filter(w => {
         // Hierarchy rule: A Ministry Head manages the mentors/workers of their ministry.
         // Admins and Ministry Heads (and the logged-in head themselves) must NOT appear here.
         if (isWorkerAdminOrHead(w)) return false;
         if (workerProfile?.id && w.id === workerProfile.id) return false;
 
-        // Must belong to the head's ministry if allowedIds are defined
-        if (allowedIds.length > 0) {
-          const inMajor = w.majorMinistryId && allowedIds.includes(w.majorMinistryId);
-          const inMinor = w.minorMinistryId && allowedIds.includes(w.minorMinistryId);
-          const inAssigned = Array.isArray((w as any).assignedMinistryIds) &&
-            (w as any).assignedMinistryIds.some((id: string) => allowedIds.includes(id));
+        // If a specific ministry is selected in the dropdown
+        if (ministryFilter !== "all") {
+          const inMajor = w.majorMinistryId === ministryFilter;
+          const inMinor = w.minorMinistryId === ministryFilter;
+          const inAssigned = Array.isArray((w as any).assignedMinistryIds) && (w as any).assignedMinistryIds.includes(ministryFilter);
           if (!inMajor && !inMinor && !inAssigned) return false;
         }
 
-        return true;
+        // Must belong to the head's department (e.g. Outreach: Cluster 1 to 9, WEYJ, TAPAT)
+        return isWorkerInDepartment(w, effectiveDept, ministries || []);
       });
     }
 
     return list;
-  }, [allWorkers, isMinistryHeadScoped, headMinistryIds, workerProfile, ministries, roles]);
+  }, [allWorkers, isSuperAdmin, workerProfile, effectiveDept, ministries, ministryFilter]);
 
   const displayedWorkers = useMemo(() => {
     let list = baseWorkers;
@@ -555,14 +691,7 @@ export default function WorkersPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setIsImportSheetOpen(true)}
-              className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
-            >
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="hidden sm:inline">Import</span>
-            </button>
-            <button
-              onClick={handleExportWorkers}
+              onClick={() => setShowExportConfirm(true)}
               className="h-10 px-3.5 flex items-center gap-2 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-card text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors shadow-2xs cursor-pointer"
             >
               <Download className="h-4 w-4 text-muted-foreground" />
@@ -598,105 +727,105 @@ export default function WorkersPage() {
             )}
           </div>
 
-        {/* Ministry Distribution Chart */}
-        {!isMinistryHeadScoped && ministryChartData.length > 0 && (
-          <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-6">
-            <h2 className="text-base font-bold text-foreground mb-0.5">Ministry Distribution</h2>
-            <p className="text-xs text-muted-foreground mb-5">Workers per ministry.</p>
-            <div className="h-[240px] md:h-[240px] w-full" style={{ height: isMobile ? 300 : 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={ministryChartData}
-                  margin={{ top: 4, right: 4, left: -20, bottom: isMobile ? 55 : 5 }}
-                  barCategoryGap="30%"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    fontSize={isMobile ? 10 : 11}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#6b7280" }}
-                    interval={0}
-                    angle={isMobile ? -40 : 0}
-                    textAnchor={isMobile ? "end" : "middle"}
-                    height={isMobile ? 65 : 30}
-                    tickFormatter={(v: string) => isMobile && v.length > 10 ? v.slice(0, 10) + "…" : v}
-                  />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#9ca3af" }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.1)", fontSize: "12px" }}
-                    cursor={{ fill: "rgba(17,46,126,0.06)" }}
-                  />
-                  <Bar dataKey="count" name="Workers" fill="#112e7e" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Ministry Distribution Chart */}
+          {!isMinistryHeadScoped && ministryChartData.length > 0 && (
+            <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-6">
+              <h2 className="text-base font-bold text-foreground mb-0.5">Ministry Distribution</h2>
+              <p className="text-xs text-muted-foreground mb-5">Workers per ministry.</p>
+              <div className="h-[240px] md:h-[240px] w-full" style={{ height: isMobile ? 300 : 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={ministryChartData}
+                    margin={{ top: 4, right: 4, left: -20, bottom: isMobile ? 55 : 5 }}
+                    barCategoryGap="30%"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      fontSize={isMobile ? 10 : 11}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#6b7280" }}
+                      interval={0}
+                      angle={isMobile ? -40 : 0}
+                      textAnchor={isMobile ? "end" : "middle"}
+                      height={isMobile ? 65 : 30}
+                      tickFormatter={(v: string) => isMobile && v.length > 10 ? v.slice(0, 10) + "…" : v}
+                    />
+                    <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: "#9ca3af" }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.1)", fontSize: "12px" }}
+                      cursor={{ fill: "rgba(17,46,126,0.06)" }}
+                    />
+                    <Bar dataKey="count" name="Workers" fill="#112e7e" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Main Content Card Container (Connect2Souls Style) */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-200/80 dark:border-border shadow-xs p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
-          {/* Top Controls Row (Search Left, Dropdowns Right) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Search bar (Left side) */}
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Search workers by name, ID, role..."
-                className="pl-9 pr-8 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => setSearchInput("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+          {/* Main Content Card Container (Connect2Souls Style) */}
+          <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
+            {/* Top Controls Row (Search Left, Dropdowns Right) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Search bar (Left side) */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Search workers by name, ID, role..."
+                  className="pl-9 pr-8 text-xs font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 h-10 bg-background dark:bg-muted/30 border border-slate-200/90 dark:border-border rounded-2xl shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar w-full transition-all"
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
 
-            {/* Filter Dropdowns (Right side) */}
-            <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
-              {/* Ministry Filter */}
-              {isSuperAdmin || availableMinistries.length > 1 ? (
-                <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
-                  <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                    <SelectValue placeholder="All Ministries" />
+              {/* Filter Dropdowns (Right side) */}
+              <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+                {/* Ministry Filter */}
+                {isSuperAdmin || availableMinistries.length > 1 ? (
+                  <Select value={ministryFilter} onValueChange={(val) => { setMinistryFilter(val); setCurrentPage(1); }}>
+                    <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                      <SelectValue placeholder="All Ministries" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
+                      {availableMinistries.map(m => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : availableMinistries.length === 1 ? (
+                  <div className="h-10 px-3.5 flex items-center gap-1.5 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 text-xs font-semibold text-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    <span className="truncate max-w-[150px]">{availableMinistries[0].name}</span>
+                  </div>
+                ) : null}
+
+                {/* Status & Role Filter Dropdown */}
+                <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
+                    <SelectValue placeholder={isMinistryHeadScoped ? "All Mentors" : "All Workers"} />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Ministries</SelectItem>
-                    {availableMinistries.map(m => (
-                      <SelectItem key={m.id} value={m.id} className="text-xs font-medium cursor-pointer">
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : availableMinistries.length === 1 ? (
-                <div className="h-10 px-3.5 flex items-center gap-1.5 rounded-2xl border border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 text-xs font-semibold text-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                  <span className="truncate max-w-[150px]">{availableMinistries[0].name}</span>
-                </div>
-              ) : null}
-
-              {/* Status & Role Filter Dropdown */}
-              <Select value={activeTab} onValueChange={(val) => { setActiveTab(val as any); setCurrentPage(1); }}>
-                <SelectTrigger className="h-10 w-[180px] text-xs rounded-2xl border-slate-200/90 dark:border-border bg-white dark:bg-muted/30 font-medium shadow-2xs px-3.5 focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all cursor-pointer">
-                  <SelectValue placeholder={isMinistryHeadScoped ? "All Mentors" : "All Workers"} />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {(isMinistryHeadScoped
-                    ? [
+                    {(isMinistryHeadScoped
+                      ? [
                         { id: "all", label: "All Mentors", count: tabCounts.all },
                         { id: "active", label: "Active", count: tabCounts.active },
                         { id: "inactive", label: "Inactive", count: tabCounts.inactive },
                       ]
-                    : [
+                      : [
                         { id: "all", label: "All Workers", count: tabCounts.all },
                         { id: "active", label: "Active", count: tabCounts.active },
                         { id: "inactive", label: "Inactive", count: tabCounts.inactive },
@@ -704,208 +833,202 @@ export default function WorkersPage() {
                         { id: "heads", label: "Ministry Heads", count: tabCounts.heads },
                         { id: "admins", label: "Admins", count: tabCounts.admins },
                       ]
-                  ).map(tab => (
-                    <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
-                      {tab.label} ({tab.count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Main Table Container */}
-          <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card shadow-card-dark">
-
-          {/* Mobile list view */}
-          <div className="md:hidden divide-y divide-border/30">
-            {workersLoading ? (
-              <div className="py-16 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></div>
-            ) : displayedWorkers.length === 0 ? (
-              <div className="py-16 text-center text-sm text-muted-foreground">No workers found.</div>
-            ) : (
-              displayedWorkers.map(worker => {
-                const ministry = ministries.find(m => m.id === worker.majorMinistryId);
-                const roleLabel = getWorkerRoleLabel(worker);
-                return (
-                  <div key={worker.id} className="p-4 flex items-center justify-between gap-3">
-                    {/* Left: Basic info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2.5 mb-1.5">
-                        <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-foreground leading-tight truncate">{worker.firstName} {worker.lastName}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"}</p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-mono text-muted-foreground mb-1">{formatWorkerId(worker.workerId)}</p>
-                      <div className="flex items-center gap-2">
-                        <RoleBadge role={roleLabel} />
-                        <StatusBadge status={worker.status} />
-                      </div>
-                    </div>
-
-                    {/* Right: Details button */}
-                    <button
-                      onClick={() => setSelectedWorkerForDetails(worker)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap shrink-0"
-                    >
-                      Details
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Desktop table view */}
-          <div className="overflow-x-auto hidden md:block">
-            <table className="w-full">
-              <thead className="bg-sidebar">
-                <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                  <th className="w-10 px-4 py-3.5 text-center">
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
-                        checked={displayedWorkers.length > 0 && displayedWorkers.every(w => selectedWorkerIds.includes(w.id))}
-                        onCheckedChange={() => toggleSelectAll(displayedWorkers)}
-                      />
-                    </div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
-                    Worker {sortField === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
-                    Worker ID {sortField === "workerId" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
-                  <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
-                    Status {sortField === "status" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
-                  <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workersLoading ? (
-                  <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></td></tr>
-                ) : displayedWorkers.length === 0 ? (
-                  <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium">No workers found.</td></tr>
-                ) : displayedWorkers.map(worker => {
-                  const ministry = ministries.find(m => m.id === worker.majorMinistryId);
-                  const isSelected = selectedWorkerIds.includes(worker.id);
-                  const roleLabel = getWorkerRoleLabel(worker);
-                  const registeredDate = worker.createdAt ? new Date(worker.createdAt as any) : null;
-
-                  return (
-                    <tr
-                      key={worker.id}
-                      className={cn(
-                        "border-b border-gray-100 dark:border-border/60 transition-colors cursor-pointer",
-                        isSelected ? "bg-primary/5" : "hover:bg-slate-50/70 dark:hover:bg-muted/30"
-                      )}
-                    >
-                      <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
-                        <div className="flex items-center justify-center">
-                          <Checkbox
-                            className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelectWorker(worker.id)}
-                          />
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
-                          <div>
-                            <p className="text-sm font-semibold text-foreground leading-tight">{worker.firstName} {worker.lastName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate max-w-[160px] font-normal">{worker.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-xs font-mono text-muted-foreground whitespace-nowrap font-medium">
-                        {formatWorkerId(worker.workerId)}
-                      </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        <RoleBadge role={roleLabel} />
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
-                        {ministry?.name || "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
-                        {worker.employmentType || "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
-                        {worker.phone || "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                        <StatusBadge status={worker.status} />
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
-                        {registeredDate ? format(registeredDate, "MMM d, yyyy") : "—"}
-                      </td>
-                      <td className="px-5 py-3.5 text-center" onClick={e => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-lg border-border/80">
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
-                              <UserCog className="h-4 w-4 text-muted-foreground" /> Edit Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
-                              <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker), 100)} className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10">
-                              <Trash2 className="h-4 w-4 text-destructive" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {pagination && pagination.total > 0 && (
-            <div className="px-6 py-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs text-muted-foreground">
-                Showing {displayedWorkers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}–{Math.min(currentPage * itemsPerPage, displayedWorkers.length)} of {displayedWorkers.length.toLocaleString()} {isMinistryHeadScoped ? "mentors" : "workers"}
-              </p>
-              <div className="flex items-center gap-1.5">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-2xs font-bold text-sm">
-                  ‹
-                </button>
-                <button onClick={() => setIsBatchDeleteDialogOpen(true)} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer">
-                  <Trash2 className="h-3 w-3" /> Delete
-                </button>
-                <button onClick={() => setSelectedWorkerIds([])} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-muted/40 transition-colors cursor-pointer">
-                  <X className="h-3 w-3" /> Clear
-                </button>
+                    ).map(tab => (
+                      <SelectItem key={tab.id} value={tab.id} className="text-xs font-medium cursor-pointer">
+                        {tab.label} ({tab.count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
+
+            {/* Main Table Container */}
+            <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
+
+              {/* Mobile list view */}
+              <div className="md:hidden divide-y divide-border/30">
+                {workersLoading ? (
+                  <div className="py-16 text-center"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></div>
+                ) : displayedWorkers.length === 0 ? (
+                  <div className="py-16 text-center text-sm text-muted-foreground">No workers found.</div>
+                ) : (
+                  displayedWorkers.map(worker => {
+                    const ministry = ministries.find(m => m.id === worker.majorMinistryId);
+                    const roleLabel = getWorkerRoleLabel(worker);
+                    return (
+                      <div key={worker.id} className="p-4 flex items-center justify-between gap-3">
+                        {/* Left: Basic info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2.5 mb-1.5">
+                            <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-foreground leading-tight truncate">{worker.firstName} {worker.lastName}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{ministry?.name || "—"}</p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] font-mono text-muted-foreground mb-1">{formatWorkerId(worker.workerId)}</p>
+                          <div className="flex items-center gap-2">
+                            <RoleBadge role={roleLabel} />
+                            <StatusBadge status={worker.status} />
+                          </div>
+                        </div>
+
+                        {/* Right: Details button */}
+                        <button
+                          onClick={() => setSelectedWorkerForDetails(worker)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors whitespace-nowrap shrink-0"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Desktop table view */}
+              <div className="overflow-x-auto hidden md:block">
+                <table className="w-full">
+                  <thead className="bg-sidebar">
+                    <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                      <th className="w-10 px-4 py-3.5 text-center">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            className="h-[17px] w-[17px] rounded-[4px] border-[1.5px] border-white/90 bg-transparent data-[state=checked]:bg-white data-[state=checked]:border-white [&_svg]:text-sidebar focus-visible:ring-0 cursor-pointer shadow-xs transition-colors"
+                            checked={displayedWorkers.length > 0 && displayedWorkers.every(w => selectedWorkerIds.includes(w.id))}
+                            onCheckedChange={() => toggleSelectAll(displayedWorkers)}
+                          />
+                        </div>
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("name")}>
+                        Worker {sortField === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("workerId")}>
+                        Worker ID {sortField === "workerId" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Role</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Contact</th>
+                      <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort("status")}>
+                        Status {sortField === "status" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Registered</th>
+                      <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workersLoading ? (
+                      <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium"><LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" /></td></tr>
+                    ) : displayedWorkers.length === 0 ? (
+                      <tr><td colSpan={10} className="py-20 text-center text-sm text-muted-foreground font-medium">No workers found.</td></tr>
+                    ) : displayedWorkers.map(worker => {
+                      const ministry = ministries.find(m => m.id === worker.majorMinistryId);
+                      const isSelected = selectedWorkerIds.includes(worker.id);
+                      const roleLabel = getWorkerRoleLabel(worker);
+                      const registeredDate = worker.createdAt ? new Date(worker.createdAt as any) : null;
+
+                      return (
+                        <tr
+                          key={worker.id}
+                          className={cn(
+                            "border-b border-gray-100 dark:border-border/60 transition-colors cursor-pointer",
+                            isSelected ? "bg-primary/5" : "hover:bg-slate-50/70 dark:hover:bg-muted/30"
+                          )}
+                        >
+                          <td className="px-4 py-3.5 text-center" onClick={e => { e.stopPropagation(); toggleSelectWorker(worker.id); }}>
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                className="h-[17px] w-[17px] rounded-[4px] border-slate-300 dark:border-slate-600 data-[state=checked]:bg-sidebar data-[state=checked]:border-sidebar cursor-pointer transition-colors"
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelectWorker(worker.id)}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <WorkerInitials name={`${worker.firstName} ${worker.lastName}`} avatarUrl={worker.avatarUrl} />
+                              <div>
+                                <p className="text-sm font-semibold text-foreground leading-tight">{worker.firstName} {worker.lastName}</p>
+                                <p className="text-[11px] text-muted-foreground truncate max-w-[160px] font-normal">{worker.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 text-xs font-mono text-muted-foreground whitespace-nowrap font-medium">
+                            {formatWorkerId(worker.workerId)}
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <RoleBadge role={roleLabel} />
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
+                            {ministry?.name || "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
+                            {worker.employmentType || "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
+                            {worker.phone || "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                            <StatusBadge status={worker.status} />
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
+                            {registeredDate ? format(registeredDate, "MMM d, yyyy") : "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-center" onClick={e => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-lg border-border/80">
+                                <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                  <UserCog className="h-4 w-4 text-muted-foreground" /> Edit Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
+                                  <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setTimeout(() => handleDelete(worker), 100)} className="text-destructive cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 focus:text-destructive focus:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4 text-destructive" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {pagination && pagination.total > 0 && (
+                <div className="px-6 py-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {displayedWorkers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}–{Math.min(currentPage * itemsPerPage, displayedWorkers.length)} of {displayedWorkers.length.toLocaleString()} {isMinistryHeadScoped ? "mentors" : "workers"}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-2xs font-bold text-sm">
+                      ‹
+                    </button>
+                    <button onClick={() => setIsBatchDeleteDialogOpen(true)} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer">
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                    <button onClick={() => setSelectedWorkerIds([])} className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-muted/40 transition-colors cursor-pointer">
+                      <X className="h-3 w-3" /> Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    </div>
 
       {/* Sheets & Dialogs */}
-      <Sheet open={isImportSheetOpen} onOpenChange={setIsImportSheetOpen}>
-        <SheetContent className="sm:max-w-lg">
-          <ImportSheet onImport={handleImportWorkers} onClose={() => setIsImportSheetOpen(false)} />
-        </SheetContent>
-      </Sheet>
-
       <AlertDialog open={isBatchDeleteDialogOpen} onOpenChange={setIsBatchDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1044,6 +1167,15 @@ export default function WorkersPage() {
             setSelectedWorkerForDetails(null);
           }
         }}
+      />
+
+      {/* Export Confirmation Dialog (Yes/No) */}
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Workers Directory?"
+        description="Do you want to export the workers directory along with ministry and status summary sheets as an Excel workbook (.xlsx)?"
+        onConfirm={handleExportWorkers}
       />
     </AppLayout>
   );

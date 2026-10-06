@@ -3,7 +3,6 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import Papa from "papaparse";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@studio/ui";
 import {
@@ -41,7 +40,7 @@ import {
 } from "@studio/ui";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@studio/ui";
-import { MoreHorizontal, PlusCircle, LoaderCircle, Upload, MapPin, Search, Pencil, Trash2, X, Layers, ArrowLeft, Building, Building2 } from "lucide-react";
+import { MoreHorizontal, PlusCircle, LoaderCircle, MapPin, Search, Pencil, Trash2, X, Layers, ArrowLeft, Building, Building2 } from "lucide-react";
 import { Label } from "@studio/ui";
 import { Input } from "@studio/ui";
 import { Checkbox } from "@studio/ui";
@@ -175,79 +174,7 @@ const BranchesTab = ({ branches, areas, isLoading, onAdd, onEdit, onDelete }: { 
     );
 };
 
-// --- Area Management ---
 
-const AreaImportDialog = ({ branches, onImport, onClose }: { branches: Branch[]; onImport: (csvData: string) => void; onClose: () => void; }) => {
-    const [csvData, setCsvData] = useState('');
-    const csvFormat = "areaId,name,branchId";
-
-    return (
-        <div className="space-y-6">
-            <DialogHeader>
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-sidebar/10 text-sidebar dark:bg-sidebar/25 flex items-center justify-center shrink-0">
-                        <Upload className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-headline">
-                            Import Areas
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                            Paste CSV data below to bulk-import areas. The first line must be a header row.
-                        </DialogDescription>
-                    </div>
-                </div>
-            </DialogHeader>
-
-            <div className="space-y-4">
-                <div className="rounded-2xl border border-border/70 bg-slate-50/60 dark:bg-muted/20 p-4 sm:p-5 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="csv-format" className="text-xs font-bold text-foreground">
-                            Required CSV Format
-                        </Label>
-                        <Input id="csv-format" readOnly defaultValue={csvFormat} className="h-9 font-mono text-xs rounded-xl bg-background border-slate-200/90 dark:border-border" />
-                        <div className="mt-2 text-xs text-muted-foreground p-3 rounded-xl bg-background/80 border border-border/60 max-h-36 overflow-y-auto">
-                            <p className="font-bold mb-1.5 text-foreground">Available Satellite IDs:</p>
-                            <ul className="space-y-1">
-                                {branches.map(branch => (
-                                    <li key={branch.id} className="font-mono flex items-center justify-between gap-2">
-                                        <span className="font-semibold text-foreground">{branch.name}:</span>
-                                        <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">{branch.id}</code>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="csv-data" className="text-xs font-bold text-foreground">
-                            CSV Data
-                        </Label>
-                        <Textarea
-                            id="csv-data"
-                            value={csvData}
-                            onChange={(e) => setCsvData(e.target.value)}
-                            placeholder={`areaId,name,branchId\nL1-Floor1,First Floor,branch_id_123`}
-                            className="h-40 font-mono text-xs rounded-xl bg-background border-slate-200/90 dark:border-border"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={onClose} className="rounded-xl h-10 px-5 text-xs font-semibold">
-                    Cancel
-                </Button>
-                <Button
-                    onClick={() => onImport(csvData)}
-                    disabled={!csvData.trim()}
-                    className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl h-10 px-5 text-xs font-bold shadow-xs"
-                >
-                    Process Import
-                </Button>
-            </DialogFooter>
-        </div>
-    );
-};
 
 const AreaForm = ({ area, branches, onSave, onClose }: { area: Partial<Area> | null; branches: Branch[]; onSave: (data: Partial<Area>) => void; onClose: () => void; }) => {
     const [formData, setFormData] = useState<Partial<Area>>({
@@ -325,7 +252,7 @@ const AreaForm = ({ area, branches, onSave, onClose }: { area: Partial<Area> | n
     );
 };
 
-const AreasTab = ({ areas, branches, rooms, isLoading, onAdd, onEdit, onDelete, onImport }: { areas: Area[], branches: Branch[], rooms: Room[], isLoading: boolean, onAdd: () => void, onEdit: (area: Area) => void, onDelete: (area: Area) => void, onImport: () => void }) => {
+const AreasTab = ({ areas, branches, rooms, isLoading, onAdd, onEdit, onDelete }: { areas: Area[], branches: Branch[], rooms: Room[], isLoading: boolean, onAdd: () => void, onEdit: (area: Area) => void, onDelete: (area: Area) => void }) => {
     const getBranchName = (branchId: string) => branches.find(b => b.id === branchId)?.name || 'N/A';
     const getRoomCount = (areaId: string) => rooms.filter(r => r.areaId === areaId).length;
 
@@ -363,16 +290,6 @@ const AreasTab = ({ areas, branches, rooms, isLoading, onAdd, onEdit, onDelete, 
 
                 {/* Right Actions & Filters */}
                 <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
-                    {/* Import Button */}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onImport}
-                        className="h-10 px-3.5 text-xs font-semibold rounded-2xl border border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 hover:bg-slate-50 dark:hover:bg-muted text-slate-700 dark:text-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>Import</span>
-                    </Button>
 
                     {/* Add Area Button */}
                     <Button
@@ -470,95 +387,7 @@ const AreasTab = ({ areas, branches, rooms, isLoading, onAdd, onEdit, onDelete, 
 };
 
 
-// --- Room Management ---
-const RoomImportDialog = ({ areas, branches, onImport, onClose }: { areas: Area[]; branches: Branch[]; onImport: (csvData: string) => void; onClose: () => void; }) => {
-    const [csvData, setCsvData] = useState('');
-    const csvFormat = "name,areaId,capacity,elements";
 
-    const groupedAreas = useMemo(() => {
-        return branches.map(branch => ({
-            branchName: branch.name,
-            areas: areas.filter(area => area.branchId === branch.id)
-        })).filter(group => group.areas.length > 0);
-    }, [areas, branches]);
-
-    return (
-        <div className="space-y-6">
-            <DialogHeader>
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-sidebar/10 text-sidebar dark:bg-sidebar/25 flex items-center justify-center shrink-0">
-                        <Upload className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-headline">
-                            Import Rooms
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                            Paste CSV data below to bulk-import rooms. The first line must be a header row.
-                        </DialogDescription>
-                    </div>
-                </div>
-            </DialogHeader>
-
-            <div className="space-y-4">
-                <div className="rounded-2xl border border-border/70 bg-slate-50/60 dark:bg-muted/20 p-4 sm:p-5 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="csv-format" className="text-xs font-bold text-foreground">
-                            Required CSV Format
-                        </Label>
-                        <Input id="csv-format" readOnly defaultValue={csvFormat} className="h-9 font-mono text-xs rounded-xl bg-background border-slate-200/90 dark:border-border" />
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            <code className="text-primary bg-primary/10 px-1 py-0.5 rounded text-[11px]">elements</code> should be a semicolon-separated list of element IDs. Leave empty for no elements.
-                        </p>
-                        <div className="mt-2 text-xs text-muted-foreground p-3 rounded-xl bg-background/80 border border-border/60 max-h-36 overflow-y-auto">
-                            <p className="font-bold mb-1.5 text-foreground">Available Area IDs:</p>
-                            <ul className="space-y-1.5 font-mono">
-                                {groupedAreas.map(group => (
-                                    <li key={group.branchName} className="space-y-0.5">
-                                        <p className="font-semibold text-foreground text-xs">{group.branchName}</p>
-                                        <ul className="pl-3 space-y-0.5 border-l border-border/80">
-                                            {group.areas.map(area => (
-                                                <li key={area.id} className="flex items-center justify-between text-[11px]">
-                                                    <span>{area.name}:</span>
-                                                    <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">{area.areaId || area.id}</code>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="csv-data" className="text-xs font-bold text-foreground">
-                            CSV Data
-                        </Label>
-                        <Textarea
-                            id="csv-data"
-                            value={csvData}
-                            onChange={(e) => setCsvData(e.target.value)}
-                            placeholder={`name,areaId,capacity,elements\nConference Room A,L1-Floor1,12,Id1;Id2`}
-                            className="h-36 font-mono text-xs rounded-xl bg-background border-slate-200/90 dark:border-border"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={onClose} className="rounded-xl h-10 px-5 text-xs font-semibold">
-                    Cancel
-                </Button>
-                <Button
-                    onClick={() => onImport(csvData)}
-                    disabled={!csvData.trim()}
-                    className="bg-sidebar hover:bg-sidebar/90 text-white rounded-xl h-10 px-5 text-xs font-bold shadow-xs"
-                >
-                    Process Import
-                </Button>
-            </DialogFooter>
-        </div>
-    );
-};
 
 const RoomForm = ({ room, areas, branches, venueElements, onSave, onClose }: { room: Partial<Room> | null; areas: Area[]; branches: Branch[]; venueElements: VenueElement[]; onSave: (data: Partial<Room>) => void; onClose: () => void; }) => {
     const [formData, setFormData] = useState<Partial<Room>>({
@@ -735,7 +564,7 @@ const RoomForm = ({ room, areas, branches, venueElements, onSave, onClose }: { r
     );
 };
 
-const RoomsTab = ({ rooms, areas, branches, venueElements, isLoading, onAdd, onEdit, onDelete, onImport }: { rooms: Room[], areas: Area[], branches: Branch[], venueElements: VenueElement[], isLoading: boolean, onAdd: () => void, onEdit: (room: Room) => void, onDelete: (room: Room) => void, onImport: () => void }) => {
+const RoomsTab = ({ rooms, areas, branches, venueElements, isLoading, onAdd, onEdit, onDelete }: { rooms: Room[], areas: Area[], branches: Branch[], venueElements: VenueElement[], isLoading: boolean, onAdd: () => void, onEdit: (room: Room) => void, onDelete: (room: Room) => void }) => {
     const getAreaAndBranch = (areaIdValue: string) => {
         const area = areas.find(a => a.id === areaIdValue);
         if (!area) return { areaName: 'N/A', branchName: 'N/A' };
@@ -810,17 +639,6 @@ const RoomsTab = ({ rooms, areas, branches, venueElements, isLoading, onAdd, onE
                             <SelectItem value="Maintenance" className="text-xs cursor-pointer">Maintenance</SelectItem>
                         </SelectContent>
                     </Select>
-
-                    {/* Import Button */}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onImport}
-                        className="h-10 px-3.5 text-xs font-semibold rounded-2xl border border-slate-200/90 dark:border-border bg-background dark:bg-muted/30 hover:bg-slate-50 dark:hover:bg-muted text-slate-700 dark:text-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>Import</span>
-                    </Button>
 
                     {/* Add Room Button */}
                     <Button
@@ -953,12 +771,10 @@ export default function RoomManagementPage() {
     const [isAreaSheetOpen, setIsAreaSheetOpen] = useState(false);
     const [selectedArea, setSelectedArea] = useState<Area | null>(null);
     const [areaToDelete, setAreaToDelete] = useState<Area | null>(null);
-    const [isAreaImportSheetOpen, setIsAreaImportSheetOpen] = useState(false);
 
     const [isRoomSheetOpen, setIsRoomSheetOpen] = useState(false);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
-    const [isRoomImportSheetOpen, setIsRoomImportSheetOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'rooms' | 'areas'>('rooms');
 
     const isLoading = roomsDataLoading || isRoleLoading || venueElementsLoading;
@@ -1019,76 +835,7 @@ export default function RoomManagementPage() {
         }
     };
 
-    const handleImportAreas = (csvData: string) => {
-        if (!branches) {
-            toast({ variant: 'destructive', title: 'Satellites not loaded', description: 'Please wait for satellites to load before importing.' });
-            return;
-        }
 
-        const validBranchIds = new Set(branches.map(b => b.id));
-
-        Papa.parse(csvData, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                const newAreasData = results.data;
-                if (newAreasData.length === 0) {
-                    toast({ variant: 'destructive', title: 'No Data Found', description: 'The CSV data was empty or invalid.' });
-                    return;
-                }
-
-                try {
-                    const toImport: any[] = [];
-                    let invalidRowCount = 0;
-
-                    newAreasData.forEach((newArea: any) => {
-                        if (!newArea.areaId || !newArea.name || !newArea.branchId || !validBranchIds.has(newArea.branchId)) {
-                            console.warn('Skipping invalid row:', newArea);
-                            invalidRowCount++;
-                            return;
-                        }
-
-                        toImport.push({
-                            id: newArea.areaId,
-                            areaId: newArea.areaId,
-                            name: newArea.name,
-                            branchId: newArea.branchId,
-                        });
-                    });
-
-                    if (toImport.length === 0) {
-                        toast({
-                            variant: "destructive",
-                            title: "Import Failed",
-                            description: `All ${invalidRowCount} rows were invalid. Please check that 'areaId' and 'name' are provided and 'branchId' is valid.`,
-                        });
-                        return;
-                    }
-
-                    await createAreas(toImport);
-
-                    let description = `${toImport.length} areas were imported.`;
-                    if (invalidRowCount > 0) {
-                        description += ` ${invalidRowCount} rows were skipped due to invalid data.`
-                    }
-
-                    toast({
-                        title: "Import Successful",
-                        description: description
-                    });
-                    setIsAreaImportSheetOpen(false);
-
-                } catch (error) {
-                    toast({
-                        variant: "destructive",
-                        title: "Import Failed",
-                        description: "An error occurred during the import. Check console for details.",
-                    });
-                    console.error("Import error:", error);
-                }
-            }
-        })
-    }
 
     const handleDeleteArea = async () => {
         if (!areaToDelete) return;
@@ -1102,82 +849,7 @@ export default function RoomManagementPage() {
     };
 
 
-    // --- Room Handlers ---
-    const handleImportRooms = (csvData: string) => {
-        if (!areas) {
-            toast({ variant: 'destructive', title: 'Areas not loaded', description: 'Please wait for areas to load before importing.' });
-            return;
-        }
 
-        const validAreaIds = new Set(areas.map(a => a.id));
-
-        Papa.parse(csvData, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                const newRoomsData = results.data;
-                if (newRoomsData.length === 0) {
-                    toast({ variant: 'destructive', title: 'No Data Found', description: 'The CSV data was empty or invalid.' });
-                    return;
-                }
-
-                try {
-                    const toImport: any[] = [];
-                    let invalidRowCount = 0;
-
-                    newRoomsData.forEach((newRoom: any) => {
-                        const capacity = parseInt(newRoom.capacity, 10);
-                        const areaIdFromCsv = newRoom.areaId;
-
-                        if (!newRoom.name || !areaIdFromCsv || !validAreaIds.has(areaIdFromCsv) || isNaN(capacity)) {
-                            console.warn('Skipping invalid row:', newRoom);
-                            invalidRowCount++;
-                            return;
-                        }
-
-                        const elements = newRoom.elements ? newRoom.elements.split(';').map((e: string) => e.trim()).filter(Boolean) : [];
-
-                        toImport.push({
-                            name: newRoom.name,
-                            areaId: areaIdFromCsv,
-                            capacity: capacity,
-                            elements: elements
-                        });
-                    });
-
-                    if (toImport.length === 0) {
-                        toast({
-                            variant: "destructive",
-                            title: "Import Failed",
-                            description: `All ${invalidRowCount} rows were invalid. Please check that 'name', a valid 'areaId', and a numeric 'capacity' are provided.`,
-                        });
-                        return;
-                    }
-
-                    await createRooms(toImport);
-
-                    let description = `${toImport.length} rooms were imported.`;
-                    if (invalidRowCount > 0) {
-                        description += ` ${invalidRowCount} rows were skipped due to invalid data.`
-                    }
-
-                    toast({
-                        title: "Import Successful",
-                        description: description
-                    });
-                    setIsRoomImportSheetOpen(false);
-
-                } catch (error) {
-                    toast({
-                        variant: "destructive",
-                        title: "Import Failed",
-                        description: "An error occurred during the import. Check console for details.",
-                    });
-                    console.error("Import error:", error);
-                }
-            }
-        });
-    };
 
     const handleSaveRoom = async (data: Partial<Room>) => {
         try {
@@ -1281,7 +953,6 @@ export default function RoomManagementPage() {
                         onAdd={() => { setSelectedRoom(null); setIsRoomSheetOpen(true); }}
                         onEdit={(room) => { setSelectedRoom(room); setIsRoomSheetOpen(true); }}
                         onDelete={(room) => setRoomToDelete(room)}
-                        onImport={() => setIsRoomImportSheetOpen(true)}
                     />
                 )}
                 {activeTab === 'areas' && (
@@ -1293,7 +964,6 @@ export default function RoomManagementPage() {
                         onAdd={() => { setSelectedArea(null); setIsAreaSheetOpen(true); }}
                         onEdit={(area) => { setSelectedArea(area); setIsAreaSheetOpen(true); }}
                         onDelete={(area) => setAreaToDelete(area)}
-                        onImport={() => setIsAreaImportSheetOpen(true)}
                     />
                 )}
                 </div>
@@ -1310,21 +980,7 @@ export default function RoomManagementPage() {
                     <AreaForm area={selectedArea} branches={branches || []} onSave={handleSaveArea} onClose={() => setIsAreaSheetOpen(false)} />
                 </DialogContent>
             </Dialog>
-            <Dialog open={isAreaImportSheetOpen} onOpenChange={setIsAreaImportSheetOpen}>
-                <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 rounded-2xl border-border/80 shadow-2xl">
-                    <AreaImportDialog branches={branches || []} onImport={handleImportAreas} onClose={() => setIsAreaImportSheetOpen(false)} />
-                </DialogContent>
-            </Dialog>
-            <Dialog open={isRoomImportSheetOpen} onOpenChange={setIsRoomImportSheetOpen}>
-                <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 rounded-2xl border-border/80 shadow-2xl">
-                    <RoomImportDialog
-                        areas={areas || []}
-                        branches={branches || []}
-                        onImport={handleImportRooms}
-                        onClose={() => setIsRoomImportSheetOpen(false)}
-                    />
-                </DialogContent>
-            </Dialog>
+
             <Dialog open={isRoomSheetOpen} onOpenChange={setIsRoomSheetOpen}>
                 <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-7 rounded-2xl border-border/80 shadow-2xl">
                     <RoomForm

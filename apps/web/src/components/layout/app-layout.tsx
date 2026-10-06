@@ -12,6 +12,7 @@ import {
 } from "@studio/ui";
 import { Nav } from "@/components/layout/nav";
 import { UserNav } from "@/components/layout/user-nav";
+import { ThemeToggle } from "@/components/settings/theme-toggle";
 import {
   LoaderCircle,
   Info,
@@ -157,7 +158,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 className="w-12 h-12 object-contain shrink-0"
                 priority
               />
-              <span className="text-2xl font-extrabold font-headline tracking-tight text-white translate-y-0.5 leading-none">
+              <span
+                className="font-extrabold font-headline tracking-tight text-white translate-y-0.5 leading-none brand-title"
+                style={{ fontSize: "28px" }}
+              >
                 COG APP
               </span>
             </div>
@@ -182,18 +186,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               className="w-9 h-9 object-contain"
               priority
             />
-            <span className="text-lg font-extrabold font-headline tracking-tight">COG APP</span>
+            <span
+              className="font-extrabold font-headline tracking-tight brand-title"
+              style={{ fontSize: "22px" }}
+            >
+              COG APP
+            </span>
           </div>
         </div>
         <div className="w-full flex-1" />
+        <ThemeToggle variant="compact" />
         <UserNav />
       </header>
 
       <SidebarInset className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 min-w-0 max-w-full flex flex-col h-screen overflow-hidden">
         <ImpersonationBanner />
         {/* Desktop header bar (inside SidebarInset, sticky) */}
-        <header className="hidden md:flex h-[52px] items-center gap-4 border-b border-border/50 bg-white/95 dark:bg-card/95 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-40 shrink-0 shadow-2xs">
+        <header className="hidden md:flex h-[52px] items-center gap-3 border-b border-border/50 bg-white/95 dark:bg-card/95 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-40 shrink-0 shadow-2xs">
           <div className="w-full flex-1" />
+          <ThemeToggle variant="compact" />
           <UserNav />
         </header>
         {/* Mobile spacer so content doesn't hide behind fixed header */}

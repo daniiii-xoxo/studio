@@ -41,15 +41,20 @@ import {
 } from '@studio/ui';
 import { cn } from '@/lib/utils';
 import Papa from 'papaparse';
+import { exportToExcel } from '@/lib/export-excel';
+import { ExportConfirmDialog } from '@/components/common/export-confirm-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type ActionCategory = 'ALL' | 'STOCK_IN' | 'STOCK_OUT' | 'BORROW' | 'ADJUSTMENT';
 
 export function StockLogsPanel() {
+  const { toast } = useToast();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedAction, setSelectedAction] = useState<ActionCategory>('ALL');
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
   const fetchAuditLogs = async () => {
     setLoading(true);
@@ -201,31 +206,71 @@ export function StockLogsPanel() {
     return { full, short, relative };
   };
 
-  const handleExportCSV = () => {
-    if (filteredLogs.length === 0) return;
-    const exportData = filteredLogs.map((entry) => {
+  const handleExportExcel = () => {
+    if (filteredLogs.length === 0) {
+      toast({ variant: 'destructive', title: 'No logs to export' });
+      return;
+    }
+
+    const logHeaders = [
+      'Timestamp',
+      'Action',
+      'Item Name',
+      'Inventory Code',
+      'Quantity Change',
+      'Balance After',
+      'Initiator',
+      'Notes',
+    ];
+
+    const logRows = filteredLogs.map((entry) => {
       const d = entry.data || {};
-      return {
-        Timestamp: new Date(entry.timestamp).toISOString(),
-        Action: d.action || entry.action || '',
-        Item_Name: d.item?.name || 'Item Record',
-        Inventory_Code: d.item?.inventoryCode || '',
-        Quantity_Change: d.quantity ?? '',
-        Balance_After: d.balance ?? '',
-        Worker_Initiator: d.workerId || d.workerName || 'System',
-        Notes: d.notes || '',
-      };
+      return [
+        new Date(entry.timestamp).toLocaleString(),
+        d.action || entry.action || '',
+        d.item?.name || 'Item Record',
+        d.item?.inventoryCode || '—',
+        d.quantity ?? '—',
+        d.balance ?? '—',
+        d.workerId || d.workerName || 'System',
+        d.notes || '—',
+      ];
     });
 
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `inventory_audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const actionCounts: Record<string, number> = {};
+    filteredLogs.forEach((entry) => {
+      const a = entry.data?.action || entry.action || 'OTHER';
+      actionCounts[a] = (actionCounts[a] || 0) + 1;
+    });
+
+    const actionRows = Object.entries(actionCounts).map(([action, count]) => [
+      action,
+      count,
+      `${Math.round((count / filteredLogs.length) * 100)}%`,
+    ]);
+
+    exportToExcel(`inventory_audit_logs_${new Date().toISOString().split('T')[0]}.xlsx`, [
+      {
+        name: 'Audit Logs',
+        data: [logHeaders, ...logRows],
+        colWidths: [22, 18, 24, 16, 16, 14, 20, 32],
+      },
+      {
+        name: 'Action Summary',
+        data: [
+          ['Total Logs', filteredLogs.length],
+          [],
+          ['Action Type', 'Count', 'Share'],
+          ...actionRows,
+        ],
+        colWidths: [20, 14, 14],
+      },
+    ]);
+
+    toast({
+      title: 'Audit Logs Exported',
+      description: `Exported ${filteredLogs.length} audit log entries to Excel.`,
+    });
   };
 
   return (
@@ -302,10 +347,10 @@ export function StockLogsPanel() {
               variant="outline"
               size="sm"
               className="h-10 px-3.5 text-xs font-semibold rounded-2xl gap-1.5 border-slate-200/90 dark:border-border shadow-2xs cursor-pointer hover:bg-muted/60 bg-white dark:bg-muted/30 text-foreground"
-              onClick={handleExportCSV}
+              onClick={() => setShowExportConfirm(true)}
             >
               <Download className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Export CSV</span>
+              <span>Export Excel</span>
             </Button>
 
             <Button
@@ -471,6 +516,15 @@ export function StockLogsPanel() {
           )}
         </div>
       </Card>
+
+      {/* ── EXPORT CONFIRMATION MODAL (YES/NO) ── */}
+      <ExportConfirmDialog
+        open={showExportConfirm}
+        onOpenChange={setShowExportConfirm}
+        title="Export Inventory Audit Logs?"
+        description="Do you want to export the audit log entries and action summary as an Excel file (.xlsx) with clean, organized formatting?"
+        onConfirm={handleExportExcel}
+      />
     </div>
   );
 }

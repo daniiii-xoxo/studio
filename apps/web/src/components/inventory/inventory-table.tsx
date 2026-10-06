@@ -67,6 +67,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useInventory, type InventoryItem } from '@/hooks/use-inventory';
 import { useToast } from '@/hooks/use-toast';
+import { exportToExcel } from '@/lib/export-excel';
+import { ExportConfirmDialog } from '@/components/common/export-confirm-dialog';
 import { QRModal } from './qr-modal';
 import { ItemModal } from './item-modal';
 import { StockScanModal } from './stock-scan-modal';
@@ -383,76 +385,95 @@ export function InventoryTable({
     setIsQrModalOpen(true);
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const exportData = items.map((i) => ({
-      'Item Name': i.name,
-      'Inventory Code': i.inventoryCode || '',
-      Category: i.category?.name || '',
-      Type: i.type,
-      Stock: i.stock,
-      Unit: i.unit,
-      'Min Stock': i.minStock,
-      Location: i.location || '',
-      Aisle: i.aisle || '',
-      Shelf: i.shelf || '',
-      Bin: i.bin || '',
-      Status: i.status || 'Good Condition',
-    }));
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
 
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Export Excel
+  const handleExportExcel = () => {
+    const itemHeaders = [
+      'Item Name',
+      'Inventory Code',
+      'Category',
+      'Type',
+      'Stock',
+      'Unit',
+      'Min Stock',
+      'Location',
+      'Aisle',
+      'Shelf',
+      'Bin',
+      'Status',
+    ];
+
+    const itemRows = items.map((i) => [
+      i.name,
+      i.inventoryCode || '—',
+      i.category?.name || 'Uncategorized',
+      i.type,
+      i.stock,
+      i.unit,
+      i.minStock,
+      i.location || '—',
+      i.aisle || '—',
+      i.shelf || '—',
+      i.bin || '—',
+      i.status || 'Good Condition',
+    ]);
+
+    // Low stock items
+    const lowStockItems = items.filter((i) => i.stock <= (i.minStock || 5));
+    const lowStockRows = lowStockItems.map((i) => [
+      i.name,
+      i.inventoryCode || '—',
+      i.category?.name || 'Uncategorized',
+      i.stock,
+      i.minStock,
+      i.stock === 0 ? 'Out of Stock' : 'Low Stock',
+      i.location || '—',
+    ]);
+
+    // Category breakdown
+    const categoryCounts: Record<string, number> = {};
+    items.forEach((i) => {
+      const cat = i.category?.name || 'Uncategorized';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+
+    const categoryRows = Object.entries(categoryCounts).map(([cat, count]) => [
+      cat,
+      count,
+      items.length > 0 ? `${Math.round((count / items.length) * 100)}%` : '0%',
+    ]);
+
+    exportToExcel(`inventory_export_${new Date().toISOString().split('T')[0]}.xlsx`, [
+      {
+        name: 'Inventory Items',
+        data: [itemHeaders, ...itemRows],
+        colWidths: [26, 16, 20, 14, 10, 10, 12, 16, 10, 10, 10, 16],
+      },
+      {
+        name: 'Low Stock Alerts',
+        data: [
+          ['Item Name', 'Inventory Code', 'Category', 'Current Stock', 'Min Stock', 'Alert Status', 'Location'],
+          ...lowStockRows,
+        ],
+        colWidths: [26, 16, 20, 14, 12, 16, 16],
+      },
+      {
+        name: 'Category Summary',
+        data: [
+          ['Total Items', items.length],
+          [],
+          ['Category', 'Count', 'Share'],
+          ...categoryRows,
+        ],
+        colWidths: [24, 14, 14],
+      },
+    ]);
 
     toast({
       title: 'Export generated',
-      description: `Exported ${items.length} items to CSV file.`,
+      description: `Exported ${items.length} items with low stock and category tabs to Excel.`,
     });
-  };
-
-  // Import CSV
-  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const mapped = results.data.map((row: any) => ({
-            name: row['Item Name'] || row['name'] || 'Unnamed Item',
-            inventoryCode: row['Inventory Code'] || row['code'] || undefined,
-            type: (row['Type'] || row['type'] || 'EQUIPMENT').toUpperCase(),
-            stock: parseInt(row['Stock'] || row['quantity'] || '0', 10),
-            unit: row['Unit'] || row['unit'] || 'pcs',
-            minStock: parseInt(row['Min Stock'] || row['minStock'] || '0', 10),
-            location: row['Location'] || row['location'] || undefined,
-            status: row['Status'] || row['status'] || 'Good Condition',
-          }));
-
-          await bulkImportItems(mapped);
-          toast({
-            title: 'Import completed',
-            description: `Successfully imported ${mapped.length} item(s).`,
-          });
-          loadData();
-        } catch (err: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Import failed',
-            description: err.message || 'Could not parse or import CSV data.',
-          });
-        }
-      },
-    });
-    e.target.value = '';
   };
 
   const hasActiveFilters = Boolean(
@@ -655,32 +676,16 @@ export function InventoryTable({
               </Button>
             )}
 
-            {/* Secondary More Actions Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>CSV</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                <label className="cursor-pointer">
-                  <DropdownMenuItem className="cursor-pointer gap-2" onSelect={(e) => e.preventDefault()}>
-                    <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Import CSV</span>
-                    <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
-                  </DropdownMenuItem>
-                </label>
-                <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleExportCSV}>
-                  <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Export CSV</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Export Excel Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
+              onClick={() => setShowExportConfirm(true)}
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Export Excel</span>
+            </Button>
 
             {/* Primary + Add Item Button */}
             <Button
@@ -967,7 +972,7 @@ export function InventoryTable({
                           <p className="text-xs text-muted-foreground max-w-sm">
                             {hasActiveFilters
                               ? 'No items matched your search filters. Try clearing filters to see all catalog items.'
-                              : 'Get started by clicking "+ Add Item" or importing a CSV spreadsheet.'}
+                              : 'Get started by clicking "+ Add Item" to register your supplies and equipment.'}
                           </p>
                           {hasActiveFilters ? (
                             <Button variant="outline" size="sm" onClick={resetAllFilters} className="mt-2 text-xs rounded-xl">
@@ -1563,6 +1568,14 @@ export function InventoryTable({
             </DialogContent>
           </Dialog>
         )}
+        {/* ── EXPORT CONFIRMATION MODAL (YES/NO) ── */}
+        <ExportConfirmDialog
+          open={showExportConfirm}
+          onOpenChange={setShowExportConfirm}
+          title="Export Inventory Report?"
+          description="Do you want to export the inventory items, low stock alerts, and category summary as an Excel file (.xlsx)?"
+          onConfirm={handleExportExcel}
+        />
       </div>
     </TooltipProvider>
   );

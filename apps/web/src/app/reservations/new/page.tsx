@@ -180,6 +180,33 @@ export default function NewReservationPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!requesterName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Missing Requester Name",
+        description: "Please enter the requester name.",
+      });
+      return;
+    }
+
+    if (!ministryId) {
+      toast({
+        variant: "destructive",
+        title: "Missing Ministry",
+        description: "Please select a ministry.",
+      });
+      return;
+    }
+
+    if (!email.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Missing Email",
+        description: "Please provide an email address.",
+      });
+      return;
+    }
+
     if (!purpose.trim()) {
       toast({
         variant: "destructive",
@@ -235,7 +262,7 @@ export default function NewReservationPage() {
     }
 
     const paxNum = parseInt(pax);
-    if (!paxNum || paxNum <= 0) {
+    if (!pax || isNaN(paxNum) || paxNum <= 0) {
       toast({
         variant: "destructive",
         title: "Missing Pax",
@@ -249,6 +276,42 @@ export default function NewReservationPage() {
         variant: "destructive",
         title: "Capacity Exceeded",
         description: `This room holds a maximum of ${selectedRoom.capacity} people. Please pick a larger room.`,
+      });
+      return;
+    }
+
+    const tablesNum = parseInt(numTables);
+    if (numTables === "" || isNaN(tablesNum) || tablesNum < 0) {
+      toast({
+        variant: "destructive",
+        title: "Missing Tables Count",
+        description: "Please specify the number of tables (enter 0 if none).",
+      });
+      return;
+    }
+    if (tablesNum > 5) {
+      toast({
+        variant: "destructive",
+        title: "Tables Limit Exceeded",
+        description: "Maximum of 5 tables allowed per reservation.",
+      });
+      return;
+    }
+
+    const chairsNum = parseInt(numChairs);
+    if (numChairs === "" || isNaN(chairsNum) || chairsNum < 0) {
+      toast({
+        variant: "destructive",
+        title: "Missing Chairs Count",
+        description: "Please specify the number of chairs (enter 0 if none).",
+      });
+      return;
+    }
+    if (chairsNum > 60) {
+      toast({
+        variant: "destructive",
+        title: "Chairs Limit Exceeded",
+        description: "Maximum of 60 chairs allowed per reservation.",
       });
       return;
     }
@@ -294,7 +357,7 @@ export default function NewReservationPage() {
         return;
       }
 
-      // Check conflicts
+      // Check conflicts - Block ANY reservation (Approved or Pending) in the same time slot
       const existingReservations = await getBookingsForRoomOnDate(
         roomId,
         parsedDate
@@ -311,22 +374,17 @@ export default function NewReservationPage() {
 
         if (resStart && resEnd && start < resEnd && end > resStart) {
           hasConflict = true;
-          if (res.status === "Approved") {
-            conflictingStatus = "Approved";
-            conflictingRequester = res.name;
-            break;
-          } else if (res.status.startsWith("Pending")) {
-            conflictingStatus = "Pending";
-            conflictingRequester = res.name;
-          }
+          conflictingStatus = res.status;
+          conflictingRequester = res.name;
+          break;
         }
       }
 
-      if (hasConflict && conflictingStatus === "Approved") {
+      if (hasConflict) {
         toast({
           variant: "destructive",
-          title: "Slot Unavailable",
-          description: `This time slot is already approved for ${conflictingRequester}.`,
+          title: "Time Slot Unavailable",
+          description: `This room is already reserved (${conflictingStatus}) by ${conflictingRequester} for this time slot. Please choose a different time or room.`,
         });
         setIsSubmitting(false);
         return;
@@ -363,11 +421,7 @@ export default function NewReservationPage() {
         await createApproval({
           requester: requesterName || "System Admin",
           type: "Room Booking",
-          details:
-            `"${purpose}" for room: ${selectedRoom?.name}` +
-            (hasConflict && conflictingStatus === "Pending"
-              ? `\n(⚠️ Conflicts with pending request by ${conflictingRequester})`
-              : ""),
+          details: `"${purpose}" for room: ${selectedRoom?.name}`,
           date: new Date(),
           status: "Pending Ministry Approval",
           roomId,
@@ -488,9 +542,10 @@ export default function NewReservationPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Requester Name
+                  Requester Name <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <Input
+                  required
                   value={requesterName}
                   onChange={(e) => setRequesterName(e.target.value)}
                   placeholder="System Admin"
@@ -500,7 +555,7 @@ export default function NewReservationPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Ministry
+                  Ministry <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <Select value={ministryId} onValueChange={setMinistryId}>
                   <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
@@ -520,10 +575,11 @@ export default function NewReservationPage() {
             {/* Row 3: Email */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Email
+                Email <span className="text-red-500 ml-0.5">*</span>
               </label>
               <Input
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@gmail.com"
@@ -534,9 +590,10 @@ export default function NewReservationPage() {
             {/* Row 4: Purpose of Reservation */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Purpose of Reservation
+                Purpose of Reservation <span className="text-red-500 ml-0.5">*</span>
               </label>
               <Textarea
+                required
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="Describe the event or meeting...."
@@ -549,7 +606,7 @@ export default function NewReservationPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Select Date
+                    Select Date <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <DatePicker
                     value={selectedDate}
@@ -576,7 +633,7 @@ export default function NewReservationPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Start Time
+                    Start Time <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <Select value={startTime} onValueChange={setStartTime}>
                     <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
@@ -590,9 +647,9 @@ export default function NewReservationPage() {
                             key={`start-${slot.value}`}
                             value={slot.value}
                             disabled={passed}
-                            className={cn("text-xs", passed && "opacity-40 line-through")}
+                            className="text-xs"
                           >
-                            {slot.display} {passed ? "(Passed)" : ""}
+                            {slot.display}
                           </SelectItem>
                         );
                       })}
@@ -608,7 +665,7 @@ export default function NewReservationPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    End Time
+                    End Time <span className="text-red-500 ml-0.5">*</span>
                   </label>
                   <Select value={endTime} onValueChange={setEndTime}>
                     <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
@@ -622,9 +679,9 @@ export default function NewReservationPage() {
                             key={`end-${slot.value}`}
                             value={slot.value}
                             disabled={passed}
-                            className={cn("text-xs", passed && "opacity-40 line-through")}
+                            className="text-xs"
                           >
-                            {slot.display} {passed ? "(Passed)" : ""}
+                            {slot.display}
                           </SelectItem>
                         );
                       })}
@@ -640,7 +697,7 @@ export default function NewReservationPage() {
             {/* Row 6: Floor / Room */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Floor / Room
+                Floor / Room <span className="text-red-500 ml-0.5">*</span>
               </label>
               <Select value={roomId} onValueChange={setRoomId}>
                 <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
@@ -678,55 +735,77 @@ export default function NewReservationPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Pax
+                  Pax <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <Input
                   type="number"
+                  required
+                  min={1}
                   value={pax}
-                  onChange={(e) => setPax(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    const maxCapacity = selectedRoom?.capacity || 999;
+                    if (val <= maxCapacity || e.target.value === "") {
+                      setPax(e.target.value);
+                    }
+                  }}
                   placeholder="Number of people"
+                  max={selectedRoom?.capacity || undefined}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
                 {selectedRoom && (
-                  <p
-                    className={cn(
-                      "text-[11px] font-medium mt-1 transition-colors",
-                      parseInt(pax) > selectedRoom.capacity
-                        ? "text-red-500 font-semibold"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {parseInt(pax) > selectedRoom.capacity
-                      ? `⚠️ Capacity Exceeded! Max: ${selectedRoom.capacity}`
-                      : `Max room capacity: ${selectedRoom.capacity}`}
+                  <p className="text-[11px] font-medium mt-1 text-muted-foreground">
+                    Max room capacity: {selectedRoom.capacity}
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  No. of Tables
+                  No. of Tables <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <Input
                   type="number"
+                  required
+                  min={0}
                   value={numTables}
-                  onChange={(e) => setNumTables(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val <= 5 || e.target.value === "") {
+                      setNumTables(e.target.value);
+                    }
+                  }}
                   placeholder="0"
+                  max={5}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
+                <p className="text-[11px] font-medium text-muted-foreground mt-1">
+                  Maximum: 5 tables
+                </p>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  No. of Chairs
+                  No. of Chairs <span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <Input
                   type="number"
+                  required
+                  min={0}
                   value={numChairs}
-                  onChange={(e) => setNumChairs(e.target.value)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val <= 60 || e.target.value === "") {
+                      setNumChairs(e.target.value);
+                    }
+                  }}
                   placeholder="0"
+                  max={60}
                   className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
+                <p className="text-[11px] font-medium mt-1 text-muted-foreground">
+                  Maximum: 60 chairs
+                </p>
               </div>
             </div>
 
