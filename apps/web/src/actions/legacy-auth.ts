@@ -386,10 +386,17 @@ export async function completeFirstLoginPasswordChange(
  * Simple Worker ID → email lookup for the login page.
  * No legacy password logic — just resolves the email so Supabase can sign in.
  */
-export async function getWorkerEmail(workerId: string): Promise<{ success: boolean; email?: string; error?: string }> {
+export async function getWorkerEmail(workerId: string): Promise<{ success: boolean; email?: string; error?: string; isDeactivated?: boolean }> {
   try {
+    const cleanId = workerId.trim();
     const worker = await prisma.worker.findFirst({
-      where: { workerId },
+      where: {
+        OR: [
+          { workerId: cleanId },
+          { workerId: cleanId.replace(/^COG-/i, '') },
+          { workerId: `COG-${cleanId}` },
+        ]
+      },
       select: { email: true, status: true },
     });
 
@@ -398,7 +405,7 @@ export async function getWorkerEmail(workerId: string): Promise<{ success: boole
     }
 
     if (worker.status !== "Active") {
-      return { success: false, error: "Your account is inactive. Please contact your administrator." };
+      return { success: false, isDeactivated: true, error: "Your account is deactivated. Please contact your administrator." };
     }
 
     return { success: true, email: worker.email };
@@ -407,3 +414,42 @@ export async function getWorkerEmail(workerId: string): Promise<{ success: boole
     return { success: false, error: "Could not look up Worker ID. Please try again." };
   }
 }
+
+/**
+ * Validates identifier (email or worker ID) and checks account active status before login.
+ */
+export async function validateLoginIdentifier(
+  identifier: string,
+  mode: "email" | "worker" = "email"
+): Promise<{ success: boolean; email?: string; error?: string; isDeactivated?: boolean }> {
+  try {
+    const clean = identifier.trim();
+    if (!clean) {
+      return { success: false, error: "Identifier cannot be empty." };
+    }
+
+    if (mode === "worker") {
+      return await getWorkerEmail(clean);
+    }
+
+    // Email mode: check if worker exists and is active
+    const worker = await prisma.worker.findFirst({
+      where: { email: { equals: clean, mode: "insensitive" } },
+      select: { email: true, status: true },
+    });
+
+    if (worker && worker.status !== "Active") {
+      return {
+        success: false,
+        isDeactivated: true,
+        error: "Your account is deactivated. Please contact your administrator.",
+      };
+    }
+
+    return { success: true, email: worker?.email || clean };
+  } catch (error: any) {
+    console.error("validateLoginIdentifier error:", error);
+    return { success: false, error: "Could not verify account status. Please try again." };
+  }
+}
+

@@ -24,6 +24,7 @@ import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useImpersonation } from "@/hooks/use-impersonation";
 import { useMinistries } from "@/hooks/use-ministries";
+import { requestPasswordReset } from "@/actions/auth";
 import { LogOut, ChevronDown, QrCode, KeyRound, User, Loader2 } from "lucide-react";
 
 export function UserNav() {
@@ -59,13 +60,18 @@ export function UserNav() {
   const handleChangePassword = async () => {
     if (!user?.email) return;
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
+      const res = await requestPasswordReset(user.email, window.location.origin);
+      if (!res.success) {
+        toast({
+          variant: "destructive",
+          title: res.isDeactivated ? "Account Deactivated" : "Error",
+          description: res.error || "Failed to send password reset email.",
+        });
+        return;
+      }
       toast({
         title: "Password Reset Email Sent",
-        description: "Please check your inbox to reset your password.",
+        description: `Instructions sent to ${res.email}. Please check your inbox.`,
       });
     } catch (error: any) {
       toast({

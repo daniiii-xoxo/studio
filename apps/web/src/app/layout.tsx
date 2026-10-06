@@ -23,6 +23,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+import Script from "next/script";
 import { AuthSync } from "./auth-sync";
 import { ReactQueryProvider } from "@/providers/react-query-provider";
 
@@ -33,8 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={ibmPlexSans.variable} suppressHydrationWarning>
-      <head>
-        <script
+      <body className="font-body antialiased">
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -64,8 +67,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className="font-body antialiased">
         <ReactQueryProvider>
           <AuthSync>
             {children}

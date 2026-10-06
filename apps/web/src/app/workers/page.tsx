@@ -54,6 +54,7 @@ import { EditWorkerDialog } from "@/components/workers/edit-worker-dialog";
 import { DeleteConfirmationDialog } from "@/components/common/delete-confirmation-dialog";
 import { cn } from "@/lib/utils";
 import { cleanPhoneNumber } from "@/lib/validation";
+import { requestPasswordReset } from "@/actions/auth";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -455,11 +456,42 @@ export default function WorkersPage() {
   const handlePasswordReset = async (worker: Worker) => {
     if (!worker.email) { toast({ variant: "destructive", title: "No email found" }); return; }
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(worker.email, { redirectTo: `${window.location.origin}/auth/update-password` });
-      if (error) throw error;
+      const res = await requestPasswordReset(worker.email, window.location.origin);
+      if (!res.success) {
+        toast({
+          variant: "destructive",
+          title: res.isDeactivated ? "Account Deactivated" : "Failed",
+          description: res.error || "Failed to send reset link.",
+        });
+        return;
+      }
       toast({ title: "Reset link sent", description: `Sent to ${worker.email}.` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed", description: error.message });
+    }
+  };
+
+  const handleToggleStatus = async (worker: Worker) => {
+    const newStatus = worker.status === "Active" ? "Inactive" : "Active";
+    try {
+      await updateWorkerSql({ id: worker.id, data: { status: newStatus } });
+      await logAction(
+        newStatus === "Active" ? "Activated Worker" : "Deactivated Worker",
+        "Workers",
+        `Set ${worker.firstName} ${worker.lastName} to ${newStatus}`,
+        worker.id,
+        `${worker.firstName} ${worker.lastName}`
+      );
+      toast({
+        title: newStatus === "Active" ? "Worker Activated" : "Worker Deactivated",
+        description: `${worker.firstName} ${worker.lastName} is now ${newStatus.toLowerCase()}.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Status Update Failed",
+        description: error?.message || "Failed to update worker status.",
+      });
     }
   };
 
@@ -983,10 +1015,19 @@ export default function WorkersPage() {
                                   <MoreHorizontal className="h-4 w-4" />
                                 </button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl shadow-lg border-border/80">
+                              <DropdownMenuContent align="end" className="w-52 p-1 rounded-xl shadow-lg border-border/80">
                                 <DropdownMenuItem onSelect={() => setTimeout(() => handleEdit(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
                                   <UserCog className="h-4 w-4 text-muted-foreground" /> Edit Profile
                                 </DropdownMenuItem>
+                                {worker.status === "Active" ? (
+                                  <DropdownMenuItem onSelect={() => setTimeout(() => handleToggleStatus(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-amber-600 dark:text-amber-400 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/30">
+                                    <UserX className="h-4 w-4" /> Deactivate Account
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onSelect={() => setTimeout(() => handleToggleStatus(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 focus:bg-emerald-50 dark:focus:bg-emerald-950/30">
+                                    <UserCheck className="h-4 w-4" /> Activate Account
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onSelect={() => setTimeout(() => handlePasswordReset(worker), 100)} className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2">
                                   <Mail className="h-4 w-4 text-muted-foreground" /> Send Reset Link
                                 </DropdownMenuItem>

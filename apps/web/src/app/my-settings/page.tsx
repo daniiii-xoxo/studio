@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { FontSizeSlider } from "@/components/settings/font-size-slider";
 import { ThemeToggle } from "@/components/settings/theme-toggle";
+import { requestPasswordReset } from "@/actions/auth";
 
 type SettingTab = "appearance" | "password" | "security" | "support" | "report";
 
@@ -68,13 +69,18 @@ function MySettingsContent() {
     if (!user?.email) return;
     setIsChangingPassword(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
+      const res = await requestPasswordReset(user.email, window.location.origin);
+      if (!res.success) {
+        toast({
+          variant: "destructive",
+          title: res.isDeactivated ? "Account Deactivated" : "Error",
+          description: res.error || "Failed to send password reset email.",
+        });
+        return;
+      }
       toast({
         title: "Password Reset Email Sent",
-        description: "Please check your inbox to reset your password.",
+        description: `Instructions sent to ${res.email}. Please check your inbox.`,
       });
     } catch (error: any) {
       toast({

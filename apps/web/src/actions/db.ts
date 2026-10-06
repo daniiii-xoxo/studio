@@ -859,10 +859,22 @@ export async function createWorkerWithAuth(data: any, roleIds: string[], assigne
     let emailSent = false;
     let emailErrorMsg: string | null = null;
 
-    const logoPath = path.resolve(process.cwd(), 'apps/web/public/cog-logo.png');
-    const hasLogo = fs.existsSync(logoPath);
-    const attachments = hasLogo
-        ? [{ filename: 'cog-logo.png', path: logoPath, cid: 'coglogo' }]
+    const possibleLogoPaths = [
+        path.resolve(process.cwd(), 'public/church-logo.png'),
+        path.resolve(process.cwd(), 'public/cog-logo.png'),
+        path.resolve(process.cwd(), 'apps/web/public/church-logo.png'),
+        path.resolve(process.cwd(), 'apps/web/public/cog-logo.png'),
+    ];
+    const logoPath = possibleLogoPaths.find((p) => fs.existsSync(p));
+    const hasLogo = Boolean(logoPath);
+    const attachments = logoPath
+        ? [{
+            filename: 'church-logo.png',
+            content: fs.readFileSync(logoPath),
+            contentType: 'image/png',
+            cid: 'coglogo',
+            contentDisposition: 'inline',
+        }]
         : undefined;
 
     try {
@@ -1125,6 +1137,31 @@ export async function updateWorker(id: string, data: any) {
         ).catch((e) => console.error('Failed to update assignedMinistryIds:', e));
     }
 
+    // If worker is active and has an email, ensure an Auth account exists in Supabase so they can log in
+    if (worker.email && worker.status === 'Active') {
+        try {
+            const supabaseAdmin = getSupabaseAdminClient();
+            const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
+            const existingAuth = authList?.users?.find(
+                (u) => u.email?.toLowerCase() === worker.email.toLowerCase() || u.id === worker.id
+            );
+            if (!existingAuth) {
+                await supabaseAdmin.auth.admin.createUser({
+                    id: worker.id,
+                    email: worker.email,
+                    password: "COGDASMA2026",
+                    email_confirm: true,
+                    user_metadata: {
+                        firstName: worker.firstName,
+                        lastName: worker.lastName,
+                    },
+                });
+            }
+        } catch (authSyncErr) {
+            console.error('Failed to ensure Supabase Auth user on update:', authSyncErr);
+        }
+    }
+
     revalidatePath('/workers');
     return worker;
 }
@@ -1233,17 +1270,17 @@ export async function getApprovals(filters?: { ministryIds?: string[]; actorId?:
 }
 
 export async function updateApproval(id: string, data: any, actorId?: string) {
+    const currentApproval = await prisma.approvalRequest.findUnique({
+        where: { id },
+        include: { worker: true },
+    });
+    if (!currentApproval) {
+        throw new Error('Approval request not found');
+    }
+
     if (actorId) {
         const access = await getActorMinistryAccess(actorId);
         if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            const currentApproval = await prisma.approvalRequest.findUnique({
-                where: { id },
-                include: { worker: true },
-            });
-            if (!currentApproval) {
-                throw new Error('Approval request not found');
-            }
-
             let bookingMinistry: string | null = null;
             if (currentApproval.reservationId) {
                 const b = await prisma.booking.findUnique({
@@ -1266,12 +1303,13 @@ export async function updateApproval(id: string, data: any, actorId?: string) {
         }
     }
 
+    const previousStatus = currentApproval.status;
+    const status = data.status;
+
     const approval = await prisma.approvalRequest.update({
         where: { id },
         data,
     });
-
-    const status = data.status;
 
     // Handle side-effects for Room Bookings
     if (approval.type === 'Room Booking' && approval.reservationId) {
@@ -1307,9 +1345,33 @@ export async function updateApproval(id: string, data: any, actorId?: string) {
         }
     }
 
+    let emailNotificationSent = false;
+    let emailNotificationError: string | null = null;
+
+    // Send final approval email ONLY when transitioning to "Approved" for Room Bookings (prevent duplicates)
+    if (status === 'Approved' && previousStatus !== 'Approved' && approval.type === 'Room Booking') {
+        try {
+            const sendRes = await NotificationService.notifyRoomReservationApproved(approval.id, approval.reservationId || undefined);
+            if (sendRes && (sendRes as any).success === false) {
+                emailNotificationError = (sendRes as any).error || 'Could not send notification email';
+            } else {
+                emailNotificationSent = true;
+            }
+        } catch (emailErr: any) {
+            console.error('[updateApproval] Failed to send final approval email:', emailErr);
+            emailNotificationError = emailErr?.message || 'Failed to send notification email';
+        }
+    }
+
     revalidatePath('/approvals');
     revalidatePath('/dashboard');
-    return approval;
+    revalidatePath('/reservations');
+
+    return {
+        ...approval,
+        emailNotificationSent,
+        emailNotificationError,
+    };
 }
 
 // --- Ministries ---
@@ -1562,14 +1624,15 @@ export async function createBooking(data: any) {
 }
 
 export async function updateBooking(id: string, data: any, actorId?: string) {
+    const existing = await prisma.booking.findUnique({
+        where: { id },
+        include: { worker: true },
+    });
+    if (!existing) throw new Error('Booking not found');
+
     if (actorId) {
         const access = await getActorMinistryAccess(actorId);
         if (!access.isSuperAdmin && access.allowedMinistryIds !== null) {
-            const existing = await prisma.booking.findUnique({
-                where: { id },
-                include: { worker: true },
-            });
-            if (!existing) throw new Error('Booking not found');
             const bookingMinId = existing.ministryId || existing.worker?.majorMinistryId;
             if (!bookingMinId || !access.allowedMinistryIds.includes(bookingMinId)) {
                 throw new Error('Unauthorized to modify bookings for another ministry');
@@ -1577,15 +1640,49 @@ export async function updateBooking(id: string, data: any, actorId?: string) {
         }
     }
 
+    const previousStatus = existing.status;
+    const status = data.status;
+
     const booking = await prisma.booking.update({
         where: { id },
         data,
     });
+
+    let emailNotificationSent = false;
+    let emailNotificationError: string | null = null;
+
+    // If transitioned to Approved from non-approved status
+    if (status === 'Approved' && previousStatus !== 'Approved') {
+        // Sync approval requests
+        await prisma.approvalRequest.updateMany({
+            where: { reservationId: id, status: { not: 'Approved' } },
+            data: { status: 'Approved' },
+        }).catch(err => console.error('Failed to sync approval request status from booking update:', err));
+
+        try {
+            const sendRes = await NotificationService.notifyRoomReservationApproved(undefined, id);
+            if (sendRes && (sendRes as any).success === false) {
+                emailNotificationError = (sendRes as any).error || 'Could not send notification email';
+            } else {
+                emailNotificationSent = true;
+            }
+        } catch (emailErr: any) {
+            console.error('[updateBooking] Failed to send final approval email:', emailErr);
+            emailNotificationError = emailErr?.message || 'Failed to send notification email';
+        }
+    }
+
     try {
         revalidatePath('/reservations');
+        revalidatePath('/approvals');
         revalidatePath('/dashboard');
     } catch { }
-    return booking;
+
+    return {
+        ...booking,
+        emailNotificationSent,
+        emailNotificationError,
+    };
 }
 
 export async function deleteBooking(id: string, actorId?: string) {

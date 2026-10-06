@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { Button } from "@studio/ui";
 import {
-  LoaderCircle, GanttChartSquare, CheckCircle2, XCircle, Clock,
+  LoaderCircle, GanttChartSquare, CheckCircle2, XCircle, Clock, Calendar,
   Search, MoreHorizontal, Eye,
   LayoutList, LayoutGrid, KanbanSquare,
 } from "lucide-react";
@@ -227,7 +227,7 @@ export default function ApprovalsPage() {
     });
   }, [roomBookingRequests, isSuperAdmin, workerProfile, allMinistries, ministries, bookings, workers]);
 
-  // Filtered requests by search and status
+  // Filtered requests by search and status — sorted by most recent reservation requested first (submission time)
   const filteredRequests = useMemo(() => {
     let results = [...scopedRequests];
 
@@ -247,8 +247,29 @@ export default function ApprovalsPage() {
       else if (statusFilter === "completed") results = results.filter(r => r.status === "Approved" || r.status === "Rejected");
     }
 
-    return results.sort((a, b) => new Date(b.date as any).getTime() - new Date(a.date as any).getTime());
-  }, [scopedRequests, searchTerm, statusFilter]);
+    // Helper to get the exact timestamp when the reservation was created / submitted
+    const getRequestSubmissionTime = (req: ApprovalRequest) => {
+      const booking = bookings?.find((b) => b.id === req.reservationId);
+      if (booking?.dateRequested) {
+        const t = new Date(booking.dateRequested).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (req.date) {
+        const t = new Date(req.date as any).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
+
+    return results.sort((a, b) => {
+      const timeA = getRequestSubmissionTime(a);
+      const timeB = getRequestSubmissionTime(b);
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      return (b.id || "").localeCompare(a.id || "");
+    });
+  }, [scopedRequests, searchTerm, statusFilter, bookings]);
 
   const checkIsApprover = (request: ApprovalRequest) => {
     if (!workerProfile || !request.workerId) return false;
@@ -468,7 +489,11 @@ export default function ApprovalsPage() {
                       ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
                       : null;
                     const reqId = req.id || "";
-                    const reqDate = req.date ? new Date(req.date as any) : null;
+                    const reqDate = booking?.dateRequested
+                      ? new Date(booking.dateRequested)
+                      : req.date
+                      ? new Date(req.date as any)
+                      : null;
 
                     return (
                       <div
@@ -486,6 +511,12 @@ export default function ApprovalsPage() {
                           </div>
                           <p className="text-[10px] font-mono text-muted-foreground mb-1">REQ-{reqId.slice(-4).toUpperCase()}</p>
                           <p className="text-xs text-muted-foreground truncate">{req.details}</p>
+                          {booking?.start && (
+                            <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1 mt-1.5 bg-slate-100 dark:bg-muted/50 px-2 py-0.5 rounded-md w-fit">
+                              <Clock className="h-3 w-3 text-slate-500 shrink-0" />
+                              <span>{format(new Date(booking.start), "MMM d, yyyy")} • {format(new Date(booking.start), "h:mm a")} – {booking.end ? format(new Date(booking.end), "h:mm a") : ""}</span>
+                            </p>
+                          )}
                         </div>
 
                         {/* Right: Status + Details button */}
@@ -522,7 +553,7 @@ export default function ApprovalsPage() {
                     <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Request</th>
                     <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Requestor</th>
                     <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Ministry</th>
-                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Date & Time</th>
                     <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Status</th>
                     <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Type</th>
                     <th className="px-4 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">Actions</th>
@@ -547,7 +578,6 @@ export default function ApprovalsPage() {
                       const isSelected = selectedIds.has(reqId);
                       const canManage = checkCanManage(req);
                       const isPending = req.status.startsWith("Pending");
-                      const reqDate = req.date ? new Date(req.date as any) : null;
 
                       return (
                         <tr
@@ -582,8 +612,28 @@ export default function ApprovalsPage() {
                             <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
                               {ministry?.name || "—"}
                             </td>
-                            <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-medium">
-                              {reqDate ? format(reqDate, "MMM d, yyyy") : "—"}
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {booking?.start ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-xs font-semibold text-foreground">
+                                    {format(new Date(booking.start), "MMM d, yyyy")}
+                                  </p>
+                                  <p className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <span>
+                                      {format(new Date(booking.start), "h:mm a")} – {booking.end ? format(new Date(booking.end), "h:mm a") : ""}
+                                    </span>
+                                  </p>
+                                </div>
+                              ) : req.date ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-xs font-medium text-foreground">
+                                    {format(new Date(req.date as any), "MMM d, yyyy")}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground font-medium">—</span>
+                              )}
                             </td>
                             <td className="px-5 py-3.5 text-center whitespace-nowrap">
                               <StatusBadge status={req.status} />
@@ -640,15 +690,19 @@ export default function ApprovalsPage() {
               {filteredRequests.length === 0 ? (
                 <p className="col-span-full py-16 text-center text-sm text-muted-foreground">No requests found.</p>
               ) : filteredRequests.map(req => {
-                const canManage = checkCanManage(req);
-                const isPending = req.status.startsWith("Pending");
-                const reqDate = req.date ? new Date(req.date as any) : null;
                 const worker = workers?.find(w => w.id === req.workerId);
                 const booking = bookings?.find(b => b.id === req.reservationId);
                 const targetMinistryId = booking?.ministryId || worker?.majorMinistryId || req.newMajorId || req.oldMajorId;
                 const ministry = targetMinistryId
                   ? (allMinistries || ministries)?.find(m => m.id === targetMinistryId)
                   : null;
+                const reqDate = booking?.dateRequested
+                  ? new Date(booking.dateRequested)
+                  : req.date
+                  ? new Date(req.date as any)
+                  : null;
+                const canManage = checkCanManage(req);
+                const isPending = req.status.startsWith("Pending");
                 return (
                   <div
                     key={req.id}
@@ -675,18 +729,22 @@ export default function ApprovalsPage() {
                       <p className="text-sm font-bold text-foreground leading-snug line-clamp-2">{req.details}</p>
                     </div>
 
-                    {/* Date */}
-                    {reqDate && (
+                    {/* Reservation Schedule Date & Time */}
+                    {booking?.start ? (
                       <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                        <svg className="h-3.5 w-3.5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                        {format(reqDate, "MMMM d, yyyy")}
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                        <span className="font-semibold text-foreground">{format(new Date(booking.start), "MMM d, yyyy")}</span>
+                        <span>•</span>
+                        <span className="text-slate-600 dark:text-slate-300">
+                          {format(new Date(booking.start), "h:mm a")} – {booking.end ? format(new Date(booking.end), "h:mm a") : ""}
+                        </span>
                       </div>
-                    )}
+                    ) : req.date ? (
+                      <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                        <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                        {format(new Date(req.date as any), "MMMM d, yyyy")}
+                      </div>
+                    ) : null}
 
                     {/* Action buttons — always at bottom */}
                     <div className="mt-auto pt-4 border-t border-slate-200/80 dark:border-border/60 flex items-center gap-2" onClick={e => e.stopPropagation()}>
@@ -785,18 +843,20 @@ export default function ApprovalsPage() {
                             <p className="text-sm font-bold text-foreground leading-snug line-clamp-2">{req.details}</p>
                           </div>
 
-                          {/* Date */}
-                          {reqDate && (
+                          {/* Reservation Schedule Date & Time */}
+                          {booking?.start ? (
                             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                              <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                              </svg>
-                              {format(reqDate, "MMM d, yyyy")}
+                              <Clock className="h-3 w-3 text-slate-500 shrink-0" />
+                              <span className="font-semibold text-foreground">{format(new Date(booking.start), "MMM d, yyyy")}</span>
+                              <span>•</span>
+                              <span>{format(new Date(booking.start), "h:mm a")} – {booking.end ? format(new Date(booking.end), "h:mm a") : ""}</span>
                             </div>
-                          )}
+                          ) : req.date ? (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Calendar className="h-3 w-3 text-slate-500 shrink-0" />
+                              {format(new Date(req.date as any), "MMM d, yyyy")}
+                            </div>
+                          ) : null}
 
                           {/* Actions */}
                           {canManage && isPending && (

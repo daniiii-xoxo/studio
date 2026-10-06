@@ -16,6 +16,7 @@ import { useAuthStore } from '@studio/store';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useToast } from '@/hooks/use-toast';
 import { updateWorker } from '@/actions/db';
+import { requestPasswordReset } from '@/actions/auth';
 
 export function PasswordChangeDialog() {
   const { user } = useAuthStore();
@@ -29,14 +30,19 @@ export function PasswordChangeDialog() {
   const handleSendEmail = async () => {
     if (!user?.email) return;
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
+      const res = await requestPasswordReset(user.email, window.location.origin);
+      if (!res.success) {
+        toast({
+          variant: "destructive",
+          title: res.isDeactivated ? "Account Deactivated" : "Error",
+          description: res.error || "Failed to send password reset email.",
+        });
+        return;
+      }
 
       toast({
         title: 'Password Reset Email Sent',
-        description: 'Please check your inbox to reset your password.',
+        description: `Instructions sent to ${res.email}. Please check your inbox.`,
       });
 
       // Clear the flag in the SQL worker profile

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@studio/database";
-import { Button, Input, Label } from "@studio/ui";
+import { Button, Input, Label, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@studio/ui";
 import { useToast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
+import { LandingNav } from "@/components/landing/landing-nav";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -62,46 +64,71 @@ export default function UpdatePasswordPage() {
   if (!mounted) return null;
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-muted/30 p-4">
-      <div className="mx-auto w-full max-w-md space-y-6 rounded-lg bg-background p-8 shadow-lg border">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
-            <Lock className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Update Password</h1>
-          <p className="text-sm text-muted-foreground">Enter your new password below to regain access to your account.</p>
-        </div>
+    <div className="relative flex min-h-screen items-center justify-center p-4 pt-20">
+      {/* Floating Capsule Header */}
+      <LandingNav currentPath="/auth/update-password" />
 
-        <form onSubmit={handleUpdate} className="space-y-4">
-          <div className="space-y-2 text-left">
-            <Label htmlFor="password">New Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              minLength={6}
-            />
-          </div>
-          <div className="space-y-2 text-left">
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Password"
-              minLength={6}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Updating..." : "Update Password"}
-          </Button>
-        </form>
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="/cog-bg.png"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+          quality={90}
+        />
+        {/* Overlay for better card visibility */}
+        <div className="absolute inset-0 bg-black/30" />
+        {/* Vignette effect - dark shadow around edges */}
+        <div className="absolute inset-0 shadow-[inset_0_0_120px_60px_rgba(0,0,0,0.5)]" />
       </div>
+
+      <Card className="relative z-10 mx-auto max-w-[470px] w-full shadow-[0_8px_32px_0_rgba(0,0,0,0.9),0_0_80px_rgba(0, 0, 0, 0.9)] backdrop-blur-xl bg-black/15 border border-black/20 dark:bg-black/10 dark:border-black/10 animate-in fade-in zoom-in-95 slide-in-from-bottom-6 duration-700 ease-out">
+        <CardHeader className="space-y-2.5 text-center pt-7 pb-3 px-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-md mb-2 shadow-inner border border-white/20">
+            <Lock className="h-7 w-7 text-white" />
+          </div>
+          <CardTitle className="font-headline text-2xl text-white">Update Password</CardTitle>
+          <CardDescription className="text-white/90 text-sm">
+            Enter your new password below to regain access to your account.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="px-8 pb-7">
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-2 text-left">
+              <Label htmlFor="password" className="text-white">New Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter new password"
+                minLength={6}
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus-visible:ring-white/30"
+              />
+            </div>
+            <div className="space-y-2 text-left">
+              <Label htmlFor="confirmPassword" className="text-white">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                minLength={6}
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus-visible:ring-white/30"
+              />
+            </div>
+            <Button type="submit" className="w-full bg-white text-black hover:bg-gray-200 mt-2 font-semibold h-11" disabled={loading}>
+              {loading ? "Updating..." : "Update Password"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -25,7 +25,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@studio/store";
 import { supabase } from "@studio/database";
-import { getWorkerEmail } from "@/actions/legacy-auth";
+import { getWorkerEmail, validateLoginIdentifier } from "@/actions/legacy-auth";
+import { requestPasswordReset } from "@/actions/auth";
 import { LandingNav } from "@/components/landing/landing-nav";
 
 export default function LoginPage() {
@@ -109,15 +110,18 @@ export default function LoginPage() {
 
     setIsSigningIn(true);
     try {
-      let loginEmail = identifier;
-
-      if (mode === "worker") {
-        const result = await getWorkerEmail(identifier);
-        if (!result.success || !result.email) {
-          throw new Error(result.error || "Worker ID not found.");
-        }
-        loginEmail = result.email;
+      const validation = await validateLoginIdentifier(identifier, mode);
+      if (!validation.success) {
+        toast({
+          variant: "destructive",
+          title: validation.isDeactivated ? "Account Deactivated" : "Login Failed",
+          description: validation.error || "Unable to proceed with login.",
+        });
+        setIsSigningIn(false);
+        return;
       }
+
+      const loginEmail = validation.email || identifier;
 
       const { error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
@@ -129,7 +133,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error.message,
+        description: error.message || "Invalid login credentials.",
       });
       setIsSigningIn(false);
     }
@@ -147,24 +151,18 @@ export default function LoginPage() {
     }
     setIsResetting(true);
     try {
-      let targetEmail = input;
-
-      // If it doesn't look like an email, assume it's a Worker ID and resolve it
-      if (!targetEmail.includes("@")) {
-        const result = await getWorkerEmail(targetEmail);
-        if (!result.success || !result.email) {
-          throw new Error(result.error || "Worker ID not found.");
-        }
-        targetEmail = result.email;
+      const res = await requestPasswordReset(input, window.location.origin);
+      if (!res.success) {
+        toast({
+          variant: "destructive",
+          title: res.isDeactivated ? "Account Deactivated" : "Reset Failed",
+          description: res.error || "Failed to send reset link.",
+        });
+        return;
       }
-
-      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
       toast({
         title: "Reset Email Sent",
-        description: `Instructions sent to ${targetEmail}`,
+        description: `Instructions sent to ${res.email}`,
       });
       setIsResetDialogOpen(false);
       setResetIdentifier("");

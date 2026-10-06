@@ -108,13 +108,29 @@ export default function NewReservationPage() {
     queryFn: getMinistries,
   });
 
-  const availableMinistries = useMemo(() => {
-    if (isSuperAdmin) return ministries;
-    if (isMinistryHead && myMinistryIds && myMinistryIds.length > 0) {
-      return (ministries as any[])?.filter((m) => myMinistryIds.includes(m.id));
+  const userMinistry = useMemo(() => {
+    if (!ministries || ministries.length === 0) return null;
+    const targetId =
+      ministryId ||
+      workerProfile?.majorMinistryId ||
+      (myMinistryIds && myMinistryIds.length > 0 ? myMinistryIds[0] : null);
+    if (targetId) {
+      return ministries.find((m: any) => m.id === targetId);
     }
-    return ministries;
-  }, [isSuperAdmin, isMinistryHead, myMinistryIds, ministries]);
+    return ministries[0] || null;
+  }, [ministries, ministryId, workerProfile, myMinistryIds]);
+
+  useEffect(() => {
+    if (!ministryId && ministries && ministries.length > 0) {
+      const targetId =
+        workerProfile?.majorMinistryId ||
+        (myMinistryIds && myMinistryIds.length > 0 ? myMinistryIds[0] : null) ||
+        ministries[0].id;
+      if (targetId) {
+        setMinistryId(targetId);
+      }
+    }
+  }, [ministryId, ministries, workerProfile, myMinistryIds]);
 
   const { data: venueElements } = useQuery({
     queryKey: ["venue-elements"],
@@ -124,6 +140,84 @@ export default function NewReservationPage() {
   const selectedRoom = useMemo(() => {
     return rooms?.find((r) => r.id === roomId);
   }, [rooms, roomId]);
+
+  // Fetch existing bookings for selected room on selected date
+  const { data: existingBookings = [], isLoading: isCheckingBookings } = useQuery({
+    queryKey: ["room-bookings", roomId, selectedDate],
+    queryFn: async () => {
+      if (!roomId || !selectedDate) return [];
+      const [y, m, d] = selectedDate.split("-").map(Number);
+      const parsedDate = new Date(y, m - 1, d);
+      return getBookingsForRoomOnDate(roomId, parsedDate);
+    },
+    enabled: !!roomId && !!selectedDate,
+  });
+
+  // Calculate booked minute ranges (excluding Rejected)
+  const bookedRanges = useMemo(() => {
+    if (!existingBookings || existingBookings.length === 0) return [];
+    return (existingBookings as any[])
+      .filter((res) => res.status !== "Rejected")
+      .map((res) => {
+        const resStart = new Date(res.start);
+        const resEnd = new Date(res.end);
+        const startMin = resStart.getHours() * 60 + resStart.getMinutes();
+        const endMin = resEnd.getHours() * 60 + resEnd.getMinutes();
+        return {
+          startMin,
+          endMin,
+          name: res.name || "Reserved",
+          status: res.status || "Reserved",
+          title: res.title || res.purpose || "Reservation",
+        };
+      });
+  }, [existingBookings]);
+
+  const timeToMinutes = (timeVal: string) => {
+    if (!timeVal) return 0;
+    const [h, m] = timeVal.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  const formatTime12 = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+  };
+
+  // Reset startTime/endTime if the newly selected room/date makes them unavailable
+  useEffect(() => {
+    if (startTime && bookedRanges.length > 0) {
+      const startMin = timeToMinutes(startTime);
+      const isStartBooked = bookedRanges.some(
+        (r) => startMin >= r.startMin && startMin < r.endMin
+      );
+      if (isStartBooked) {
+        setStartTime("");
+        setEndTime("");
+        toast({
+          variant: "destructive",
+          title: "Time Slot Reset",
+          description: "The selected time slot is already reserved for this room. Please pick an available time.",
+        });
+      }
+    }
+  }, [roomId, selectedDate, bookedRanges, startTime, toast]);
+
+  useEffect(() => {
+    if (startTime && endTime) {
+      const startMin = timeToMinutes(startTime);
+      const endMin = timeToMinutes(endTime);
+      const isConflict =
+        endMin <= startMin ||
+        bookedRanges.some((r) => startMin < r.endMin && endMin > r.startMin);
+      if (isConflict) {
+        setEndTime("");
+      }
+    }
+  }, [startTime, endTime, bookedRanges]);
 
   // Time slots from 8:00 AM to 8:00 PM (in 30-min intervals)
   const timeSlots = useMemo(() => {
@@ -189,11 +283,19 @@ export default function NewReservationPage() {
       return;
     }
 
-    if (!ministryId) {
+    const effectiveMinistryId =
+      ministryId ||
+      userMinistry?.id ||
+      workerProfile?.majorMinistryId ||
+      (myMinistryIds && myMinistryIds[0]) ||
+      (ministries && ministries[0]?.id) ||
+      "";
+
+    if (!effectiveMinistryId) {
       toast({
         variant: "destructive",
         title: "Missing Ministry",
-        description: "Please select a ministry.",
+        description: "Your worker profile does not have an assigned ministry.",
       });
       return;
     }
@@ -403,7 +505,7 @@ export default function NewReservationPage() {
         status: "Pending Ministry Approval",
         workerProfileId: effectiveWorkerId,
         name: requesterName || "System Admin",
-        ministryId: ministryId || "",
+        ministryId: effectiveMinistryId,
         email: email || "admin@gmail.com",
         pax: paxNum || 0,
         numTables: parseInt(numTables) || 0,
@@ -555,20 +657,13 @@ export default function NewReservationPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Ministry <span className="text-red-500 ml-0.5">*</span>
+                  Ministry
                 </label>
-                <Select value={ministryId} onValueChange={setMinistryId}>
-                  <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
-                    <SelectValue placeholder="Administration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMinistries?.map((m: any) => (
-                      <SelectItem key={m.id} value={m.id} className="text-xs">
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={userMinistry?.name || "General Ministry"}
+                  disabled
+                  className="bg-slate-50/90 dark:bg-muted/30 border border-slate-200/80 dark:border-border text-slate-600 dark:text-slate-300 rounded-xl h-10 text-xs font-medium cursor-not-allowed shadow-2xs"
+                />
               </div>
             </div>
 
@@ -601,7 +696,44 @@ export default function NewReservationPage() {
               />
             </div>
 
-            {/* Row 5: Select Date, Start Time, End Time */}
+            {/* Row 5: Floor / Room */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Floor / Room <span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <Select value={roomId} onValueChange={setRoomId}>
+                <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
+                  <SelectValue placeholder="Select floor / room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas?.map((area) => {
+                    const areaRooms = (rooms || []).filter(
+                      (r) => r.areaId === area.id || r.areaId === area.areaId
+                    );
+                    if (areaRooms.length === 0) return null;
+
+                    return (
+                      <SelectGroup key={area.id}>
+                        <SelectLabel className="text-xs font-bold text-gray-500">
+                          {area.name}
+                        </SelectLabel>
+                        {areaRooms.map((room) => (
+                          <SelectItem
+                            key={room.id}
+                            value={room.id}
+                            className="text-xs"
+                          >
+                            {area.name} – {room.name} (Cap: {room.capacity})
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Row 6: Select Date, Start Time, End Time */}
             <div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
@@ -642,14 +774,37 @@ export default function NewReservationPage() {
                     <SelectContent>
                       {timeSlots.map((slot) => {
                         const passed = isSlotInPast(slot.value);
+                        const slotMin = timeToMinutes(slot.value);
+                        const conflicting = bookedRanges.find(
+                          (r) => slotMin >= r.startMin && slotMin < r.endMin
+                        );
+                        const isBooked = !!conflicting;
+                        const isDisabled = passed || isBooked;
+
                         return (
                           <SelectItem
                             key={`start-${slot.value}`}
                             value={slot.value}
-                            disabled={passed}
-                            className="text-xs"
+                            disabled={isDisabled}
+                            className={cn(
+                              "text-xs",
+                              isBooked && "text-red-500/80 bg-red-50/40 dark:bg-red-950/20"
+                            )}
                           >
-                            {slot.display}
+                            <span className="flex items-center justify-between w-full gap-2">
+                              <span className={cn(isBooked && "line-through opacity-70")}>
+                                {slot.display}
+                              </span>
+                              {isBooked ? (
+                                <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/50 shrink-0">
+                                  Reserved ({conflicting.status})
+                                </span>
+                              ) : passed ? (
+                                <span className="text-[10px] text-muted-foreground italic shrink-0">
+                                  Passed
+                                </span>
+                              ) : null}
+                            </span>
                           </SelectItem>
                         );
                       })}
@@ -674,14 +829,55 @@ export default function NewReservationPage() {
                     <SelectContent>
                       {timeSlots.map((slot) => {
                         const passed = isSlotInPast(slot.value);
+                        const slotMin = timeToMinutes(slot.value);
+                        let isBooked = false;
+                        let isBeforeOrEqualStart = false;
+
+                        if (startTime) {
+                          const startMin = timeToMinutes(startTime);
+                          if (slotMin <= startMin) {
+                            isBeforeOrEqualStart = true;
+                          } else {
+                            isBooked = bookedRanges.some(
+                              (r) => startMin < r.endMin && slotMin > r.startMin
+                            );
+                          }
+                        } else {
+                          isBooked = bookedRanges.some(
+                            (r) => slotMin > r.startMin && slotMin <= r.endMin
+                          );
+                        }
+
+                        const isDisabled = passed || isBeforeOrEqualStart || isBooked;
+
                         return (
                           <SelectItem
                             key={`end-${slot.value}`}
                             value={slot.value}
-                            disabled={passed}
-                            className="text-xs"
+                            disabled={isDisabled}
+                            className={cn(
+                              "text-xs",
+                              isBooked && "text-red-500/80 bg-red-50/40 dark:bg-red-950/20"
+                            )}
                           >
-                            {slot.display}
+                            <span className="flex items-center justify-between w-full gap-2">
+                              <span className={cn((isBooked || isBeforeOrEqualStart) && "line-through opacity-70")}>
+                                {slot.display}
+                              </span>
+                              {isBooked ? (
+                                <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/50 shrink-0">
+                                  Unavailable
+                                </span>
+                              ) : isBeforeOrEqualStart && startTime ? (
+                                <span className="text-[10px] text-muted-foreground italic shrink-0">
+                                  ≤ Start
+                                </span>
+                              ) : passed ? (
+                                <span className="text-[10px] text-muted-foreground italic shrink-0">
+                                  Passed
+                                </span>
+                              ) : null}
+                            </span>
                           </SelectItem>
                         );
                       })}
@@ -692,43 +888,46 @@ export default function NewReservationPage() {
               <p className="text-xs italic text-red-500 font-medium mt-1.5">
                 Note: Room reservations are until 8:00 pm only.
               </p>
-            </div>
 
-            {/* Row 6: Floor / Room */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Floor / Room <span className="text-red-500 ml-0.5">*</span>
-              </label>
-              <Select value={roomId} onValueChange={setRoomId}>
-                <SelectTrigger className="bg-background dark:bg-muted/30 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-border rounded-xl h-10 text-xs font-medium shadow-2xs focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar transition-all">
-                  <SelectValue placeholder="Select floor / room" />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas?.map((area) => {
-                    const areaRooms = (rooms || []).filter(
-                      (r) => r.areaId === area.id || r.areaId === area.areaId
-                    );
-                    if (areaRooms.length === 0) return null;
-
-                    return (
-                      <SelectGroup key={area.id}>
-                        <SelectLabel className="text-xs font-bold text-gray-500">
-                          {area.name}
-                        </SelectLabel>
-                        {areaRooms.map((room) => (
-                          <SelectItem
-                            key={room.id}
-                            value={room.id}
-                            className="text-xs"
+              {/* Live Room Schedule / Reserved Times Summary */}
+              {roomId && selectedDate && (
+                <div className="mt-2.5">
+                  {isCheckingBookings ? (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse py-1">
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      <span>Checking room schedule...</span>
+                    </div>
+                  ) : bookedRanges.length > 0 ? (
+                    <div className="rounded-xl border border-amber-200/80 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/25 p-3 text-xs space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-300">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <span>Already reserved for {selectedRoom?.name || "this room"} on {selectedDate}:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {bookedRanges.map((range, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-card border border-amber-200/90 dark:border-amber-800/80 text-[11px] font-medium text-gray-800 dark:text-gray-200 shadow-2xs"
                           >
-                            {area.name} – {room.name} (Cap: {room.capacity})
-                          </SelectItem>
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                            <span className="font-semibold text-red-600 dark:text-red-400">
+                              {formatTime12(range.startMin)} – {formatTime12(range.endMin)}
+                            </span>
+                            <span className="text-muted-foreground text-[10px]">
+                              ({range.status} – {range.name})
+                            </span>
+                          </span>
                         ))}
-                      </SelectGroup>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium py-0.5">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>{selectedRoom?.name || "This room"} is fully available on this date.</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Row 7: Pax, No. of Tables, No. of Chairs */}
