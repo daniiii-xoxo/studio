@@ -202,7 +202,7 @@ export default function ApprovalsPage() {
   const isLoading = isRoleLoading || approvalsLoading || bookingsLoading || workersLoading || ministriesLoading;
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "completed">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "completed">("pending");
   const [viewMode, setViewMode] = useState<"table" | "cards" | "kanban">("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmAction, setConfirmAction] = useState<{ action: "Approved" | "Rejected"; ids: string[] } | null>(null);
@@ -609,13 +609,13 @@ export default function ApprovalsPage() {
                                     <>
                                       <DropdownMenuItem
                                         className="text-emerald-600 dark:text-emerald-400 text-xs font-medium cursor-pointer gap-2 py-2 rounded-lg"
-                                        onClick={() => handleUpdateRequestStatus(req, "Approved")}
+                                        onClick={() => setConfirmAction({ action: "Approved", ids: [req.id!] })}
                                       >
                                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Approve
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="text-rose-600 dark:text-rose-400 text-xs font-medium cursor-pointer gap-2 py-2 rounded-lg"
-                                        onClick={() => handleUpdateRequestStatus(req, "Rejected")}
+                                        onClick={() => setConfirmAction({ action: "Rejected", ids: [req.id!] })}
                                       >
                                         <XCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" /> Reject
                                       </DropdownMenuItem>
@@ -693,13 +693,13 @@ export default function ApprovalsPage() {
                       {canManage && isPending ? (
                         <>
                           <button
-                            onClick={() => handleUpdateRequestStatus(req, "Approved")}
+                            onClick={() => setConfirmAction({ action: "Approved", ids: [req.id!] })}
                             className="flex-1 h-8.5 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300/90 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-950/60 shadow-2xs transition-all cursor-pointer"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" /> Approve
                           </button>
                           <button
-                            onClick={() => handleUpdateRequestStatus(req, "Rejected")}
+                            onClick={() => setConfirmAction({ action: "Rejected", ids: [req.id!] })}
                             className="flex-1 h-8.5 flex items-center justify-center gap-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-300/90 dark:border-red-700 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-950/60 shadow-2xs transition-all cursor-pointer"
                           >
                             <XCircle className="h-3.5 w-3.5" /> Reject
@@ -801,10 +801,10 @@ export default function ApprovalsPage() {
                           {/* Actions */}
                           {canManage && isPending && (
                             <div className="flex gap-1.5 pt-1 border-t border-border/30" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => handleUpdateRequestStatus(req, "Approved")} className="flex-1 h-7 flex items-center justify-center gap-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
+                              <button onClick={() => setConfirmAction({ action: "Approved", ids: [req.id!] })} className="flex-1 h-7 flex items-center justify-center gap-1 rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
                                 <CheckCircle2 className="h-3 w-3" /> Approve
                               </button>
-                              <button onClick={() => handleUpdateRequestStatus(req, "Rejected")} className="flex-1 h-7 flex items-center justify-center gap-1 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-[11px] font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                              <button onClick={() => setConfirmAction({ action: "Rejected", ids: [req.id!] })} className="flex-1 h-7 flex items-center justify-center gap-1 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-[11px] font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                                 <XCircle className="h-3 w-3" /> Reject
                               </button>
                             </div>
@@ -822,13 +822,18 @@ export default function ApprovalsPage() {
       </div>
       </div>
 
-      {/* Bulk confirm dialog */}
+      {/* Confirm dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={open => !open && setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm {confirmAction?.action}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirmAction?.action === "Approved" ? "Confirm Approval" : "Confirm Rejection"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to {confirmAction?.action?.toLowerCase()} {confirmAction?.ids.length} selected request(s)?
+              {confirmAction?.ids.length === 1
+                ? `Are you sure you want to ${confirmAction?.action === "Approved" ? "approve" : "reject"} this request? This action cannot be undone.`
+                : `Are you sure you want to ${confirmAction?.action?.toLowerCase()} ${confirmAction?.ids.length} selected request(s)?`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -837,7 +842,7 @@ export default function ApprovalsPage() {
               className={confirmAction?.action === "Rejected" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
               onClick={executeBulkAction}
             >
-              Yes, {confirmAction?.action}
+              Yes, {confirmAction?.action === "Approved" ? "Approve" : "Reject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -850,12 +855,12 @@ export default function ApprovalsPage() {
         onOpenChange={open => { if (!open) setSelectedRequest(null); }}
         canManage={selectedRequest ? checkCanManage(selectedRequest) : false}
         onApprove={(id) => {
-          const req = requests?.find(r => r.id === id);
-          if (req) handleUpdateRequestStatus(req, "Approved");
+          setSelectedRequest(null);
+          setConfirmAction({ action: "Approved", ids: [id] });
         }}
         onReject={(id) => {
-          const req = requests?.find(r => r.id === id);
-          if (req) handleUpdateRequestStatus(req, "Rejected");
+          setSelectedRequest(null);
+          setConfirmAction({ action: "Rejected", ids: [id] });
         }}
       />
     </AppLayout>

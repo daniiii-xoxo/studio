@@ -42,6 +42,7 @@ export interface ReservationDetailsSheetProps {
   onApprove?: (id: string) => Promise<void>;
   onReject?: (id: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  hideRequesterInfo?: boolean;
 }
 
 export function ReservationDetailsSheet({
@@ -57,6 +58,7 @@ export function ReservationDetailsSheet({
   onApprove,
   onReject,
   onDelete,
+  hideRequesterInfo = false,
 }: ReservationDetailsSheetProps) {
   if (!booking) return null;
 
@@ -206,6 +208,7 @@ export function ReservationDetailsSheet({
           </div>
 
           {/* 3. Requester & Ministry Card */}
+          {!hideRequesterInfo && (
           <div className="rounded-2xl border border-border/70 bg-card/60 p-4 space-y-3.5 shadow-2xs">
             <div className="flex items-center gap-2">
               <div className="p-1 rounded-lg bg-primary/10 text-primary">
@@ -232,6 +235,7 @@ export function ReservationDetailsSheet({
               </div>
             </div>
           </div>
+          )}
 
           {/* 4. Purpose & Event Details */}
           <div className="space-y-2 pt-1 border-t border-border/50">

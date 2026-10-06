@@ -164,7 +164,7 @@ export default function AllReservationsPage() {
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("Pending");
   const [roomFilter, setRoomFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -174,11 +174,15 @@ export default function AllReservationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ id: string; action: "Approved" | "Rejected" } | null>(null);
 
   // Queries
   const { data: allBookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
     queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: rooms } = useQuery({
@@ -366,7 +370,7 @@ export default function AllReservationsPage() {
   // Reset Filters
   const handleResetFilters = () => {
     setSearchTerm("");
-    setStatusFilter("all");
+    setStatusFilter("Pending");
     setRoomFilter("all");
     setDateFilter("");
     setCurrentPage(1);
@@ -374,7 +378,7 @@ export default function AllReservationsPage() {
 
   const hasActiveFilters =
     searchTerm !== "" ||
-    statusFilter !== "all" ||
+    statusFilter !== "Pending" ||
     roomFilter !== "all" ||
     dateFilter !== "";
 
@@ -669,19 +673,20 @@ export default function AllReservationsPage() {
                 />
               </div>
 
-              {/* Reset Filter Button */}
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetFilters}
-                  className="h-10 px-2.5 rounded-2xl text-xs text-muted-foreground hover:text-foreground gap-1 shrink-0"
-                  title="Clear all filters"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Reset</span>
-                </Button>
-              )}
+              {/* Refresh Button — always visible */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+                  await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+                  await queryClient.invalidateQueries({ queryKey: ["areas"] });
+                }}
+                className="h-10 w-10 p-0 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted/40 shrink-0"
+                title="Refresh reservations"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -849,18 +854,14 @@ export default function AllReservationsPage() {
                                 {isPending && (
                                   <>
                                     <DropdownMenuItem
-                                      onClick={() =>
-                                        handleStatusUpdate(booking.id, "Approved")
-                                      }
+                                      onClick={() => setPendingAction({ id: booking.id, action: "Approved" })}
                                       className="text-xs cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 gap-2"
                                     >
                                       <Check className="h-3.5 w-3.5" />
                                       Approve
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                      onClick={() =>
-                                        handleStatusUpdate(booking.id, "Rejected")
-                                      }
+                                      onClick={() => setPendingAction({ id: booking.id, action: "Rejected" })}
                                       className="text-xs cursor-pointer font-medium text-rose-600 dark:text-rose-400 gap-2"
                                     >
                                       <X className="h-3.5 w-3.5" />
@@ -1139,24 +1140,14 @@ export default function AllReservationsPage() {
                                   {isPending && (
                                     <>
                                       <DropdownMenuItem
-                                        onClick={() =>
-                                          handleStatusUpdate(
-                                            booking.id,
-                                            "Approved"
-                                          )
-                                        }
+                                        onClick={() => setPendingAction({ id: booking.id, action: "Approved" })}
                                         className="text-xs cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 gap-2"
                                       >
                                         <Check className="h-3.5 w-3.5" />
                                         Approve
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
-                                        onClick={() =>
-                                          handleStatusUpdate(
-                                            booking.id,
-                                            "Rejected"
-                                          )
-                                        }
+                                        onClick={() => setPendingAction({ id: booking.id, action: "Rejected" })}
                                         className="text-xs cursor-pointer font-medium text-rose-600 dark:text-rose-400 gap-2"
                                       >
                                         <X className="h-3.5 w-3.5" />
@@ -1166,9 +1157,7 @@ export default function AllReservationsPage() {
                                   )}
 
                                   <DropdownMenuItem
-                                    onClick={() =>
-                                      handleDeleteBooking(booking.id)
-                                    }
+                                    onClick={() => handleDeleteBooking(booking.id)}
                                     className="text-xs cursor-pointer font-medium text-destructive gap-2"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -1263,18 +1252,62 @@ export default function AllReservationsPage() {
         venueElements={(venueElements as any[]) || []}
         ministries={(ministries as any[]) || []}
         onApprove={async (id) => {
-          await handleStatusUpdate(id, "Approved");
           setIsDetailsOpen(false);
+          setPendingAction({ id, action: "Approved" });
         }}
         onReject={async (id) => {
-          await handleStatusUpdate(id, "Rejected");
           setIsDetailsOpen(false);
+          setPendingAction({ id, action: "Rejected" });
         }}
         onDelete={async (id) => {
           setIsDetailsOpen(false);
           handleDeleteBooking(id);
         }}
       />
+
+      {/* Approve / Reject Confirmation Dialog */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPendingAction(null)} />
+          <div className="relative z-10 bg-background rounded-2xl border border-border/80 shadow-2xl p-6 w-[min(calc(100vw-2rem),28rem)] space-y-4">
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-foreground">
+                {pendingAction.action === "Approved" ? "Confirm Approval" : "Confirm Rejection"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {pendingAction.action === "Approved"
+                  ? "Are you sure you want to approve this reservation? The requester will be notified."
+                  : "Are you sure you want to reject this reservation? This action cannot be undone."}
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setPendingAction(null)}
+                className="flex-1 h-10 rounded-xl border border-border/60 text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={async () => {
+                  if (!pendingAction) return;
+                  await handleStatusUpdate(pendingAction.id, pendingAction.action);
+                  setPendingAction(null);
+                }}
+                className={`flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50 ${
+                  pendingAction.action === "Approved"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "bg-destructive hover:bg-destructive/90"
+                }`}
+              >
+                {isProcessing ? "Processing..." : pendingAction.action === "Approved" ? "Yes, Approve" : "Yes, Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Single Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

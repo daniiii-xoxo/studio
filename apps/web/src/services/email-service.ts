@@ -1,12 +1,7 @@
 import { Resend } from 'resend';
 
-// nodemailer is optional — only used when SMTP_USER/SMTP_PASS env vars are set
-let nodemailer: any = null;
-try {
-    nodemailer = require('nodemailer');
-} catch {
-    // nodemailer not installed — SMTP sending will be unavailable
-}
+// nodemailer is optional — only load it dynamically if SMTP env vars are set
+// This avoids build errors when nodemailer is not installed
 
 /**
  * Generic Email Service for sending notifications.
@@ -31,13 +26,19 @@ export class EmailService {
 
     private static get transporter() {
         if (!this._transporter && this.smtpUser && this.smtpPass) {
-            this._transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                    user: this.smtpUser,
-                    pass: this.smtpPass.replace(/\s+/g, ''),
-                },
-            });
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                const nm = require('nodemailer');
+                this._transporter = nm.createTransport({
+                    service: 'gmail',
+                    auth: {
+                        user: this.smtpUser,
+                        pass: this.smtpPass.replace(/\s+/g, ''),
+                    },
+                });
+            } catch {
+                console.warn('[EmailService] nodemailer not installed — SMTP unavailable');
+            }
         }
         return this._transporter;
     }

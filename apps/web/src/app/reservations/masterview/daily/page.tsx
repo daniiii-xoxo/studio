@@ -53,7 +53,7 @@ import {
   getWorkers,
   getMinistries,
 } from "@/actions/db";
-import { EditReservationDialog } from "@/components/reservations/edit-reservation-dialog";
+import { ReservationDetailsSheet } from "@/components/reservations/reservation-details-sheet";
 
 type CalendarViewMode = "month" | "week" | "day";
 
@@ -87,7 +87,7 @@ const EVENT_COLORS = [
 ];
 
 export default function ScheduleCalendarPage() {
-  const { canViewScheduleMasterview, workerProfile, isSuperAdmin, myMinistryIds, isLoading: roleLoading } = useUserRole();
+  const { canViewScheduleMasterview, canApproveRoomReservation, workerProfile, isSuperAdmin, myMinistryIds, isLoading: roleLoading } = useUserRole();
   const router = useRouter();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -110,6 +110,9 @@ export default function ScheduleCalendarPage() {
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
     queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
@@ -865,13 +868,17 @@ export default function ScheduleCalendarPage() {
         </div>
       </div>
 
-      {/* Edit Reservation Dialog Form */}
-      <EditReservationDialog
+      {/* Reservation Details Sheet */}
+      <ReservationDetailsSheet
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         booking={selectedBooking}
-        ministries={ministries || []}
+        roomName={selectedBooking ? rooms?.find((r) => r.id === selectedBooking.roomId)?.name || "Unknown Room" : ""}
+        areaName={selectedBooking ? areas?.find((a) => { const r = rooms?.find((rm) => rm.id === selectedBooking.roomId); return a.id === r?.areaId; })?.name || "First Floor" : ""}
         workers={workers || []}
+        venueElements={venueElements || []}
+        ministries={ministries || []}
+        hideRequesterInfo={!isSuperAdmin && !canApproveRoomReservation}
       />
     </AppLayout>
   );

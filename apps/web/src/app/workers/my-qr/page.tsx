@@ -324,7 +324,7 @@ export default function MyQRCodePage() {
                 <div className="bg-slate-50/70 dark:bg-muted/30 p-4 rounded-xl border border-slate-200/70 dark:border-border/60 space-y-1 shadow-2xs">
                   <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
                     <Key className="h-3.5 w-3.5 text-primary" />
-                    <span>Worker Identifier</span>
+                    <span>Worker ID</span>
                   </div>
                   <p className="text-sm font-mono font-semibold text-foreground">
                     {workerProfile?.workerId || (workerProfile?.biometricsId ? `W-${String(workerProfile.biometricsId).padStart(4, "0")}` : "Not Assigned")}

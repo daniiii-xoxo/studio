@@ -280,7 +280,7 @@ export function UserRoleSyncerSQL() {
         sa || hasPerm('approvals:manage') || hasPerm('manage_approvals') ||
         isMinistryApprover || isMinistryHead,
       canApproveAllRequests:
-        sa || ((hasPerm('approvals:manage') || hasPerm('manage_approvals')) && !isMinistryHead && !isMinistryApprover && myMinistryIds.length === 0),
+        sa || hasPerm('approvals:manage') || hasPerm('manage_approvals'),
       canOperateScanner:
         sa || hasPerm('attendance:scan') || hasPerm('operate_scanner'),
       canViewAttendance:
@@ -296,10 +296,10 @@ export function UserRoleSyncerSQL() {
       canManageC2S:
         sa || hasPerm('mentorship:manage') || hasPerm('manage_c2s') || isMinistryHead || !!effectiveProfile,
       canViewC2SAnalytics:
-        sa || isMinistryHead,
+        sa || hasPerm('mentorship:view_reports') || hasPerm('view_c2s_analytics') || isMinistryHead,
 
       canViewScheduleMasterview:
-        sa,
+        sa || hasPerm('venues:view_calendar') || hasPerm('view_schedule_masterview'),
       canViewTransactionLogs:
         sa || hasPerm('system:view_audit_logs') || hasPerm('view_transaction_logs'),
       canManageOrsSync:
