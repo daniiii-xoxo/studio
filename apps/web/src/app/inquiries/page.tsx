@@ -74,20 +74,20 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-card border border-border/70 p-5 shadow-xs transition-all hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl bg-card border border-border/70 p-3.5 sm:p-5 shadow-xs transition-all hover:shadow-md">
       <div className={cn("absolute top-0 left-0 right-0 h-1", accentColor)} />
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">
             {title}
           </p>
-          <div className="mt-2 text-3xl sm:text-4xl font-black text-foreground">
+          <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl lg:text-4xl font-black text-foreground">
             {value}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+          <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
-        <div className={cn("p-3 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
-          <Icon className={cn("w-5 h-5", iconColor)} />
+        <div className={cn("p-2 sm:p-3 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
+          <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5", iconColor)} />
         </div>
       </div>
     </div>
@@ -281,37 +281,37 @@ export default function InquiriesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 pb-12">
+      <div className="space-y-4 sm:space-y-6 pb-16 sm:pb-12">
         {/* Header Title & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-primary/10 text-primary">
-                <MessageSquareHeart className="w-6 h-6" />
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-foreground flex items-center gap-2.5 sm:gap-3">
+              <span className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                <MessageSquareHeart className="w-5 h-5 sm:w-6 sm:h-6" />
               </span>
-              Inquiries & Requests
+              <span>Inquiries & Requests</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Manage and follow up on messages and requests submitted through the website.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => refetch()}
               disabled={isFetching}
-              className="gap-2 rounded-xl h-10 font-medium"
+              className="gap-2 rounded-xl h-9 sm:h-10 text-xs sm:text-sm font-medium"
             >
-              <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
+              <RefreshCw className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", isFetching && "animate-spin")} />
               Refresh
             </Button>
           </div>
         </div>
 
-        {/* Top Summary Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Top Summary Stat Cards (2x2 on mobile, 4 columns on large screens) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <StatCard
             title="Total Inquiries"
             value={stats.total}
@@ -352,16 +352,16 @@ export default function InquiriesPage() {
 
         {/* Banner if viewing Archived */}
         {activeTab === "archived" && (
-          <div className="flex items-center justify-between px-5 py-3 rounded-2xl bg-muted/60 border border-border/70 text-xs text-muted-foreground shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-4 sm:px-5 py-3 rounded-2xl bg-muted/60 border border-border/70 text-xs text-muted-foreground shadow-2xs">
             <span className="flex items-center gap-2 font-medium text-foreground">
-              <Archive className="w-4 h-4 text-slate-500" />
-              Viewing Archived Messages (30+ days old or archived)
+              <Archive className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>Viewing Archived Messages (30+ days old or archived)</span>
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setActiveTab("active")}
-              className="h-8 text-xs text-primary font-semibold hover:bg-primary/10 px-3 rounded-xl"
+              className="h-8 text-xs text-primary font-semibold hover:bg-primary/10 px-3 rounded-xl self-start sm:self-auto cursor-pointer"
             >
               Back to Active Messages
             </Button>
@@ -369,10 +369,10 @@ export default function InquiriesPage() {
         )}
 
         {/* Main Content Card Container (Unified Dashboard Design) */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-5 sm:p-6 overflow-hidden flex flex-col gap-4">
-          {/* Top Controls Row (Search Left, Archived Right) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Search bar (Left side) */}
+        <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-3.5 sm:p-6 overflow-hidden flex flex-col gap-3.5 sm:gap-4">
+          {/* Top Controls Row (Search & Active/Archived segmented tabs) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Search bar */}
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
               <Input
@@ -384,36 +384,57 @@ export default function InquiriesPage() {
               />
             </div>
 
-            {/* Archived Filter Button (Right side) */}
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <Button
+            {/* Active vs Archived Segmented Tabs */}
+            <div className="flex items-center p-1 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/60 w-full sm:w-auto">
+              <button
                 type="button"
-                variant={activeTab === "archived" ? "default" : "outline"}
-                onClick={() => setActiveTab(activeTab === "archived" ? "active" : "archived")}
+                onClick={() => setActiveTab("active")}
                 className={cn(
-                  "h-10 px-4 rounded-2xl text-xs font-semibold gap-2 transition-all shrink-0 border border-slate-200/90 dark:border-border shadow-2xs cursor-pointer",
-                  activeTab === "archived"
-                    ? "bg-sidebar text-white hover:bg-sidebar/90 shadow-2xs"
-                    : "bg-background dark:bg-muted/30 text-muted-foreground hover:text-foreground"
+                  "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer",
+                  activeTab === "active"
+                    ? "bg-white dark:bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Archive className="w-4 h-4" />
+                <span>Active</span>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                    activeTab === "active"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {stats.active}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("archived")}
+                className={cn(
+                  "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer",
+                  activeTab === "archived"
+                    ? "bg-white dark:bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Archive className="w-3.5 h-3.5" />
                 <span>Archived</span>
                 <span
                   className={cn(
-                    "px-1.5 py-0.5 text-[10px] rounded-full font-bold",
+                    "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
                     activeTab === "archived"
-                      ? "bg-white/20 text-white"
+                      ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
                   {stats.archived}
                 </span>
-              </Button>
+              </button>
             </div>
           </div>
 
-          {/* Table Container */}
+          {/* Table / Card Container */}
           <div className="border border-border/60 rounded-2xl overflow-hidden flex flex-col bg-card">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center p-16 text-muted-foreground">
@@ -451,198 +472,385 @@ export default function InquiriesPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-sidebar">
-                    <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
-                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                        REQUESTER
-                      </th>
-                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                        CONTACT
-                      </th>
-                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                        MESSAGE
-                      </th>
-                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                        DATE RECEIVED
-                      </th>
-                      <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
-                        ACTIONS
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {displayedInquiries.map((inquiry) => {
-                      const daysOld = differenceInDays(new Date(), parseDateSafe(inquiry.createdAt));
-                      const isResponded = inquiry.status === "Responded" || inquiry.status === "Resolved";
+              <>
+                {/* ── Mobile Card List View (Visible on screens < md) ── */}
+                <div className="md:hidden divide-y divide-border/40">
+                  {displayedInquiries.map((inquiry) => {
+                    const daysOld = differenceInDays(new Date(), parseDateSafe(inquiry.createdAt));
+                    const isResponded = inquiry.status === "Responded" || inquiry.status === "Resolved";
+                    const initials = inquiry.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
 
-                      return (
-                        <tr
-                          key={inquiry.id}
-                          className="border-b border-gray-100 dark:border-border/60 hover:bg-slate-50/70 dark:hover:bg-muted/30 transition-colors"
-                        >
-                          {/* Requester (Name & Avatar) */}
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                                {inquiry.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .slice(0, 2)
-                                  .join("")
-                                  .toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="font-bold text-foreground text-sm flex items-center gap-2">
-                                  {inquiry.name}
-                                  {isResponded && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                      <Check className="w-3 h-3" /> Responded
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                    return (
+                      <div
+                        key={inquiry.id}
+                        className="p-4 space-y-3 hover:bg-muted/20 transition-colors"
+                      >
+                        {/* Top: Avatar, Name, Status, Actions Menu */}
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                              {initials}
                             </div>
-                          </td>
-
-                          {/* Contact (100% Static non-clickable text) */}
-                          <td className="px-5 py-3.5 whitespace-nowrap">
-                            <div className="space-y-1">
-                              <div className="text-xs text-foreground font-medium flex items-center gap-1.5 select-text">
-                                <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                <span>{inquiry.email}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm text-foreground truncate">
+                                  {inquiry.name}
+                                </span>
+                                {isResponded ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
+                                    <Check className="w-3 h-3" /> Responded
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md shrink-0">
+                                    <Clock className="w-3 h-3" /> Pending
+                                  </span>
+                                )}
                               </div>
-                              {inquiry.phone ? (
-                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 select-text">
-                                  <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                  <span>{inquiry.phone}</span>
-                                </div>
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>{format(parseDateSafe(inquiry.createdAt), "MMM d, yyyy • h:mm a")}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 3 Dots Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 -mr-1"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                                <span className="sr-only">Actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 rounded-xl">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenDetails(inquiry)}
+                                className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                              >
+                                <Eye className="w-4 h-4 text-muted-foreground" />
+                                <span>View Details</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                asChild
+                                className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                              >
+                                <a
+                                  href={`mailto:${inquiry.email}?subject=Re: Church of God Dasmariñas - Your Message&body=Dear ${encodeURIComponent(
+                                    inquiry.name
+                                  )},%0D%0A%0D%0AThank you for contacting Church of God Dasmariñas regarding your message:%0D%0A"${encodeURIComponent(
+                                    inquiry.message
+                                  )}"%0D%0A%0D%0A`}
+                                  className="flex items-center gap-2 w-full text-foreground"
+                                >
+                                  <Mail className="w-4 h-4 text-muted-foreground" />
+                                  <span>Reply via Email</span>
+                                </a>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setStatusCandidate({
+                                    inquiry,
+                                    targetStatus: isResponded ? "Pending" : "Responded",
+                                  })
+                                }
+                                className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                                <span>{isResponded ? "Mark as Pending" : "Mark as Responded"}</span>
+                              </DropdownMenuItem>
+
+                              {activeTab === "active" ? (
+                                <DropdownMenuItem
+                                  onClick={() => setArchiveCandidate(inquiry)}
+                                  className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                >
+                                  <Archive className="w-4 h-4 text-muted-foreground" />
+                                  <span>Archive</span>
+                                </DropdownMenuItem>
                               ) : (
-                                <div className="text-[11px] text-muted-foreground/60 italic">
-                                  No phone provided
+                                <DropdownMenuItem
+                                  onClick={() => unarchiveMutation.mutate(inquiry.id)}
+                                  className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                >
+                                  <ArchiveRestore className="w-4 h-4 text-muted-foreground" />
+                                  <span>Restore to Active</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        {/* Contact details */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pt-0.5">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate select-text">{inquiry.email}</span>
+                          </div>
+                          {inquiry.phone ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className="select-text">{inquiry.phone}</span>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground/60 italic shrink-0">
+                              No phone
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Message preview block */}
+                        <div
+                          onClick={() => handleOpenDetails(inquiry)}
+                          className="p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors border border-border/50 cursor-pointer"
+                        >
+                          <p className="text-xs text-foreground/90 line-clamp-3 leading-relaxed select-text">
+                            {inquiry.message}
+                          </p>
+                        </div>
+
+                        {/* Card footer: relative date & quick buttons */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            <span>{formatDistanceToNow(parseDateSafe(inquiry.createdAt), { addSuffix: true })}</span>
+                            {daysOld >= 30 && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 ml-1.5 font-medium">
+                                (30+ days)
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`mailto:${inquiry.email}?subject=Re: Church of God Dasmariñas - Your Message&body=Dear ${encodeURIComponent(
+                                inquiry.name
+                              )},%0D%0A%0D%0AThank you for contacting Church of God Dasmariñas regarding your message:%0D%0A"${encodeURIComponent(
+                                inquiry.message
+                              )}"%0D%0A%0D%0A`}
+                              className="inline-flex items-center justify-center gap-1 h-8 px-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>Reply</span>
+                            </a>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenDetails(inquiry)}
+                              className="h-8 px-3 rounded-xl text-xs font-semibold gap-1 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Details</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* ── Desktop Table View (Hidden on mobile, visible on >= md) ── */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-sm min-w-[720px]">
+                    <thead className="bg-sidebar">
+                      <tr className="bg-sidebar hover:bg-sidebar border-b border-sidebar-border/40">
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                          REQUESTER
+                        </th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                          CONTACT
+                        </th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                          MESSAGE
+                        </th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                          DATE RECEIVED
+                        </th>
+                        <th className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                          ACTIONS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {displayedInquiries.map((inquiry) => {
+                        const daysOld = differenceInDays(new Date(), parseDateSafe(inquiry.createdAt));
+                        const isResponded = inquiry.status === "Responded" || inquiry.status === "Resolved";
+
+                        return (
+                          <tr
+                            key={inquiry.id}
+                            className="border-b border-gray-100 dark:border-border/60 hover:bg-slate-50/70 dark:hover:bg-muted/30 transition-colors"
+                          >
+                            {/* Requester (Name & Avatar) */}
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                  {inquiry.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join("")
+                                    .toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-foreground text-sm flex items-center gap-2">
+                                    {inquiry.name}
+                                    {isResponded && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                                        <Check className="w-3 h-3" /> Responded
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Contact (Static non-clickable text) */}
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <div className="space-y-1">
+                                <div className="text-xs text-foreground font-medium flex items-center gap-1.5 select-text">
+                                  <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span>{inquiry.email}</span>
+                                </div>
+                                {inquiry.phone ? (
+                                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 select-text">
+                                    <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                    <span>{inquiry.phone}</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-muted-foreground/60 italic">
+                                    No phone provided
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Message Preview */}
+                            <td className="px-5 py-3.5 max-w-sm sm:max-w-md">
+                              <p className="text-sm text-foreground/90 line-clamp-2 leading-relaxed select-text">
+                                {inquiry.message}
+                              </p>
+                            </td>
+
+                            {/* Date */}
+                            <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                              <div className="font-medium text-foreground">
+                                {format(parseDateSafe(inquiry.createdAt), "MMM d, yyyy")}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {format(parseDateSafe(inquiry.createdAt), "h:mm a")} ({formatDistanceToNow(parseDateSafe(inquiry.createdAt), { addSuffix: true })})
+                              </div>
+                              {daysOld >= 30 && (
+                                <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">
+                                  Auto-archived (30+ days)
                                 </div>
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Message Preview */}
-                          <td className="px-5 py-3.5 max-w-sm sm:max-w-md">
-                            <p className="text-sm text-foreground/90 line-clamp-2 leading-relaxed select-text">
-                              {inquiry.message}
-                            </p>
-                          </td>
+                            {/* Actions: Centered 3 Dots Menu */}
+                            <td
+                              className="px-5 py-3.5 text-center whitespace-nowrap"
+                            >
+                              <div className="flex items-center justify-center">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted mx-auto"
+                                    >
+                                      <MoreHorizontal className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-52 rounded-xl">
+                                    <DropdownMenuItem
+                                      onClick={() => handleOpenDetails(inquiry)}
+                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                    >
+                                      <Eye className="w-4 h-4 text-muted-foreground" />
+                                      <span>View Details</span>
+                                    </DropdownMenuItem>
 
-                          {/* Date */}
-                          <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
-                            <div className="font-medium text-foreground">
-                              {format(parseDateSafe(inquiry.createdAt), "MMM d, yyyy")}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {format(parseDateSafe(inquiry.createdAt), "h:mm a")} ({formatDistanceToNow(parseDateSafe(inquiry.createdAt), { addSuffix: true })})
-                            </div>
-                            {daysOld >= 30 && (
-                              <div className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">
-                                Auto-archived (30+ days)
+                                    <DropdownMenuItem
+                                      asChild
+                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                    >
+                                      <a
+                                        href={`mailto:${inquiry.email}?subject=Re: Church of God Dasmariñas - Your Message&body=Dear ${encodeURIComponent(
+                                          inquiry.name
+                                        )},%0D%0A%0D%0AThank you for contacting Church of God Dasmariñas regarding your message:%0D%0A"${encodeURIComponent(
+                                          inquiry.message
+                                        )}"%0D%0A%0D%0A`}
+                                        className="flex items-center gap-2 w-full text-foreground"
+                                      >
+                                        <Mail className="w-4 h-4 text-muted-foreground" />
+                                        <span>Reply via Email</span>
+                                      </a>
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setStatusCandidate({
+                                          inquiry,
+                                          targetStatus: isResponded ? "Pending" : "Responded",
+                                        })
+                                      }
+                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                                      <span>{isResponded ? "Mark as Pending" : "Mark as Responded"}</span>
+                                    </DropdownMenuItem>
+
+                                    {activeTab === "active" ? (
+                                      <DropdownMenuItem
+                                        onClick={() => setArchiveCandidate(inquiry)}
+                                        className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                      >
+                                        <Archive className="w-4 h-4 text-muted-foreground" />
+                                        <span>Archive</span>
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        onClick={() => unarchiveMutation.mutate(inquiry.id)}
+                                        className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
+                                      >
+                                        <ArchiveRestore className="w-4 h-4 text-muted-foreground" />
+                                        <span>Restore to Active</span>
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
-                            )}
-                          </td>
-
-                          {/* Actions: Centered 3 Dots Menu */}
-                          <td
-                            className="px-5 py-3.5 text-center whitespace-nowrap"
-                          >
-                            <div className="flex items-center justify-center">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted mx-auto"
-                                  >
-                                    <MoreHorizontal className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-52 rounded-xl">
-                                  <DropdownMenuItem
-                                    onClick={() => handleOpenDetails(inquiry)}
-                                    className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
-                                  >
-                                    <Eye className="w-4 h-4 text-muted-foreground" />
-                                    <span>View Details</span>
-                                  </DropdownMenuItem>
-
-                                  <DropdownMenuItem
-                                    asChild
-                                    className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
-                                  >
-                                    <a
-                                      href={`mailto:${inquiry.email}?subject=Re: Church of God Dasmariñas - Your Message&body=Dear ${encodeURIComponent(
-                                        inquiry.name
-                                      )},%0D%0A%0D%0AThank you for contacting Church of God Dasmariñas regarding your message:%0D%0A"${encodeURIComponent(
-                                        inquiry.message
-                                      )}"%0D%0A%0D%0A`}
-                                      className="flex items-center gap-2 w-full text-foreground"
-                                    >
-                                      <Mail className="w-4 h-4 text-muted-foreground" />
-                                      <span>Reply via Email</span>
-                                    </a>
-                                  </DropdownMenuItem>
-
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      setStatusCandidate({
-                                        inquiry,
-                                        targetStatus: isResponded ? "Pending" : "Responded",
-                                      })
-                                    }
-                                    className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-                                    <span>{isResponded ? "Mark as Pending" : "Mark as Responded"}</span>
-                                  </DropdownMenuItem>
-
-                                  {activeTab === "active" ? (
-                                    <DropdownMenuItem
-                                      onClick={() => setArchiveCandidate(inquiry)}
-                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
-                                    >
-                                      <Archive className="w-4 h-4 text-muted-foreground" />
-                                      <span>Archive</span>
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem
-                                      onClick={() => unarchiveMutation.mutate(inquiry.id)}
-                                      className="cursor-pointer gap-2 rounded-lg text-xs font-medium py-2 text-foreground"
-                                    >
-                                      <ArchiveRestore className="w-4 h-4 text-muted-foreground" />
-                                      <span>Restore to Active</span>
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Enhanced View Details Dialog */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-2xl border-border/80 shadow-2xl gap-0">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg p-0 overflow-hidden rounded-2xl border-border/80 shadow-2xl gap-0">
             <DialogTitle className="sr-only">Message Details</DialogTitle>
             {selectedInquiry && (
               <>
                 {/* Modal Top Bar Header with Icon & Badge & Close Button */}
-                <div className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 flex items-start justify-between gap-3">
+                <div className="p-4 sm:p-5 pr-12 pb-3 sm:pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="h-11 w-11 rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
+                    <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
                       <MessageSquareHeart className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -670,21 +878,12 @@ export default function InquiriesPage() {
                       </p>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsDetailsOpen(false)}
-                    className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                  </button>
                 </div>
 
                 {/* Modal Body Content */}
-                <div className="p-5 pb-6 space-y-3.5 max-h-[75vh] overflow-y-auto">
+                <div className="p-4 sm:p-5 pb-5 sm:pb-6 space-y-3 sm:space-y-3.5 max-h-[75vh] overflow-y-auto">
                   {/* Sender Information Card (Vertical layout, clean & spacious, never wraps awkwardly) */}
-                  <div className="p-4 rounded-2xl border border-border/70 bg-card/60 space-y-3 shadow-2xs">
+                  <div className="p-3.5 sm:p-4 rounded-2xl border border-border/70 bg-card/60 space-y-3 shadow-2xs">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                       <User className="h-3.5 w-3.5 text-primary" />
                       <span>Sender Information</span>
@@ -759,7 +958,7 @@ export default function InquiriesPage() {
           open={!!archiveCandidate}
           onOpenChange={(open) => !open && setArchiveCandidate(null)}
         >
-          <AlertDialogContent className="sm:max-w-lg rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl space-y-5">
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5 sm:p-7 border-border/80 shadow-2xl space-y-4 sm:space-y-5">
             <AlertDialogHeader className="space-y-2 pb-1 border-b border-border/40 text-left">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -821,7 +1020,7 @@ export default function InquiriesPage() {
           open={!!statusCandidate}
           onOpenChange={(open) => !open && setStatusCandidate(null)}
         >
-          <AlertDialogContent className="sm:max-w-lg rounded-2xl p-6 sm:p-7 border-border/80 shadow-2xl space-y-5">
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5 sm:p-7 border-border/80 shadow-2xl space-y-4 sm:space-y-5">
             <AlertDialogHeader className="space-y-2 pb-1 border-b border-border/40 text-left">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

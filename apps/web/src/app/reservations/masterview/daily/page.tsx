@@ -13,6 +13,10 @@ import {
   Speaker,
   Clock,
   Calendar,
+  Eye,
+  MapPin,
+  User,
+  X,
 } from "lucide-react";
 import {
   format,
@@ -42,6 +46,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Dialog,
+  DialogContent,
+  DialogTitle,
 } from "@studio/ui";
 import { cn, toJsDate } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
@@ -95,6 +102,19 @@ export default function ScheduleCalendarPage() {
   const [selectedAreaId, setSelectedAreaId] = useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<{
+    date: Date;
+    bookings: any[];
+  } | null>(null);
+
+  const handleDayClickMobile = (day: Date, events: any[]) => {
+    if (!events || events.length === 0) return;
+    if (events.length === 1) {
+      handleBookingClick(events[0]);
+    } else {
+      setSelectedDayEvents({ date: day, bookings: events });
+    }
+  };
 
   // Fetch data live from Database queries
   const { data: rooms, isLoading: roomsLoading } = useQuery({
@@ -344,13 +364,13 @@ export default function ScheduleCalendarPage() {
             /* Month View Grid */
             <div className="space-y-2.5">
               {/* Day Headers (Sun - Sat) with styled header cards */}
-              <div className="grid grid-cols-7 gap-2 sm:gap-3">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                   (dayName, i) => (
                     <div
                       key={dayName}
                       className={cn(
-                        "text-[11px] sm:text-xs font-bold py-2 px-1 text-center uppercase tracking-wider rounded-xl transition-colors shadow-2xs",
+                        "text-[10px] sm:text-xs font-bold py-1.5 sm:py-2 px-0.5 sm:px-1 text-center uppercase tracking-wider rounded-xl transition-colors shadow-2xs",
                         i === 0 || i === 6
                           ? "bg-blue-50/90 dark:bg-blue-950/40 text-sidebar dark:text-blue-300 font-extrabold border border-blue-200/50 dark:border-blue-900/40"
                           : "bg-slate-100/80 dark:bg-muted/60 text-slate-700 dark:text-slate-200 border border-slate-200/50 dark:border-border/40"
@@ -363,7 +383,7 @@ export default function ScheduleCalendarPage() {
               </div>
 
               {/* 7-column Days Grid */}
-              <div className="grid grid-cols-7 gap-2 sm:gap-3">
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
                 {monthDays.map((day, idx) => {
                   const isCurrentMonth = isSameMonth(day, currentDate);
                   const isDayToday = isToday(day);
@@ -377,22 +397,28 @@ export default function ScheduleCalendarPage() {
                   return (
                     <div
                       key={idx}
+                      onClick={() => {
+                        if (dayEvents.length > 0) {
+                          handleDayClickMobile(day, dayEvents);
+                        }
+                      }}
                       className={cn(
-                        "min-h-[115px] sm:min-h-[135px] p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 flex flex-col justify-between group relative",
+                        "min-h-[72px] sm:min-h-[135px] p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all duration-200 flex flex-col justify-between group relative",
                         isCurrentMonth
                           ? isDayToday
                             ? "bg-white dark:bg-card border-sidebar/50 dark:border-blue-500/60 ring-2 ring-sidebar/15 shadow-sm"
                             : isWeekend
                             ? "bg-slate-50/60 dark:bg-muted/20 border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
                             : "bg-white dark:bg-card border-slate-200/80 dark:border-border/70 shadow-2xs hover:border-sidebar/40 hover:shadow-md hover:-translate-y-0.5"
-                          : "bg-slate-50/30 dark:bg-muted/10 border-slate-100 dark:border-border/30 text-slate-400 dark:text-slate-600 opacity-60"
+                          : "bg-slate-50/30 dark:bg-muted/10 border-slate-100 dark:border-border/30 text-slate-400 dark:text-slate-600 opacity-60",
+                        dayEvents.length > 0 && "cursor-pointer"
                       )}
                     >
                       {/* Top Header: Day Number + Event Badge count */}
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                         {isDayToday ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-6 h-6 rounded-full bg-sidebar text-white flex items-center justify-center text-xs font-black shadow-xs">
+                          <div className="flex items-center gap-1">
+                            <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-sidebar text-white flex items-center justify-center text-[10px] sm:text-xs font-black shadow-xs shrink-0">
                               {format(day, "d")}
                             </span>
                             <span className="text-[10px] font-bold text-sidebar uppercase tracking-tight hidden md:inline-block">
@@ -402,7 +428,7 @@ export default function ScheduleCalendarPage() {
                         ) : (
                           <span
                             className={cn(
-                              "text-xs font-bold px-0.5 transition-colors",
+                              "text-[11px] sm:text-xs font-bold px-0.5 transition-colors",
                               isCurrentMonth
                                 ? "text-slate-700 dark:text-slate-200 group-hover:text-sidebar"
                                 : "text-slate-400 dark:text-slate-600"
@@ -413,14 +439,32 @@ export default function ScheduleCalendarPage() {
                         )}
 
                         {dayEvents.length > 0 && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sidebar/10 text-sidebar dark:bg-blue-950/60 dark:text-blue-300">
+                          <span className="text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.2 rounded-full bg-sidebar/10 text-sidebar dark:bg-blue-950/60 dark:text-blue-300">
                             {dayEvents.length}
                           </span>
                         )}
                       </div>
 
-                      {/* Event Items */}
-                      <div className="space-y-1 overflow-y-auto max-h-[85px] pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {/* ── Mobile View: Action button without cramped time pills ── */}
+                      <div className="md:hidden mt-auto pt-1 w-full">
+                        {dayEvents.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDayClickMobile(day, dayEvents);
+                            }}
+                            className="w-full py-1 px-0.5 rounded-lg text-[10px] font-bold bg-sidebar text-white hover:bg-sidebar/90 flex items-center justify-center shadow-2xs active:scale-95 transition-all cursor-pointer"
+                          >
+                            <span>View</span>
+                          </button>
+                        ) : (
+                          <div className="h-3.5" />
+                        )}
+                      </div>
+
+                      {/* ── Desktop View: Full Time & Room event pills ── */}
+                      <div className="hidden md:block space-y-1 overflow-y-auto max-h-[85px] pr-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {dayEvents.slice(0, 3).map((booking, bIdx) => {
                           const room = rooms?.find(
                             (r) => r.id === booking.roomId
@@ -432,7 +476,10 @@ export default function ScheduleCalendarPage() {
                           return (
                             <div
                               key={booking.id}
-                              onClick={() => handleBookingClick(booking)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBookingClick(booking);
+                              }}
                               className={cn(
                                 "border-l-[3px] rounded-lg py-1 px-1.5 text-[10px] font-semibold truncate cursor-pointer hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1 shadow-2xs",
                                 color.bg,
@@ -880,6 +927,91 @@ export default function ScheduleCalendarPage() {
         ministries={ministries || []}
         hideRequesterInfo={!isSuperAdmin && !canApproveRoomReservation}
       />
+
+      {/* Mobile Multiple Events Day Dialog */}
+      <Dialog
+        open={!!selectedDayEvents}
+        onOpenChange={(open) => !open && setSelectedDayEvents(null)}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/80 shadow-2xl gap-0">
+          <DialogTitle className="sr-only">Day Schedule</DialogTitle>
+          {selectedDayEvents && (
+            <>
+              <div className="p-4 sm:p-5 pr-12 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-sidebar/10 text-sidebar dark:text-blue-400 shrink-0">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold font-headline text-foreground">
+                      {format(selectedDayEvents.date, "EEEE, MMMM d, yyyy")}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedDayEvents.bookings.length} reservations scheduled
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-5 space-y-3 max-h-[65vh] overflow-y-auto divide-y divide-border/40">
+                {selectedDayEvents.bookings.map((booking, bIdx) => {
+                  const room = rooms?.find((r) => r.id === booking.roomId);
+                  const area = areas?.find((a) => a.id === room?.areaId);
+                  const startTime = toJsDate(booking.start);
+                  const endTime = toJsDate(booking.end);
+                  const worker = workers?.find((w) => w.id === booking.workerProfileId);
+                  const requesterName = worker ? `${worker.firstName} ${worker.lastName}` : booking.name || "Requester";
+                  const color = EVENT_COLORS[bIdx % EVENT_COLORS.length];
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="pt-3 first:pt-0 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-sm text-foreground truncate">
+                            {booking.title}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1 font-semibold text-sidebar dark:text-blue-400">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              <span>
+                                {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{room?.name || "Room"}{area ? ` (${area.name})` : ""}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <User className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{requesterName}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDayEvents(null);
+                          handleBookingClick(booking);
+                        }}
+                        className="w-full h-8 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer hover:bg-sidebar hover:text-white transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Details</span>
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

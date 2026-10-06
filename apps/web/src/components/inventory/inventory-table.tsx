@@ -663,16 +663,16 @@ export function InventoryTable({
           </div>
 
           {/* Action Buttons Row */}
-          <div className="flex items-center justify-end gap-2 shrink-0">
+          <div className="flex items-center justify-end gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
             {onActivityFeedClick && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onActivityFeedClick}
-                className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
+                className="h-9 px-3 sm:px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40 flex-1 sm:flex-initial justify-center"
               >
-                <Activity className="h-3.5 w-3.5 text-primary" />
-                <span>Activity Feed</span>
+                <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="whitespace-nowrap">Activity Feed</span>
               </Button>
             )}
 
@@ -680,24 +680,24 @@ export function InventoryTable({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40"
+              className="h-9 px-3 sm:px-3.5 text-xs font-semibold rounded-xl gap-1.5 border-border/80 shadow-2xs cursor-pointer hover:bg-muted/40 flex-1 sm:flex-initial justify-center"
               onClick={() => setShowExportConfirm(true)}
             >
-              <Download className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Export Excel</span>
+              <Download className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="whitespace-nowrap">Export Excel</span>
             </Button>
 
             {/* Primary + Add Item Button */}
             <Button
               size="sm"
-              className="h-9 px-4 text-xs font-bold rounded-xl gap-1.5 bg-sidebar hover:bg-sidebar/90 text-white shadow-xs cursor-pointer"
+              className="h-9 px-3.5 sm:px-4 text-xs font-bold rounded-xl gap-1.5 bg-sidebar hover:bg-sidebar/90 text-white shadow-xs cursor-pointer flex-1 sm:flex-initial justify-center"
               onClick={() => {
                 setModalItem(null);
                 setIsItemModalOpen(true);
               }}
             >
-              <Plus className="h-4 w-4" />
-              <span>Add Item</span>
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">Add Item</span>
             </Button>
           </div>
 
@@ -881,17 +881,17 @@ export function InventoryTable({
                         </DropdownMenu>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 text-xs border-t border-border/40">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2 pt-1.5 text-xs border-t border-border/40">
+                        <div className="flex items-center gap-1.5 text-muted-foreground min-w-0 flex-1">
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate max-w-[150px]">{item.location || 'No location'}</span>
+                          <span className="truncate text-xs">{item.location || 'No location'}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[11px] text-muted-foreground">Stock:</span>
                           <span className={`font-mono font-bold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-foreground'}`}>
                             {item.stock} {item.unit || 'pcs'}
                           </span>
-                          <div className="flex items-center gap-0.5 ml-1.5">
+                          <div className="flex items-center gap-0.5 ml-1">
                             <Button
                               size="sm"
                               variant="outline"

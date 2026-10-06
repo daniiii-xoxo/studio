@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import {
   LoaderCircle, AlertTriangle, Settings, Shield, Building2,
   Building, Utensils, MapPin, Clock, ArrowRight,
-  Users, UtensilsCrossed, Type,
+  Users, UtensilsCrossed,
 } from "lucide-react";
 import { useAuthStore } from "@studio/store";
 import { useUserRole } from "@/hooks/use-user-role";
@@ -278,14 +278,6 @@ export default function SettingsPage() {
                 badge="Live"
               />
             )}
-            <ModuleCard
-              href="/settings/general#font-size"
-              icon={Type}
-              iconBg="bg-sidebar/10 text-sidebar"
-              title="Display & Font Size"
-              description="Configure application font size, text scaling, and readability."
-              badge="Accessibility"
-            />
 
           </div>
         </div>
