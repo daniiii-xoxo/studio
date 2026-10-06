@@ -109,8 +109,8 @@ export default function DashboardPage() {
           <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-36 w-80 rounded-full bg-indigo-500/15 blur-3xl" />
 
           {/* Content */}
-          <div className="relative z-10 flex flex-col items-center max-w-2xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-headline font-bold tracking-tight text-foreground">
+          <div className="relative z-10 flex flex-col items-center max-w-3xl">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-headline font-bold tracking-tight text-foreground">
               Welcome back, <span className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 bg-clip-text text-transparent">{userName}</span>!
             </h1>
             
@@ -121,7 +121,7 @@ export default function DashboardPage() {
               </p>
             )}
             
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-lg leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-muted-foreground mt-2 max-w-xl leading-relaxed font-normal">
               Here is a summary of activities, facilities, and records for today.
             </p>
           </div>

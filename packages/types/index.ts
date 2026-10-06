@@ -221,4 +221,19 @@ export type C2SDevotionRecord = {
     group?: C2SGroup | null;
 };
 
+export type Inquiry = {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    message: string;
+    type?: string | null;
+    status: 'Pending' | 'In Review' | 'Responded' | 'Resolved' | 'Archived' | string;
+    respondedAt?: TimestampLike | Date | null;
+    respondedBy?: string | null;
+    notes?: string | null;
+    createdAt: TimestampLike | Date;
+    updatedAt?: TimestampLike | Date;
+};
+
 

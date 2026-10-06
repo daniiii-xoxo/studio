@@ -2819,3 +2819,184 @@ export async function adminSendPasswordResetEmail(workerId: string, appUrl: stri
 
     return true;
 }
+
+// ── Inquiries & Prayer Requests ──────────────────────────────────────────────
+
+export async function createInquiry(data: {
+    name: string;
+    email: string;
+    phone?: string | null;
+    message: string;
+    type?: string | null;
+}) {
+    const name = data.name?.trim();
+    const email = data.email?.trim().toLowerCase();
+    const phone = data.phone?.trim() || null;
+    const message = data.message?.trim();
+    const type = data.type?.trim() || 'General / Prayer Request';
+
+    if (!name || !email || !message) {
+        throw new Error('Name, email, and message are required.');
+    }
+
+    try {
+        if ((prisma as any).inquiry) {
+            const created = await (prisma as any).inquiry.create({
+                data: {
+                    name,
+                    email,
+                    phone,
+                    message,
+                    type,
+                    status: 'Pending',
+                },
+            });
+            try { revalidatePath('/inquiries'); } catch {}
+            return { success: true, inquiry: created };
+        }
+    } catch (prismaErr) {
+        console.warn('Prisma inquiry.create error, falling back to Supabase client:', prismaErr);
+    }
+
+    // Supabase Admin fallback
+    try {
+        const supabase = getSupabaseAdminClient();
+        const { data: inserted, error } = await (supabase.from('inquiries') as any)
+            .insert({
+                name,
+                email,
+                phone,
+                message,
+                type,
+                status: 'Pending',
+            })
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        try { revalidatePath('/inquiries'); } catch {}
+        return { success: true, inquiry: inserted };
+    } catch (supabaseErr) {
+        console.error('Supabase create inquiry fallback error:', supabaseErr);
+        throw supabaseErr;
+    }
+}
+
+export async function getInquiries() {
+    try {
+        if ((prisma as any).inquiry) {
+            const list = await (prisma as any).inquiry.findMany({
+                orderBy: { createdAt: 'desc' },
+            });
+            return list;
+        }
+    } catch (err) {
+        console.warn('Prisma inquiry.findMany error, falling back to Supabase client:', err);
+    }
+
+    try {
+        const supabase = getSupabaseAdminClient();
+        const { data, error } = await (supabase.from('inquiries') as any)
+            .select('*')
+            .order('createdAt', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
+    } catch (supabaseErr) {
+        console.error('Supabase get inquiries fallback error:', supabaseErr);
+        return [];
+    }
+}
+
+export async function updateInquiryStatus(
+    id: string,
+    status: string,
+    notes?: string | null,
+    responderName?: string | null
+) {
+    if (!id) throw new Error('Inquiry ID is required');
+
+    const isResponded = status === 'Responded' || status === 'Resolved';
+    const respondedAt = isResponded ? new Date().toISOString() : null;
+
+    try {
+        if ((prisma as any).inquiry) {
+            const updated = await (prisma as any).inquiry.update({
+                where: { id },
+                data: {
+                    status,
+                    notes: notes !== undefined ? notes : undefined,
+                    respondedAt: isResponded ? new Date() : undefined,
+                    respondedBy: responderName || undefined,
+                },
+            });
+            try { revalidatePath('/inquiries'); } catch {}
+            return { success: true, inquiry: updated };
+        }
+    } catch (err) {
+        console.warn('Prisma inquiry.update error, falling back to Supabase client:', err);
+    }
+
+    try {
+        const supabase = getSupabaseAdminClient();
+        const updatePayload: any = {
+            status,
+            updatedAt: new Date().toISOString(),
+        };
+        if (notes !== undefined) updatePayload.notes = notes;
+        if (isResponded) {
+            updatePayload.respondedAt = respondedAt;
+            if (responderName) updatePayload.respondedBy = responderName;
+        }
+
+        const { data, error } = await (supabase.from('inquiries') as any)
+            .update(updatePayload)
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        try { revalidatePath('/inquiries'); } catch {}
+        return { success: true, inquiry: data };
+    } catch (supabaseErr) {
+        console.error('Supabase update inquiry error:', supabaseErr);
+        throw supabaseErr;
+    }
+}
+
+export async function deleteInquiry(id: string) {
+    if (!id) throw new Error('Inquiry ID is required');
+
+    try {
+        if ((prisma as any).inquiry) {
+            await (prisma as any).inquiry.delete({
+                where: { id },
+            });
+            try { revalidatePath('/inquiries'); } catch {}
+            return { success: true };
+        }
+    } catch (err) {
+        console.warn('Prisma inquiry.delete error, falling back to Supabase client:', err);
+    }
+
+    try {
+        const supabase = getSupabaseAdminClient();
+        const { error } = await (supabase.from('inquiries') as any).delete().eq('id', id);
+        if (error) throw error;
+        try { revalidatePath('/inquiries'); } catch {}
+        return { success: true };
+    } catch (supabaseErr) {
+        console.error('Supabase delete inquiry error:', supabaseErr);
+        throw supabaseErr;
+    }
+}
+
+export async function archiveInquiry(id: string) {
+    if (!id) throw new Error('Inquiry ID is required');
+    return await updateInquiryStatus(id, 'Archived');
+}
+
+export async function unarchiveInquiry(id: string) {
+    if (!id) throw new Error('Inquiry ID is required');
+    return await updateInquiryStatus(id, 'Pending');
+}

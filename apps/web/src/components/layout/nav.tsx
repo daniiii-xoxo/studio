@@ -18,6 +18,7 @@ import {
   QrCode,
   UserCog,
   SlidersHorizontal,
+  MessageSquareHeart,
 } from "lucide-react";
 import { useFontSize } from "@/hooks/use-font-size";
 import {
@@ -149,6 +150,12 @@ const allNavItems: NavItem[] = [
         anyPermissionKeys: ["isMinistryHead", "canViewC2SAnalytics"],
       },
     ],
+  },
+  {
+    href: "/inquiries",
+    icon: MessageSquareHeart,
+    label: "Inquiries & Requests",
+    permissionKey: "isSuperAdmin",
   },
   {
     href: "/approvals",

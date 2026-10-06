@@ -148,32 +148,6 @@ function MySettingsContent() {
         </div>
       </div>
 
-      {/* Tab Navigation Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/60">
-        {[
-          { id: "appearance", label: "Display & Appearance", icon: SunMoon },
-          { id: "password", label: "Change Password", icon: KeyRound },
-          { id: "security", label: "Login Security", icon: Shield },
-          { id: "support", label: "Help & Support", icon: HelpCircle },
-          { id: "report", label: "Report a Problem", icon: AlertCircle },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => handleTabChange(tab.id as SettingTab)}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 cursor-pointer",
-              activeTab === tab.id
-                ? "bg-sidebar text-white shadow-xs dark:bg-sidebar"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            <tab.icon className="h-4 w-4" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
       {/* Main Container Card */}
       <div className="bg-white dark:bg-card rounded-2xl border border-border/60 shadow-card-dark p-6 sm:p-8 md:p-10 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* ── Tab: Display & Appearance ── */}
@@ -219,6 +193,7 @@ function MySettingsContent() {
             </div>
           </div>
         )}
+
         {/* ── Tab: Change Password ── */}
         {activeTab === "password" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

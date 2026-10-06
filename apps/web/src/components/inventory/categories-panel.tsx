@@ -356,53 +356,39 @@ export function CategoriesPanel() {
       {/* ── CREATE / EDIT CATEGORY MODAL ── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto p-0 rounded-2xl gap-0 border-border/80 shadow-2xl">
-          <DialogHeader className="p-5 pb-4 border-b border-border/70 bg-card/90 backdrop-blur-md sticky top-0 z-10">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0">
-                <div
-                  className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300"
-                  style={{
-                    backgroundColor: `${color}15`,
-                    color: color,
-                    borderColor: `${color}40`,
-                    boxShadow: `0 0 20px -2px ${color}35`,
-                  }}
-                >
-                  {renderIcon(icon)}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <DialogTitle className="text-base font-bold font-headline tracking-tight text-foreground">
-                      {editingCategory ? 'Edit Category' : 'Create Category'}
-                    </DialogTitle>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors"
-                      style={{
-                        backgroundColor: `${color}10`,
-                        color: color,
-                        borderColor: `${color}30`,
-                      }}
-                    >
-                      {editingCategory ? 'Editing' : 'New'}
-                    </span>
-                  </div>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    Define category name, description, icon and theme color.
-                  </DialogDescription>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsModalOpen(false)}
-                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
-                title="Close"
+          <DialogHeader className="p-5 pb-4 pr-12 border-b border-border/70 bg-card/90 backdrop-blur-md sticky top-0 z-10 text-left">
+            <div className="flex items-start gap-3 min-w-0">
+              <div
+                className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300"
+                style={{
+                  backgroundColor: `${color}15`,
+                  color: color,
+                  borderColor: `${color}40`,
+                  boxShadow: `0 0 20px -2px ${color}35`,
+                }}
               >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
+                {renderIcon(icon)}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-base font-bold font-headline tracking-tight text-foreground">
+                    {editingCategory ? 'Edit Category' : 'Create Category'}
+                  </DialogTitle>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors"
+                    style={{
+                      backgroundColor: `${color}10`,
+                      color: color,
+                      borderColor: `${color}30`,
+                    }}
+                  >
+                    {editingCategory ? 'Editing' : 'New'}
+                  </span>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Define category name, description, icon and theme color.
+                </DialogDescription>
+              </div>
             </div>
           </DialogHeader>
 

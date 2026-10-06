@@ -121,11 +121,14 @@
     -webkit-user-select: text;
   }
 
-  /* Form controls font size scaling (16px at Default) */
+  /* Form controls font size scaling (compact 12px / 0.75rem for crisp, clean inputs and search bars across the entire app) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
   textarea,
-  select {
-    font-size: calc(1rem * var(--font-scale, 1));
+  select,
+  input::placeholder,
+  textarea::placeholder {
+    font-size: calc(0.75rem * var(--font-scale, 1)) !important;
+    font-family: inherit !important;
   }
 
   /* Hide default browser password reveal / clear buttons to avoid duplicate eye icons in Edge/IE */

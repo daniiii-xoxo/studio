@@ -235,24 +235,50 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0 rounded-2xl gap-0 border-border/80 shadow-2xl">
-        {/* ── MODAL HEADER ── */}
-        <DialogHeader className="p-5 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-md sticky top-0 z-10">
+      <DialogContent className="max-w-2xl max-h-[calc(100svh-8rem)] md:max-h-[92vh] overflow-y-auto overflow-x-hidden p-0 rounded-2xl gap-0 border-border/80 shadow-2xl [&>button]:hidden">
+        {/* ── STICKY MODAL HEADER ── */}
+        <DialogHeader className="p-5 pb-4 border-b border-border/70 bg-card/95 backdrop-blur-md sticky top-0 z-20 text-left space-y-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
               <div className="h-10 w-10 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-xs">
                 <Boxes className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-lg font-bold font-headline tracking-tight text-foreground flex items-center gap-2">
-                  <span className="truncate">{item ? 'Edit Item' : 'Add New Item'}</span>
-                  {item?.inventoryCode && (
-                    <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/70 shrink-0">
-                      {item.inventoryCode}
+              <div className="min-w-0 space-y-1">
+                <DialogTitle className="text-base font-bold font-headline tracking-tight text-foreground flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-base font-bold text-foreground">
+                    {item ? (item.inventoryCode || item.name) : 'Add New Item'}
+                  </span>
+                  {item?.status && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-2xs border shrink-0 -translate-y-0.5",
+                        item.status === "Good Condition"
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                          : item.status === "Low Stock"
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                          : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full shrink-0",
+                          item.status === "Good Condition"
+                            ? "bg-emerald-500"
+                            : item.status === "Low Stock"
+                            ? "bg-amber-500 animate-pulse"
+                            : "bg-rose-500"
+                        )}
+                      />
+                      {item.status}
                     </span>
                   )}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground truncate">
+                {item?.name && item?.inventoryCode && (
+                  <p className="text-xs font-semibold text-foreground/90 truncate leading-snug">
+                    {item.name}
+                  </p>
+                )}
+                <DialogDescription className="text-xs text-muted-foreground truncate leading-snug">
                   {item
                     ? 'Update specifications, stock levels, location placement, and PMS status.'
                     : 'Register a new equipment or consumable record into the catalog.'}
@@ -283,7 +309,7 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
             </div>
           )}
 
-          {/* 1. General Info Card */}
+          {/* 1. Item Specifications */}
           <div className="space-y-3.5">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-headline">
@@ -291,40 +317,44 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </span>
             </div>
 
+            {/* Row 1: Item Name & Item Code */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <Label htmlFor="item-name" className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                   <span>Item Name</span>
                   <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  id="item-name"
                   required
-                  placeholder="e.g. Shure SM58 Microphone"
+                  placeholder="e.g. Chauvet DJ SlimPAR Pro LED"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                  className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 text-foreground font-medium placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <Label htmlFor="item-code" className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                   <span>Item Code / Barcode</span>
                 </Label>
                 <div className="relative">
                   <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <Input
+                    id="item-code"
                     placeholder="Auto-generated if empty"
                     value={formData.inventoryCode}
                     onChange={(e) => setFormData({ ...formData, inventoryCode: e.target.value })}
-                    className="pl-9 h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background font-mono transition-all"
+                    className="pl-9 h-9 text-xs rounded-xl bg-muted/30 border border-border/70 font-medium text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                   />
                 </div>
               </div>
             </div>
 
+            {/* Row 2: Category & Type */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                   <span>Category</span>
                   <span className="text-destructive">*</span>
                 </Label>
@@ -332,8 +362,8 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
                   value={formData.categoryId || ''}
                   onValueChange={(val) => setFormData({ ...formData, categoryId: val })}
                 >
-                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <SelectTrigger className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 text-foreground font-medium hover:bg-muted/50 transition-colors focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <SelectValue placeholder="Select Category..." className="truncate text-left" />
                     </div>
@@ -349,13 +379,15 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Type</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                  <span>Type</span>
+                </Label>
                 <Select
                   value={formData.type}
                   onValueChange={(val) => setFormData({ ...formData, type: val as any })}
                 >
-                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <SelectTrigger className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 text-foreground font-medium hover:bg-muted/50 transition-colors focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <SelectValue placeholder="Select Type..." className="truncate text-left" />
                     </div>
@@ -373,7 +405,7 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
             </div>
           </div>
 
-          {/* 2. Stock & Health Section */}
+          {/* 2. Stock & Condition Section */}
           <div className="space-y-3.5 pt-1 border-t border-border/50">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-headline">
@@ -381,48 +413,61 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </span>
             </div>
 
+            {/* Row 1: Stock, Min Stock, Unit */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Current Stock</Label>
+                <Label htmlFor="current-stock" className="text-[11px] font-semibold text-muted-foreground">
+                  Current Stock
+                </Label>
                 <Input
+                  id="current-stock"
                   type="number"
                   min="0"
                   value={formData.stock}
                   onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value, 10) || 0 })}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all font-mono font-bold"
+                  className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 font-medium text-foreground focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Min Stock Alert</Label>
+                <Label htmlFor="min-stock" className="text-[11px] font-semibold text-muted-foreground">
+                  Min Stock Alert
+                </Label>
                 <Input
+                  id="min-stock"
                   type="number"
                   min="0"
                   value={formData.minStock}
                   onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value, 10) || 0 })}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all font-mono"
+                  className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 font-medium text-foreground focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Unit</Label>
+                <Label htmlFor="unit" className="text-[11px] font-semibold text-muted-foreground">
+                  Unit
+                </Label>
                 <Input
+                  id="unit"
                   placeholder="pcs, box, roll"
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                  className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 font-medium text-foreground focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
               </div>
             </div>
 
+            {/* Row 2: Condition / Status & Next Maintenance */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Condition / Status</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground">
+                  Condition / Status
+                </Label>
                 <Select
                   value={formData.status}
                   onValueChange={(val) => setFormData({ ...formData, status: val })}
                 >
-                  <SelectTrigger className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 hover:bg-muted/50 transition-colors">
+                  <SelectTrigger className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 text-foreground font-medium hover:bg-muted/50 transition-colors focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar">
                     <SelectValue placeholder="Select Status..." className="truncate text-left" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl w-[var(--radix-popover-trigger-width)]">
@@ -437,20 +482,23 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-foreground">Next Maintenance (PMS)</Label>
+                <Label htmlFor="maintenance-date" className="text-[11px] font-semibold text-muted-foreground">
+                  Next Maintenance (PMS)
+                </Label>
                 <div className="relative">
                   <Input
+                    id="maintenance-date"
                     type="date"
                     value={formData.nextMaintenanceDate}
                     onChange={(e) => setFormData({ ...formData, nextMaintenanceDate: e.target.value })}
-                    className="h-9 text-xs rounded-xl bg-muted/30 border-border/70 focus:bg-background transition-all"
+                    className="h-9 px-3 text-xs rounded-xl bg-muted/30 border border-border/70 text-foreground font-medium focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 3. Location & Placement Box */}
+          {/* 3. Location & Placement Card (matching LOCATION & VENUE style) */}
           <div className="rounded-2xl border border-border/70 bg-card/60 p-4 space-y-3.5 shadow-2xs">
             <div className="flex items-center gap-2">
               <div className="p-1 rounded-lg bg-primary/10 text-primary">
@@ -461,15 +509,16 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">Location Area / Room</Label>
+                <Label htmlFor="loc-area" className="text-[11px] font-semibold text-muted-foreground">Location Area / Room</Label>
                 <Input
+                  id="loc-area"
                   placeholder="e.g. 4th Floor Studio"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   list="locations-list"
-                  className="h-8.5 text-xs rounded-xl bg-background border-border/70"
+                  className="h-9 px-3 text-xs rounded-xl bg-background border border-border/70 text-foreground font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                 />
                 <datalist id="locations-list">
                   {locations.map((l) => (
@@ -479,57 +528,61 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">Assigned Custodian / Person</Label>
+                <Label htmlFor="assigned-custodian" className="text-[11px] font-semibold text-muted-foreground">Assigned Custodian / Person</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <Input
+                    id="assigned-custodian"
                     placeholder="e.g. Tech Head"
                     value={formData.assignedTo}
                     onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    className="pl-9 h-8.5 text-xs rounded-xl bg-background border-border/70"
+                    className="pl-9 h-9 text-xs rounded-xl bg-background border border-border/70 text-foreground font-medium shadow-2xs focus-visible:ring-1 focus-visible:ring-sidebar/40 focus-visible:border-sidebar transition-all"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5 pt-1">
-              <div className="space-y-1">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Aisle</Label>
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-aisle" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Aisle</Label>
                 <Input
+                  id="loc-aisle"
                   placeholder="A-1"
                   value={formData.aisle}
                   onChange={(e) => setFormData({ ...formData, aisle: e.target.value })}
-                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
+                  className="h-8.5 text-xs rounded-xl bg-background border border-border/70 text-center font-medium text-foreground shadow-2xs"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Shelf</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-shelf" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Shelf</Label>
                 <Input
+                  id="loc-shelf"
                   placeholder="S-2"
                   value={formData.shelf}
                   onChange={(e) => setFormData({ ...formData, shelf: e.target.value })}
-                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
+                  className="h-8.5 text-xs rounded-xl bg-background border border-border/70 text-center font-medium text-foreground shadow-2xs"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Bin</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-bin" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Bin</Label>
                 <Input
+                  id="loc-bin"
                   placeholder="B-04"
                   value={formData.bin}
                   onChange={(e) => setFormData({ ...formData, bin: e.target.value })}
-                  className="h-8 text-xs rounded-lg bg-background border-border/70 font-mono text-center"
+                  className="h-8.5 text-xs rounded-xl bg-background border border-border/70 text-center font-medium text-foreground shadow-2xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* 4. Image & Options */}
-          <div className="space-y-3.5">
+          {/* 4. Photo & Attributes */}
+          <div className="space-y-3.5 pt-1 border-t border-border/50">
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <ImageIcon className="h-3.5 w-3.5 text-primary" />
                 <span>Item Photo (Optional)</span>
               </Label>
 
@@ -542,12 +595,12 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
               />
 
               {formData.imageUrl ? (
-                <div className="p-3 rounded-2xl bg-muted/40 border border-border/70 flex items-center justify-between gap-3">
+                <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 flex items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-center gap-3 min-w-0">
                     <img
                       src={formData.imageUrl}
                       alt="Item Preview"
-                      className="h-14 w-14 rounded-xl object-cover border border-border shrink-0 shadow-2xs"
+                      className="h-12 w-12 rounded-xl object-cover border border-border shrink-0 shadow-2xs"
                       onError={(e) => (e.currentTarget.style.display = 'none')}
                     />
                     <div className="text-xs min-w-0">
@@ -556,14 +609,14 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingImage}
-                      className="h-8 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer"
+                      className="h-8 px-3 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer border-border/80 hover:bg-muted/50"
                     >
                       <Camera className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>Change</span>
@@ -588,11 +641,11 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
                   disabled={isUploadingImage}
                   className="w-full flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-border/80 hover:border-primary/60 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer group"
                 >
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
                     {isUploadingImage ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <UploadCloud className="h-5 w-5" />
+                      <UploadCloud className="h-4 w-4" />
                     )}
                   </div>
                   <p className="text-xs font-bold text-foreground">
@@ -631,12 +684,12 @@ export function ItemModal({ isOpen, onClose, item, onSaved }: ItemModalProps) {
           </div>
 
           {/* ── MODAL FOOTER ── */}
-          <DialogFooter className="pt-4 border-t border-border/70 flex items-center justify-end gap-2">
+          <DialogFooter className="pt-4 border-t border-border/70 flex flex-row items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80 cursor-pointer"
+              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
             >
               Cancel
             </Button>

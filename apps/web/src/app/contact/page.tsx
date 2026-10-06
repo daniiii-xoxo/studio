@@ -18,6 +18,7 @@ import { Button, Input, Textarea, Label } from "@studio/ui";
 import { useToast } from "@/hooks/use-toast";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
+import { createInquiry } from "@/actions/db";
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -27,7 +28,7 @@ export default function ContactPage() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !message.trim()) {
       toast({
@@ -57,17 +58,40 @@ export default function ContactPage() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast({
-        title: "Message Sent Successfully!",
-        description: "Thank you for reaching out. Our ministry team will get back to you soon.",
+    try {
+      const res = await createInquiry({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        message: message.trim(),
       });
-      setName("");
-      setEmail("");
-      setPhone("");
-      setMessage("");
-    }, 800);
+
+      if (res.success) {
+        toast({
+          title: "Message Sent Successfully!",
+          description: "Thank you for reaching out to COG Dasmariñas. Our ministry team has received your message.",
+        });
+        setName("");
+        setEmail("");
+        setPhone("");
+        setMessage("");
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Submission Error",
+          description: "Could not save your message. Please try again or contact us directly.",
+        });
+      }
+    } catch (err: any) {
+      console.error("Error submitting contact inquiry:", err);
+      toast({
+        variant: "destructive",
+        title: "Error Sending Message",
+        description: err?.message || "An unexpected error occurred. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
