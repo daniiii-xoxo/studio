@@ -1,5 +1,12 @@
-import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
+
+// nodemailer is optional — only used when SMTP_USER/SMTP_PASS env vars are set
+let nodemailer: any = null;
+try {
+    nodemailer = require('nodemailer');
+} catch {
+    // nodemailer not installed — SMTP sending will be unavailable
+}
 
 /**
  * Generic Email Service for sending notifications.
