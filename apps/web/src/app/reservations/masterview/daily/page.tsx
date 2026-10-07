@@ -106,6 +106,10 @@ export default function ScheduleCalendarPage() {
     date: Date;
     bookings: any[];
   } | null>(null);
+  const [previousDayEvents, setPreviousDayEvents] = useState<{
+    date: Date;
+    bookings: any[];
+  } | null>(null);
 
   const handleDayClickMobile = (day: Date, events: any[]) => {
     if (!events || events.length === 0) return;
@@ -128,16 +132,16 @@ export default function ScheduleCalendarPage() {
   });
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
-    queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    queryKey: ["bookings", "calendar"],
+    queryFn: () => getBookings(),
     staleTime: 0,
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
-    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    queryKey: ["workers", "calendar"],
+    queryFn: () => getWorkers(),
   });
 
   const { data: venueElements, isLoading: venueElementsLoading } = useQuery({
@@ -187,7 +191,10 @@ export default function ScheduleCalendarPage() {
     }
   };
 
-  const handleBookingClick = (booking: any) => {
+  const handleBookingClick = (booking: any, keepPreviousEvents = false) => {
+    if (!keepPreviousEvents) {
+      setPreviousDayEvents(null);
+    }
     setSelectedBooking(booking);
     setIsDetailsOpen(true);
   };
@@ -918,7 +925,19 @@ export default function ScheduleCalendarPage() {
       {/* Reservation Details Sheet */}
       <ReservationDetailsSheet
         isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
+        onClose={() => {
+          setIsDetailsOpen(false);
+          setPreviousDayEvents(null);
+        }}
+        onBack={
+          previousDayEvents
+            ? () => {
+                setIsDetailsOpen(false);
+                setSelectedDayEvents(previousDayEvents);
+                setPreviousDayEvents(null);
+              }
+            : undefined
+        }
         booking={selectedBooking}
         roomName={selectedBooking ? rooms?.find((r) => r.id === selectedBooking.roomId)?.name || "Unknown Room" : ""}
         areaName={selectedBooking ? areas?.find((a) => { const r = rooms?.find((rm) => rm.id === selectedBooking.roomId); return a.id === r?.areaId; })?.name || "First Floor" : ""}
@@ -996,8 +1015,9 @@ export default function ScheduleCalendarPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
+                          setPreviousDayEvents(selectedDayEvents);
                           setSelectedDayEvents(null);
-                          handleBookingClick(booking);
+                          handleBookingClick(booking, true);
                         }}
                         className="w-full h-8 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer hover:bg-sidebar hover:text-white transition-colors"
                       >

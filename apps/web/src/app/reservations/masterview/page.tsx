@@ -69,16 +69,16 @@ export default function MasterviewPage() {
   });
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery({
-    queryKey: ["bookings", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
-    queryFn: () => getBookings({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    queryKey: ["bookings", "masterview"],
+    queryFn: () => getBookings(),
     staleTime: 0,
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
   });
 
   const { data: workers, isLoading: workersLoading } = useQuery({
-    queryKey: ["workers", { actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }],
-    queryFn: () => getWorkers({ actorId: workerProfile?.id, ministryIds: !isSuperAdmin ? myMinistryIds : undefined }),
+    queryKey: ["workers", "masterview"],
+    queryFn: () => getWorkers(),
   });
 
   const { data: venueElements, isLoading: venueElementsLoading } = useQuery({

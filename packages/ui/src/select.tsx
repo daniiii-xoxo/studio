@@ -306,7 +306,7 @@ const SelectItem = React.forwardRef<HTMLButtonElement, SelectItemProps>(
           "relative flex w-full cursor-default select-none items-center rounded-lg py-2 pl-8 pr-3 text-xs outline-none transition-colors disabled:pointer-events-none disabled:opacity-50 text-left font-medium",
           isSelected
             ? "bg-sidebar text-white font-semibold hover:bg-sidebar hover:text-white focus:bg-sidebar focus:text-white shadow-xs"
-            : "text-foreground hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground dark:hover:bg-muted dark:hover:text-foreground",
+            : "text-foreground hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus:bg-slate-800 dark:focus:text-slate-100",
           className
         )}
         {...props}

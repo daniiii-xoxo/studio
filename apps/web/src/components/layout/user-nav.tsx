@@ -183,7 +183,7 @@ export function UserNav() {
       </DropdownMenu>
 
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <AlertDialogContent className="sm:max-w-[420px] p-6 rounded-2xl border border-border/80 shadow-2xl gap-5">
+        <AlertDialogContent className="w-[calc(100vw-2.5rem)] sm:max-w-[420px] p-5 sm:p-6 rounded-2xl border border-border/80 shadow-2xl gap-5">
           <div className="flex items-start gap-4">
             <div className="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-sm">
               <LogOut className="h-6 w-6 stroke-[2.2] translate-x-[1px]" />

@@ -714,7 +714,7 @@ export default function NewReservationPage() {
 
                     return (
                       <SelectGroup key={area.id}>
-                        <SelectLabel className="text-xs font-bold text-gray-500">
+                        <SelectLabel className="text-xs font-bold text-gray-500 dark:text-gray-400">
                           {area.name}
                         </SelectLabel>
                         {areaRooms.map((room) => (
@@ -772,42 +772,26 @@ export default function NewReservationPage() {
                       <SelectValue placeholder="Start" />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeSlots.map((slot) => {
-                        const passed = isSlotInPast(slot.value);
-                        const slotMin = timeToMinutes(slot.value);
-                        const conflicting = bookedRanges.find(
-                          (r) => slotMin >= r.startMin && slotMin < r.endMin
-                        );
-                        const isBooked = !!conflicting;
-                        const isDisabled = passed || isBooked;
-
-                        return (
+                      {timeSlots
+                        .filter((slot) => {
+                          const passed = isSlotInPast(slot.value);
+                          if (passed) return false;
+                          const slotMin = timeToMinutes(slot.value);
+                          if (slotMin >= 20 * 60) return false;
+                          const isBooked = bookedRanges.some(
+                            (r) => slotMin >= r.startMin && slotMin < r.endMin
+                          );
+                          return !isBooked;
+                        })
+                        .map((slot) => (
                           <SelectItem
                             key={`start-${slot.value}`}
                             value={slot.value}
-                            disabled={isDisabled}
-                            className={cn(
-                              "text-xs",
-                              isBooked && "text-red-500/80 bg-red-50/40 dark:bg-red-950/20"
-                            )}
+                            className="text-xs"
                           >
-                            <span className="flex items-center justify-between w-full gap-2">
-                              <span className={cn(isBooked && "line-through opacity-70")}>
-                                {slot.display}
-                              </span>
-                              {isBooked ? (
-                                <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/50 shrink-0">
-                                  Reserved ({conflicting.status})
-                                </span>
-                              ) : passed ? (
-                                <span className="text-[10px] text-muted-foreground italic shrink-0">
-                                  Passed
-                                </span>
-                              ) : null}
-                            </span>
+                            {slot.display}
                           </SelectItem>
-                        );
-                      })}
+                        ))}
                     </SelectContent>
                   </Select>
                   {isTimeInPast && (
@@ -827,60 +811,37 @@ export default function NewReservationPage() {
                       <SelectValue placeholder="End" />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeSlots.map((slot) => {
-                        const passed = isSlotInPast(slot.value);
-                        const slotMin = timeToMinutes(slot.value);
-                        let isBooked = false;
-                        let isBeforeOrEqualStart = false;
+                      {timeSlots
+                        .filter((slot) => {
+                          const passed = isSlotInPast(slot.value);
+                          if (passed) return false;
+                          const slotMin = timeToMinutes(slot.value);
 
-                        if (startTime) {
-                          const startMin = timeToMinutes(startTime);
-                          if (slotMin <= startMin) {
-                            isBeforeOrEqualStart = true;
-                          } else {
-                            isBooked = bookedRanges.some(
+                          if (startTime) {
+                            const startMin = timeToMinutes(startTime);
+                            if (slotMin <= startMin) return false;
+                            const isBooked = bookedRanges.some(
                               (r) => startMin < r.endMin && slotMin > r.startMin
                             );
+                            if (isBooked) return false;
+                          } else {
+                            const isBooked = bookedRanges.some(
+                              (r) => slotMin > r.startMin && slotMin <= r.endMin
+                            );
+                            if (isBooked) return false;
                           }
-                        } else {
-                          isBooked = bookedRanges.some(
-                            (r) => slotMin > r.startMin && slotMin <= r.endMin
-                          );
-                        }
 
-                        const isDisabled = passed || isBeforeOrEqualStart || isBooked;
-
-                        return (
+                          return true;
+                        })
+                        .map((slot) => (
                           <SelectItem
                             key={`end-${slot.value}`}
                             value={slot.value}
-                            disabled={isDisabled}
-                            className={cn(
-                              "text-xs",
-                              isBooked && "text-red-500/80 bg-red-50/40 dark:bg-red-950/20"
-                            )}
+                            className="text-xs"
                           >
-                            <span className="flex items-center justify-between w-full gap-2">
-                              <span className={cn((isBooked || isBeforeOrEqualStart) && "line-through opacity-70")}>
-                                {slot.display}
-                              </span>
-                              {isBooked ? (
-                                <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-900/50 shrink-0">
-                                  Unavailable
-                                </span>
-                              ) : isBeforeOrEqualStart && startTime ? (
-                                <span className="text-[10px] text-muted-foreground italic shrink-0">
-                                  ≤ Start
-                                </span>
-                              ) : passed ? (
-                                <span className="text-[10px] text-muted-foreground italic shrink-0">
-                                  Passed
-                                </span>
-                              ) : null}
-                            </span>
+                            {slot.display}
                           </SelectItem>
-                        );
-                      })}
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -912,9 +873,6 @@ export default function NewReservationPage() {
                             <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
                             <span className="font-semibold text-red-600 dark:text-red-400">
                               {formatTime12(range.startMin)} – {formatTime12(range.endMin)}
-                            </span>
-                            <span className="text-muted-foreground text-[10px]">
-                              ({range.status} – {range.name})
                             </span>
                           </span>
                         ))}

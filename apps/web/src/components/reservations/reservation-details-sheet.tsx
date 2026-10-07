@@ -24,6 +24,7 @@ import {
   X,
   Check,
   Building,
+  ArrowLeft,
 } from "lucide-react";
 import { cn, toJsDate } from "@/lib/utils";
 import { format } from "date-fns";
@@ -32,6 +33,7 @@ import type { Booking, Ministry, VenueElement, Worker } from "@studio/types";
 export interface ReservationDetailsSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   booking: any | null;
   roomName: string;
   areaName: string;
@@ -48,6 +50,7 @@ export interface ReservationDetailsSheetProps {
 export function ReservationDetailsSheet({
   isOpen,
   onClose,
+  onBack,
   booking,
   roomName,
   areaName,
@@ -126,17 +129,33 @@ export function ReservationDetailsSheet({
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer shrink-0 -mt-1 -mr-1"
-              title="Close modal"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
+            <div className="flex items-center gap-1.5 shrink-0 -mt-1 -mr-1">
+              {onBack ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onBack}
+                  className="h-8 px-2.5 rounded-xl gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground border-border/80 hover:bg-muted/80 cursor-pointer shadow-2xs"
+                  title="Back to list"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>Back</span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer"
+                  title="Close modal"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              )}
+            </div>
           </div>
         </SheetHeader>
 

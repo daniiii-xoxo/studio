@@ -106,7 +106,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[state=checked]:bg-sidebar data-[state=checked]:text-white hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground data-[state=checked]:hover:bg-sidebar data-[state=checked]:hover:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[state=checked]:bg-sidebar data-[state=checked]:text-white hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus:bg-slate-800 dark:focus:text-slate-100 data-[state=checked]:hover:bg-sidebar data-[state=checked]:hover:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     checked={checked}
@@ -130,7 +130,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[state=checked]:bg-sidebar data-[state=checked]:text-white hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground data-[state=checked]:hover:bg-sidebar data-[state=checked]:hover:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none transition-colors data-[state=checked]:bg-sidebar data-[state=checked]:text-white hover:bg-slate-100 hover:text-foreground focus:bg-slate-100 focus:text-foreground dark:hover:bg-slate-800 dark:hover:text-slate-100 dark:focus:bg-slate-800 dark:focus:text-slate-100 data-[state=checked]:hover:bg-sidebar data-[state=checked]:hover:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     {...props}
