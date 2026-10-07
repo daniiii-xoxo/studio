@@ -1758,9 +1758,11 @@ const AdminOverview = ({
             if (min?.name) ministryName = min.name;
           }
 
-          const menteeDevos = devotions.filter((d) =>
-            d.attendeeNames?.some((n) => n.toLowerCase().includes(fullName.toLowerCase()))
-          );
+          const menteeDevos = (devotions || [])
+            .filter((d) =>
+              d.attendeeNames?.some((n) => n.toLowerCase().includes(fullName.toLowerCase()))
+            )
+            .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
           const lastSessionDate = menteeDevos[0]?.devotionDate
             ? format(toJsDate(menteeDevos[0].devotionDate), "MMM dd, yyyy")
             : "—";
@@ -1768,11 +1770,9 @@ const AdminOverview = ({
           const progressPct =
             m.status === "Completed"
               ? 100
-              : m.status === "Dropped"
-              ? 25
               : menteeDevos.length > 0
-              ? Math.min(100, Math.max(30, Math.round((menteeDevos.length / 24) * 100)))
-              : 60;
+              ? Math.min(100, Math.round((menteeDevos.length / 24) * 100))
+              : 0;
 
           return {
             ...m,
@@ -4851,16 +4851,17 @@ function C2SPageContent() {
                         {filteredMyMentees.map((m) => {
                           const fullName = `${m.firstName} ${m.lastName}`.trim();
                           const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
-                          const menteeDevotions = allDevotions?.filter((d: any) =>
-                            d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
-                          ) || [];
+                          const menteeDevotions = (allDevotions || [])
+                            .filter((d: any) =>
+                              d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
+                            )
+                            .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
                           const lastSessionDate = menteeDevotions[0]?.devotionDate
                             ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd")
                             : "—";
                           const progressPct =
                             m.status === "Completed" ? 100 :
-                            m.status === "Dropped" ? 25 :
-                            menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
+                            menteeDevotions.length > 0 ? Math.min(100, Math.round((menteeDevotions.length / 24) * 100)) : 0;
                           const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
                           const displayStatus = isMenteeActive ? "Active" : "Inactive";
                           const statusColorClass = isMenteeActive
@@ -4950,21 +4951,21 @@ function C2SPageContent() {
                             const fullName = `${m.firstName} ${m.lastName}`.trim();
                             const initials = `${m.firstName ? m.firstName[0] : ""}${m.lastName ? m.lastName[0] : ""}`.toUpperCase();
                             const menteeMinistry = getMenteeMinistry(m);
-                            const menteeDevotions = allDevotions?.filter((d: any) =>
-                              d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
-                            ) || [];
+                            const menteeDevotions = (allDevotions || [])
+                              .filter((d: any) =>
+                                d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))
+                              )
+                              .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
                             const lastSessionDate = menteeDevotions[0]?.devotionDate
                               ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd")
-                              : "2026-09-04";
+                              : "—";
 
                             const progressPct =
                               m.status === "Completed"
                                 ? 100
-                                : m.status === "Dropped"
-                                  ? 25
-                                  : menteeDevotions.length > 0
-                                    ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100)))
-                                    : 65;
+                                : menteeDevotions.length > 0
+                                  ? Math.min(100, Math.round((menteeDevotions.length / 24) * 100))
+                                  : 0;
 
                             const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
                             const displayStatus = isMenteeActive ? "Active" : "Inactive";
@@ -5230,8 +5231,10 @@ function C2SPageContent() {
                           const mentor = workers?.find(w => w.id === m.mentorId || (m.groupId && groups?.find(g => g.id === m.groupId)?.mentorId === w.id));
                           const mentorName = mentor ? `${mentor.firstName} ${mentor.lastName}`.trim() : "Unassigned";
                           const menteeMinistry = getMenteeMinistry(m);
-                          const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))) || [];
-                          const progressPct = m.status === "Completed" ? 100 : m.status === "Dropped" ? 25 : menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
+                          const menteeDevotions = (allDevotions || [])
+                            .filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase())))
+                            .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
+                          const progressPct = m.status === "Completed" ? 100 : menteeDevotions.length > 0 ? Math.min(100, Math.round((menteeDevotions.length / 24) * 100)) : 0;
                           const lastSessionDate = menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "—";
                           const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
                           const displayStatus = isMenteeActive ? "Active" : "Inactive";
@@ -5310,9 +5313,11 @@ function C2SPageContent() {
                           const mentorInitials = mentor ? `${mentor.firstName?.[0] || ""}${mentor.lastName?.[0] || ""}`.toUpperCase() : "UA";
                           const menteeMinistry = getMenteeMinistry(m);
                           const menteeDepartment = getMenteeDepartment(m);
-                          const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase()))) || [];
-                          const lastSessionDate = menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "2026-09-04";
-                          const progressPct = m.status === "Completed" ? 100 : m.status === "Dropped" ? 25 : menteeDevotions.length > 0 ? Math.min(100, Math.max(30, Math.round((menteeDevotions.length / 24) * 100))) : 65;
+                          const menteeDevotions = (allDevotions || [])
+                            .filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(fullName.toLowerCase())))
+                            .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
+                          const lastSessionDate = menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "—";
+                          const progressPct = m.status === "Completed" ? 100 : menteeDevotions.length > 0 ? Math.min(100, Math.round((menteeDevotions.length / 24) * 100)) : 0;
                           const isMenteeActive = (m.status || "Active").toLowerCase() === "active";
                           const displayStatus = isMenteeActive ? "Active" : "Inactive";
                           const statusColorClass = isMenteeActive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/15 text-slate-700 dark:text-slate-300";
@@ -5445,9 +5450,21 @@ function C2SPageContent() {
             const mentorInitials = mentor ? `${mentor.firstName?.[0] || ""}${mentor.lastName?.[0] || ""}`.toUpperCase() : "UA";
             const menteeMinistry = md.menteeMinistry || getMenteeMinistry(md);
             const menteeDepartment = getMenteeDepartment ? getMenteeDepartment(md) : "—";
-            const menteeDevotions = allDevotions?.filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(md.fullName?.toLowerCase()))) || [];
-            const progressPct = md.progressPct ?? (md.status === "Completed" ? 100 : md.status === "Dropped" ? 25 : 65);
-            const lastSessionDate = md.lastSessionDate ?? (menteeDevotions[0]?.devotionDate ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd") : "—");
+            const menteeDevotions = (allDevotions || [])
+              .filter((d: any) => d.attendeeNames?.some((name: string) => name.toLowerCase().includes(md.fullName?.toLowerCase())))
+              .sort((a: any, b: any) => new Date(b.devotionDate).getTime() - new Date(a.devotionDate).getTime());
+            const progressPct = md.progressPct !== undefined && md.progressPct !== 65 && md.progressPct !== 60
+              ? md.progressPct
+              : md.status === "Completed"
+                ? 100
+                : menteeDevotions.length > 0
+                  ? Math.min(100, Math.round((menteeDevotions.length / 24) * 100))
+                  : 0;
+            const lastSessionDate = md.lastSessionDate && md.lastSessionDate !== "2026-09-04"
+              ? md.lastSessionDate
+              : menteeDevotions[0]?.devotionDate
+                ? format(toJsDate(menteeDevotions[0].devotionDate), "yyyy-MM-dd")
+                : "—";
             const isMenteeActive = (md.status || "Active").toLowerCase() === "active";
             const displayStatus = isMenteeActive ? "Active" : "Inactive";
             const statusColorClass = isMenteeActive ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/15 text-slate-700 dark:text-slate-300";

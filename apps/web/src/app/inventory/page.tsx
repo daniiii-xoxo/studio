@@ -103,6 +103,7 @@ function InventoryPageContent() {
   const [isActivityFeedOpen, setIsActivityFeedOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
+  const [scannedCode, setScannedCode] = useState('');
   const [overdueAlerts, setOverdueAlerts] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [checklistCounts, setChecklistCounts] = useState({ checkout: 5, return: 4, total: 9 });
@@ -207,6 +208,17 @@ function InventoryPageContent() {
             >
               <ScanBarcode className="h-4 w-4 text-sidebar dark:text-blue-400" />
               <span>Quick Scan (Camera)</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setScannedCode('');
+                setIsScanModalOpen(true);
+              }}
+              className="gap-2 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white shadow-xs text-xs font-semibold flex-1 sm:flex-initial cursor-pointer h-9 px-3.5"
+            >
+              <ScanBarcode className="h-4 w-4 text-white" />
+              <span>Scan Barcode (Handheld)</span>
             </Button>
           </div>
         </div>
@@ -568,7 +580,11 @@ function InventoryPageContent() {
         {isScanModalOpen && (
           <StockScanModal
             isOpen={isScanModalOpen}
-            onClose={() => setIsScanModalOpen(false)}
+            initialCode={scannedCode}
+            onClose={() => {
+              setIsScanModalOpen(false);
+              setScannedCode('');
+            }}
             onStockUpdated={fetchStats}
           />
         )}
@@ -577,8 +593,9 @@ function InventoryPageContent() {
           <ScannerModal
             isOpen={isCameraScannerOpen}
             onClose={() => setIsCameraScannerOpen(false)}
-            onScan={() => {
+            onScan={(code) => {
               setIsCameraScannerOpen(false);
+              setScannedCode(code);
               setIsScanModalOpen(true);
             }}
           />

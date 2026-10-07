@@ -95,45 +95,6 @@ const getCategoryBadgeStyle = (categoryName?: string) => {
   return 'bg-muted/80 text-muted-foreground border-border/70';
 };
 
-// Status dot & badge style
-const getStatusMeta = (status?: string) => {
-  const s = status || 'Good Condition';
-  switch (s) {
-    case 'Good Condition':
-    case 'In Stock':
-      return {
-        dot: 'bg-emerald-500',
-        badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
-        label: s,
-      };
-    case 'Low Stock':
-    case 'Under Maintenance':
-      return {
-        dot: 'bg-amber-500',
-        badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
-        label: s,
-      };
-    case 'Out of Stock':
-    case 'Damaged':
-      return {
-        dot: 'bg-rose-500',
-        badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
-        label: s,
-      };
-    case 'Borrowed':
-      return {
-        dot: 'bg-sky-500',
-        badge: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20',
-        label: s,
-      };
-    default:
-      return {
-        dot: 'bg-muted-foreground',
-        badge: 'bg-muted text-muted-foreground border-border/70',
-        label: s,
-      };
-  }
-};
 
 interface InventoryTableProps {
   onScanClick?: () => void;
@@ -773,7 +734,6 @@ export function InventoryTable({
               ) : (
                 items.map((item) => {
                   const isSelected = selectedIds.has(item.id);
-                  const statusMeta = getStatusMeta(item.status);
                   const categoryClass = getCategoryBadgeStyle(item.category?.name);
                   const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
                   const isOut = item.stock === 0;
@@ -820,10 +780,6 @@ export function InventoryTable({
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${categoryClass}`}>
                                 {item.category?.name || 'Unassigned'}
-                              </span>
-                              <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusMeta.badge}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                                <span>{statusMeta.label}</span>
                               </span>
                             </div>
                           </div>
@@ -944,7 +900,6 @@ export function InventoryTable({
                       Stock
                     </TableHead>
                     <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Location</TableHead>
-                    <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider bg-sidebar whitespace-nowrap">Status</TableHead>
                     <TableHead className="text-[11px] font-bold text-white uppercase tracking-wider text-right pr-4 bg-sidebar whitespace-nowrap">
                       Actions
                     </TableHead>
@@ -954,7 +909,7 @@ export function InventoryTable({
                 <TableBody>
                   {loading && items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="h-56 text-center text-muted-foreground">
                         <div className="flex flex-col items-center justify-center gap-2.5">
                           <RefreshCw className="h-6 w-6 animate-spin text-primary" />
                           <span className="text-xs font-medium">Loading inventory items...</span>
@@ -963,7 +918,7 @@ export function InventoryTable({
                     </TableRow>
                   ) : items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-56 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="h-56 text-center text-muted-foreground">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60 border border-border/60">
                             <Package className="h-6 w-6" />
@@ -998,7 +953,6 @@ export function InventoryTable({
                       const isSelected = selectedIds.has(item.id);
                       const isLow = item.stock <= (item.minStock > 0 ? item.minStock : 5) && item.stock > 0;
                       const isOut = item.stock === 0;
-                      const statusMeta = getStatusMeta(item.status);
                       const categoryClass = getCategoryBadgeStyle(item.category?.name);
 
                       return (
@@ -1134,17 +1088,7 @@ export function InventoryTable({
                             )}
                           </TableCell>
 
-                          {/* 8. Status / Condition */}
-                          <TableCell className="py-3">
-                            <span
-                              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusMeta.badge}`}
-                            >
-                              <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                              <span>{statusMeta.label}</span>
-                            </span>
-                          </TableCell>
-
-                          {/* 9. Actions Column (Intuitive Quick Stock + QR + More) */}
+                          {/* 8. Actions Column (Intuitive Quick Stock + QR + More) */}
                           <TableCell className="text-right pr-4 py-3">
                             <div className="flex items-center justify-end gap-1">
                               {/* Stock Out (-1) */}
