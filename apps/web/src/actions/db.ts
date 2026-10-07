@@ -2424,9 +2424,58 @@ export async function updateC2SMentee(id: string, data: {
     groupId?: string;
     mentorId?: string;
 }) {
+    let updateData: any = { ...data };
+
+    if (data.mentorId) {
+        const existing = await prisma.c2SMentee.findUnique({ where: { id } });
+
+        let targetGroup: any = null;
+        if (data.groupId) {
+            targetGroup = await prisma.c2SGroup.findFirst({
+                where: { id: data.groupId, mentorId: data.mentorId },
+            });
+        }
+        if (!targetGroup) {
+            targetGroup = await prisma.c2SGroup.findFirst({
+                where: { mentorId: data.mentorId },
+            });
+        }
+        if (!targetGroup) {
+            targetGroup = await prisma.c2SGroup.create({
+                data: {
+                    name: "Default Group",
+                    mentorId: data.mentorId,
+                    menteeIds: [id],
+                },
+            });
+        }
+        updateData.groupId = targetGroup.id;
+
+        if (existing?.groupId && existing.groupId !== targetGroup.id) {
+            const oldGroup = await prisma.c2SGroup.findUnique({ where: { id: existing.groupId } });
+            if (oldGroup && oldGroup.menteeIds.includes(id)) {
+                await prisma.c2SGroup.update({
+                    where: { id: oldGroup.id },
+                    data: {
+                        menteeIds: oldGroup.menteeIds.filter((mId) => mId !== id),
+                    },
+                });
+            }
+        }
+
+        if (!targetGroup.menteeIds.includes(id)) {
+            await prisma.c2SGroup.update({
+                where: { id: targetGroup.id },
+                data: {
+                    menteeIds: [...targetGroup.menteeIds, id],
+                },
+            });
+        }
+    }
+
     const mentee = await prisma.c2SMentee.update({
         where: { id },
-        data,
+        data: updateData,
     });
     revalidatePath('/c2s');
     return mentee;
