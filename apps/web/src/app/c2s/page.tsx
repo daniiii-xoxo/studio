@@ -110,6 +110,7 @@ import {
   Mail,
   Phone,
   Lock,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   PieChart as RePieChart,
@@ -1291,26 +1292,46 @@ const MenteeForm = ({
   mentee,
   groups,
   workers,
+  currentWorkerId,
+  isMentorUser = false,
+  isMinistryHead = false,
+  isSuperAdmin = false,
   onSave,
   onClose,
 }: {
   mentee: any;
   groups: any[];
   workers: any[];
+  currentWorkerId?: string;
+  isMentorUser?: boolean;
+  isMinistryHead?: boolean;
+  isSuperAdmin?: boolean;
   onSave: (data: any) => void;
   onClose?: () => void;
 }) => {
   const { toast } = useToast();
+  const isEditing = Boolean(mentee?.id);
+  const isMentorLocked = !isEditing && isMentorUser && !isSuperAdmin && !isMinistryHead;
+
+  const resolveMentorId = (m: any) => {
+    if (m?.mentorId) return m.mentorId;
+    if (m?.groupId) {
+      const gMentor = groups.find((g) => g.id === m.groupId)?.mentorId;
+      if (gMentor) return gMentor;
+    }
+    if (currentWorkerId && workers.some((w) => w.id === currentWorkerId)) {
+      return currentWorkerId;
+    }
+    return workers.length === 1 ? workers[0].id : "";
+  };
+
   const [formData, setFormData] = useState({
     firstName: mentee?.firstName || "",
     lastName: mentee?.lastName || "",
     email: mentee?.email || "",
     phone: mentee?.phone || "",
     status: mentee?.status || "Active",
-    mentorId:
-      mentee?.mentorId ||
-      (mentee?.groupId ? groups.find((g) => g.id === mentee.groupId)?.mentorId : "") ||
-      (workers.length === 1 ? workers[0].id : ""),
+    mentorId: resolveMentorId(mentee),
     groupId: mentee?.groupId || "",
   });
 
@@ -1321,13 +1342,10 @@ const MenteeForm = ({
       email: mentee?.email || "",
       phone: mentee?.phone || "",
       status: mentee?.status || "Active",
-      mentorId:
-        mentee?.mentorId ||
-        (mentee?.groupId ? groups.find((g) => g.id === mentee.groupId)?.mentorId : "") ||
-        (workers.length === 1 ? workers[0].id : ""),
+      mentorId: resolveMentorId(mentee),
       groupId: mentee?.groupId || "",
     });
-  }, [mentee, groups, workers]);
+  }, [mentee, groups, workers, currentWorkerId]);
 
   const assignedMentorObj = useMemo(
     () => workers.find((w) => w.id === formData.mentorId),
@@ -1346,7 +1364,15 @@ const MenteeForm = ({
           });
           return;
         }
-        if (formData.email.trim() && !isValidEmail(formData.email.trim())) {
+        if (!formData.email.trim()) {
+          toast({
+            variant: "destructive",
+            title: "Required Field Missing",
+            description: "Email address is required.",
+          });
+          return;
+        }
+        if (!isValidEmail(formData.email.trim())) {
           toast({
             variant: "destructive",
             title: "Invalid Email Address",
@@ -1354,7 +1380,15 @@ const MenteeForm = ({
           });
           return;
         }
-        if (formData.phone.trim() && !isValidPhilippineNumber(formData.phone.trim())) {
+        if (!formData.phone.trim()) {
+          toast({
+            variant: "destructive",
+            title: "Required Field Missing",
+            description: "Phone number is required.",
+          });
+          return;
+        }
+        if (!isValidPhilippineNumber(formData.phone.trim())) {
           toast({
             variant: "destructive",
             title: "Invalid Contact Number",
@@ -1413,13 +1447,14 @@ const MenteeForm = ({
 
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-[11px] font-semibold text-muted-foreground">
-            Email Address
+            Email Address <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               id="email"
               type="email"
+              required
               className="h-9 pl-9 rounded-xl bg-background border border-border/70 text-xs font-medium focus-visible:ring-primary"
               placeholder="e.g. samantha.conche@mentee.org"
               value={formData.email}
@@ -1430,13 +1465,14 @@ const MenteeForm = ({
 
         <div className="space-y-1.5">
           <Label htmlFor="phone" className="text-[11px] font-semibold text-muted-foreground">
-            Phone Number
+            Phone Number <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
               id="phone"
               type="tel"
+              required
               inputMode="numeric"
               maxLength={11}
               className="h-9 pl-9 rounded-xl bg-background border border-border/70 text-xs font-medium focus-visible:ring-primary"
@@ -1460,10 +1496,18 @@ const MenteeForm = ({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="mentor" className="text-[11px] font-semibold text-muted-foreground">
-            Assigned Mentor
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="mentor" className="text-[11px] font-semibold text-muted-foreground">
+              Assigned Mentor
+            </Label>
+            {isMentorLocked && (
+              <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                Locked to your account during creation
+              </span>
+            )}
+          </div>
           <Select
+            disabled={isMentorLocked}
             value={formData.mentorId}
             onValueChange={(val) => {
               const matchedGroup = groups.find((g) => g.mentorId === val);
@@ -1474,7 +1518,13 @@ const MenteeForm = ({
               });
             }}
           >
-            <SelectTrigger id="mentor" className="h-9 rounded-xl bg-background border border-border/70 text-xs font-medium">
+            <SelectTrigger
+              id="mentor"
+              className={cn(
+                "h-9 rounded-xl bg-background border border-border/70 text-xs font-medium",
+                isMentorLocked && "opacity-80 cursor-not-allowed bg-muted/40"
+              )}
+            >
               <SelectValue placeholder="Select a mentor" />
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto rounded-xl">
@@ -1492,6 +1542,11 @@ const MenteeForm = ({
               ))}
             </SelectContent>
           </Select>
+          {isMentorLocked && (
+            <p className="text-[10px] text-muted-foreground italic">
+              You can transfer or reassign this mentee to another mentor after creating the profile.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -4309,8 +4364,6 @@ function C2SPageContent() {
   const [menteeStatusFilter, setMenteeStatusFilter] = useState("all");
   const [selectedMinistryFilter, setSelectedMinistryFilter] = useState("all");
 
-
-
   const adminDepartments = useMemo(() => [
     { value: "WORSHIP", label: "Worship Department" },
     { value: "OUTREACH", label: "Outreach Department" },
@@ -4352,15 +4405,14 @@ function C2SPageContent() {
   // Direct mentees for mentor role
   const myMentees = useMemo(() => {
     if (!workerProfile?.id) return [];
-    const myGroupIds = new Set(
-      groups?.filter((g) => g.mentorId === workerProfile.id).map((g) => g.id) || []
-    );
     return (
-      mentees?.filter(
-        (m) =>
-          m.mentorId === workerProfile.id ||
-          (m.groupId && myGroupIds.has(m.groupId))
-      ) || []
+      mentees?.filter((m) => {
+        if (m.mentorId) {
+          return m.mentorId === workerProfile.id;
+        }
+        const group = groups?.find((g) => g.id === m.groupId);
+        return group?.mentorId === workerProfile.id;
+      }) || []
     );
   }, [mentees, groups, workerProfile]);
 
@@ -5736,19 +5788,26 @@ function C2SPageContent() {
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 grid grid-cols-2 gap-2.5">
+                  <div className="pt-2 grid grid-cols-3 gap-2">
                     <Button
                       onClick={() => { setViewingMenteeDetail(null); setSelectedMentee(md); setIsMenteeSheetOpen(true); }}
-                      className="h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold gap-1.5"
+                      className="h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold gap-1.5"
                     >
-                      <Pencil className="h-4 w-4" /> Edit
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setViewingMenteeDetail(null); setSelectedMentee(md); setIsMenteeSheetOpen(true); }}
+                      className="h-10 rounded-xl border-sidebar/30 text-sidebar dark:text-blue-400 hover:bg-sidebar/5 text-xs font-semibold gap-1.5"
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5" /> Transfer
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => { setViewingMenteeDetail(null); setItemToDelete({ id: md.id, type: "mentee", name: md.fullName || `${md.firstName} ${md.lastName}` }); }}
-                      className="h-10 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 text-sm font-semibold gap-1.5"
+                      className="h-10 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 text-xs font-semibold gap-1.5"
                     >
-                      <Trash2 className="h-4 w-4" /> Delete
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
                     </Button>
                   </div>
                 </div>
@@ -5809,6 +5868,10 @@ function C2SPageContent() {
               mentee={selectedMentee}
               groups={groups || []}
               workers={workers || []}
+              currentWorkerId={workerProfile?.id}
+              isMentorUser={isMentorUser}
+              isMinistryHead={isMinistryHeadUser}
+              isSuperAdmin={isAdminUser}
               onSave={handleSaveMentee}
               onClose={() => setIsMenteeSheetOpen(false)}
             />
