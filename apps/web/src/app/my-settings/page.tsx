@@ -504,7 +504,7 @@ function MySettingsContent() {
                     <ChevronDown className="h-4 w-4 text-muted-foreground group-open:rotate-180 transition-transform duration-200 shrink-0 ml-2" />
                   </summary>
                   <p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed pl-0.5">
-                    Click on <span className="font-semibold text-foreground">My QR Code</span> located in the navigation sidebar or bottom bar to display your personal worker badge for fast kiosk attendance and meal stub scanning.
+                    Click on <span className="font-semibold text-foreground">My QR Code</span> located in the navigation sidebar or bottom bar to display your personal worker badge for fast attendance and meal stub scanning.
                   </p>
                 </details>
 
@@ -514,7 +514,7 @@ function MySettingsContent() {
                     <ChevronDown className="h-4 w-4 text-muted-foreground group-open:rotate-180 transition-transform duration-200 shrink-0 ml-2" />
                   </summary>
                   <p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed pl-0.5">
-                    Go to <span className="font-semibold text-foreground">Meal Stubs</span> to monitor your daily allocation and weekly utilization, or present your QR badge at any scanning station kiosk.
+                    Go to <span className="font-semibold text-foreground">Meal Stubs</span> to monitor your daily allocation and weekly utilization, or present your QR badge at any scanning station.
                   </p>
                 </details>
 

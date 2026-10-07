@@ -231,7 +231,7 @@ export default function MyQRCodePage() {
                     </Badge>
                     {workerProfile?.workerId && (
                       <span className="text-xs font-mono text-muted-foreground bg-white dark:bg-card border border-slate-200/80 dark:border-border px-2 py-0.5 rounded-md shadow-2xs">
-                        {workerProfile.workerId}
+                        {String(workerProfile.workerId).replace(/^COG-?/i, "").padStart(6, "0")}
                       </span>
                     )}
                   </div>
@@ -327,7 +327,9 @@ export default function MyQRCodePage() {
                     <span>Worker ID</span>
                   </div>
                   <p className="text-sm font-mono font-semibold text-foreground">
-                    {workerProfile?.workerId || (workerProfile?.biometricsId ? `W-${String(workerProfile.biometricsId).padStart(4, "0")}` : "Not Assigned")}
+                    {workerProfile?.workerId
+                      ? String(workerProfile.workerId).replace(/^COG-?/i, "").padStart(6, "0")
+                      : (workerProfile?.biometricsId ? `W-${String(workerProfile.biometricsId).padStart(4, "0")}` : "Not Assigned")}
                   </p>
                 </div>
               </div>
@@ -392,10 +394,7 @@ export default function MyQRCodePage() {
                   <span>Updating...</span>
                 </>
               ) : (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>Yes, Regenerate</span>
-                </>
+                "Yes"
               )}
             </Button>
           </DialogFooter>

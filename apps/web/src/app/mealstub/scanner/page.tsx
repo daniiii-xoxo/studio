@@ -137,7 +137,7 @@ export default function QRScannerPage() {
             {
                 id: Date.now().toString(),
                 details,
-                scannerName: 'Public Kiosk',
+                scannerName: 'Public Scanner',
                 timestamp: new Date(),
                 status,
             },
@@ -243,7 +243,7 @@ export default function QRScannerPage() {
                         targetUserId: workerId,
                         targetUserName: workerName,
                         scannerId: 'public_scanner',
-                        scannerName: 'Public Kiosk Scanner',
+                        scannerName: 'Public Scanner',
                     });
                 } catch {
                     // Ignore audit log error gracefully
@@ -367,9 +367,9 @@ export default function QRScannerPage() {
                         <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
                             <ScanLine className="h-6 w-6" />
                         </div>
-                        <CardTitle className="font-headline text-2xl font-bold">Scanner Kiosk</CardTitle>
+                        <CardTitle className="font-headline text-2xl font-bold">Scanner</CardTitle>
                         <CardDescription className="text-xs">
-                            Enter the kiosk password to unlock camera scanning.
+                            Enter the scanner password to unlock camera scanning.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -378,12 +378,12 @@ export default function QRScannerPage() {
                                 e.preventDefault();
                                 if (passwordInput.trim() === 'CogMain123') {
                                     setIsAuthenticated(true);
-                                    toast({ title: 'Kiosk Unlocked', description: 'Scanner is now active.' });
+                                    toast({ title: 'Scanner Unlocked', description: 'Scanner is now active.' });
                                 } else {
                                     toast({
                                         variant: 'destructive',
                                         title: 'Invalid Password',
-                                        description: 'Incorrect kiosk password.',
+                                        description: 'Incorrect scanner password.',
                                     });
                                 }
                             }}
@@ -516,7 +516,7 @@ export default function QRScannerPage() {
                     <CardHeader className="pb-3 border-b border-border/60">
                         <CardTitle className="text-base flex items-center gap-2 font-headline font-bold">
                             <History className="h-4 w-4 text-primary" />
-                            <span>Recent Kiosk Scans</span>
+                            <span>Recent Scans</span>
                         </CardTitle>
                         <CardDescription className="text-xs">Real-time log of scanned meal stubs during this session.</CardDescription>
                     </CardHeader>

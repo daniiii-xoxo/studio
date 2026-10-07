@@ -2522,6 +2522,13 @@ export async function createC2SDevotionRecord(data: {
     photoUrls?: string[];
     status?: string;
 }) {
+    const attendees = Array.isArray(data.attendeeNames)
+        ? data.attendeeNames.filter((n: string) => n && n.trim())
+        : [];
+    if (attendees.length === 0) {
+        throw new Error("Cannot submit devotion record without a participating mentee. Please select or add a mentee first.");
+    }
+
     let validGroupId: string | null = null;
     if (data.groupId) {
         try {
@@ -2703,7 +2710,11 @@ export async function updateC2SDevotionRecord(id: string, data: {
 }
 
 export async function deleteC2SDevotionRecord(id: string) {
-    await prisma.c2SDevotionRecord.delete({ where: { id } });
+    try {
+        await prisma.c2SDevotionRecord.deleteMany({ where: { id } });
+    } catch (e) {
+        console.warn("Could not delete devotion record from DB:", e);
+    }
     revalidatePath('/c2s');
 }
 

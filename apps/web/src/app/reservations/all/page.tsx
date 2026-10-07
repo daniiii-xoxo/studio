@@ -174,7 +174,6 @@ export default function AllReservationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ id: string; action: "Approved" | "Rejected" } | null>(null);
 
   // Queries
   const { data: allBookings, isLoading: bookingsLoading } = useQuery({
@@ -382,31 +381,6 @@ export default function AllReservationsPage() {
     roomFilter !== "all" ||
     dateFilter !== "";
 
-  // Single Status Update
-  const handleStatusUpdate = async (
-    bookingId: string,
-    newStatus: "Approved" | "Rejected"
-  ) => {
-    setIsProcessing(true);
-    try {
-      await updateBooking(bookingId, { status: newStatus }, workerProfile?.id);
-      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({
-        title: `Reservation ${newStatus}`,
-        description: `The reservation status has been changed to ${newStatus}.`,
-      });
-    } catch (error: any) {
-      console.error("Status update error:", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: error?.message || "Failed to update reservation status.",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // Single Delete Trigger (Opens Dialog)
   const handleDeleteBooking = (bookingId: string) => {
     setDeleteBookingId(bookingId);
@@ -432,56 +406,6 @@ export default function AllReservationsPage() {
         variant: "destructive",
         title: "Delete Failed",
         description: error?.message || "Failed to delete reservation.",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Batch Approve
-  const handleBatchApprove = async () => {
-    if (selectedIds.length === 0) return;
-    setIsProcessing(true);
-    try {
-      await Promise.all(
-        selectedIds.map((id) => updateBooking(id, { status: "Approved" }, workerProfile?.id))
-      );
-      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({
-        title: "Reservations Approved",
-        description: `${selectedIds.length} reservation(s) approved successfully.`,
-      });
-      setSelectedIds([]);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Batch Approve Failed",
-        description: error?.message || "Could not approve selected items.",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Batch Reject
-  const handleBatchReject = async () => {
-    if (selectedIds.length === 0) return;
-    setIsProcessing(true);
-    try {
-      await Promise.all(
-        selectedIds.map((id) => updateBooking(id, { status: "Rejected" }, workerProfile?.id))
-      );
-      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({
-        title: "Reservations Rejected",
-        description: `${selectedIds.length} reservation(s) rejected.`,
-      });
-      setSelectedIds([]);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Batch Reject Failed",
-        description: error?.message || "Could not reject selected items.",
       });
     } finally {
       setIsProcessing(false);
@@ -711,26 +635,6 @@ export default function AllReservationsPage() {
                 <button
                   type="button"
                   disabled={isProcessing}
-                  onClick={handleBatchApprove}
-                  className="border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 rounded-xl px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Approve Selected
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={handleBatchReject}
-                  className="border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 rounded-xl px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Reject Selected
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isProcessing}
                   onClick={handleBatchDelete}
                   className="border border-slate-200 dark:border-border text-slate-700 dark:text-slate-200 bg-card hover:bg-slate-100 dark:hover:bg-muted rounded-xl px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
                 >
@@ -851,24 +755,6 @@ export default function AllReservationsPage() {
                                   <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                   View Details
                                 </DropdownMenuItem>
-                                {isPending && (
-                                  <>
-                                    <DropdownMenuItem
-                                      onClick={() => setPendingAction({ id: booking.id, action: "Approved" })}
-                                      className="text-xs cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 gap-2"
-                                    >
-                                      <Check className="h-3.5 w-3.5" />
-                                      Approve
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => setPendingAction({ id: booking.id, action: "Rejected" })}
-                                      className="text-xs cursor-pointer font-medium text-rose-600 dark:text-rose-400 gap-2"
-                                    >
-                                      <X className="h-3.5 w-3.5" />
-                                      Reject
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
                                 <DropdownMenuItem
                                   onClick={() => handleDeleteBooking(booking.id)}
                                   className="text-xs cursor-pointer font-medium text-destructive gap-2"
@@ -1137,25 +1023,6 @@ export default function AllReservationsPage() {
                                     View Details
                                   </DropdownMenuItem>
 
-                                  {isPending && (
-                                    <>
-                                      <DropdownMenuItem
-                                        onClick={() => setPendingAction({ id: booking.id, action: "Approved" })}
-                                        className="text-xs cursor-pointer font-medium text-emerald-600 dark:text-emerald-400 gap-2"
-                                      >
-                                        <Check className="h-3.5 w-3.5" />
-                                        Approve
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() => setPendingAction({ id: booking.id, action: "Rejected" })}
-                                        className="text-xs cursor-pointer font-medium text-rose-600 dark:text-rose-400 gap-2"
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                        Reject
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-
                                   <DropdownMenuItem
                                     onClick={() => handleDeleteBooking(booking.id)}
                                     className="text-xs cursor-pointer font-medium text-destructive gap-2"
@@ -1251,63 +1118,11 @@ export default function AllReservationsPage() {
         }
         venueElements={(venueElements as any[]) || []}
         ministries={(ministries as any[]) || []}
-        onApprove={async (id) => {
-          setIsDetailsOpen(false);
-          setPendingAction({ id, action: "Approved" });
-        }}
-        onReject={async (id) => {
-          setIsDetailsOpen(false);
-          setPendingAction({ id, action: "Rejected" });
-        }}
         onDelete={async (id) => {
           setIsDetailsOpen(false);
           handleDeleteBooking(id);
         }}
       />
-
-      {/* Approve / Reject Confirmation Dialog */}
-      {pendingAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setPendingAction(null)} />
-          <div className="relative z-10 bg-background rounded-2xl border border-border/80 shadow-2xl p-6 w-[min(calc(100vw-2rem),28rem)] space-y-4">
-            <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-foreground">
-                {pendingAction.action === "Approved" ? "Confirm Approval" : "Confirm Rejection"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {pendingAction.action === "Approved"
-                  ? "Are you sure you want to approve this reservation? The requester will be notified."
-                  : "Are you sure you want to reject this reservation? This action cannot be undone."}
-              </p>
-            </div>
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setPendingAction(null)}
-                className="flex-1 h-10 rounded-xl border border-border/60 text-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={async () => {
-                  if (!pendingAction) return;
-                  await handleStatusUpdate(pendingAction.id, pendingAction.action);
-                  setPendingAction(null);
-                }}
-                className={`flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50 ${
-                  pendingAction.action === "Approved"
-                    ? "bg-emerald-600 hover:bg-emerald-700"
-                    : "bg-destructive hover:bg-destructive/90"
-                }`}
-              >
-                {isProcessing ? "Processing..." : pendingAction.action === "Approved" ? "Yes, Approve" : "Yes, Reject"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Single Delete Confirmation Dialog */}
       <DeleteConfirmationDialog

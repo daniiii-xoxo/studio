@@ -269,7 +269,7 @@ export function EditWorkerDialog({
 
   if (!worker) return null;
 
-  const workerIdFormatted = worker.workerId ? `WRK-${worker.workerId}` : null;
+  const workerIdFormatted = worker.workerId ? String(worker.workerId).replace(/^COG-?/i, "").padStart(6, "0") : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

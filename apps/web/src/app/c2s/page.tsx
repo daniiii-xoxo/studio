@@ -69,6 +69,7 @@ import {
 import { cn, toJsDate } from "@/lib/utils";
 import { isValidPhilippineNumber, cleanPhoneNumber, isValidEmail } from "@/lib/validation";
 import {
+  AlertCircle,
   Plus,
   PlusCircle,
   Users,
@@ -582,12 +583,20 @@ const DevotionForm = ({
       });
       return;
     }
+    if (menteeOptions.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Mentees Available",
+        description: "You must add at least one mentee before submitting a devotion record.",
+      });
+      return;
+    }
     const finalAttendees = selectedMenteeName ? [selectedMenteeName] : [];
-    if (finalAttendees.length === 0) {
+    if (finalAttendees.length === 0 || !menteeOptions.some((m) => m.name === selectedMenteeName)) {
       toast({
         variant: "destructive",
         title: "Mentee Required",
-        description: "Please select a mentee.",
+        description: "Please select a valid mentee before submitting.",
       });
       return;
     }
@@ -637,6 +646,19 @@ const DevotionForm = ({
 
   return (
     <div className="space-y-5 py-1">
+      {/* ── NO MENTEES WARNING ── */}
+      {menteeOptions.length === 0 && (
+        <div className="p-3.5 rounded-2xl border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/80 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 shadow-2xs">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-bold">No Mentees Available</p>
+            <p className="text-muted-foreground leading-relaxed">
+              You must add at least one mentee before you can submit a devotion record.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── ROW 1: MENTEE & DATE ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -646,9 +668,10 @@ const DevotionForm = ({
           <Select
             value={selectedMenteeName}
             onValueChange={(val) => setSelectedMenteeName(val)}
+            disabled={menteeOptions.length === 0}
           >
-            <SelectTrigger className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/30 shadow-2xs font-medium focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer">
-              <SelectValue placeholder="Select mentee" />
+            <SelectTrigger className="h-10 rounded-xl border border-slate-200/90 dark:border-border text-xs bg-white dark:bg-muted/30 shadow-2xs font-medium focus:ring-1 focus:ring-sidebar/40 focus:border-sidebar cursor-pointer disabled:opacity-60">
+              <SelectValue placeholder={menteeOptions.length === 0 ? "No mentees available" : "Select mentee"} />
             </SelectTrigger>
             <SelectContent className="max-h-56 rounded-xl border border-border shadow-xl">
               {menteeOptions.map((m) => (
@@ -887,8 +910,8 @@ const DevotionForm = ({
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+          disabled={isSubmitting || menteeOptions.length === 0 || !selectedMenteeName}
+          className="h-10 px-5 rounded-xl bg-sidebar hover:bg-sidebar/90 text-white text-xs font-bold shadow-xs transition-all active:scale-[0.99] cursor-pointer disabled:opacity-50"
         >
           {isSubmitting ? (
             <>
@@ -2626,6 +2649,37 @@ const AdminOverview = ({
   );
 };
 
+// Strict, robust Ministry Match helper (handles exact matches, normalized strings, and prevents empty-string collisions)
+const isMinistryMatch = (target: string, candidate?: string | null): boolean => {
+  if (!target || target === "all") return true;
+  if (!candidate || typeof candidate !== "string") return false;
+  const t = target.toLowerCase().trim();
+  const c = candidate.toLowerCase().trim();
+  if (!t || !c) return false;
+
+  // Ignore generic placeholder values when filtering by a specific ministry
+  if ((c === "cluster 1" || c === "unassigned" || c === "other") && t !== c) {
+    return false;
+  }
+
+  // Exact match
+  if (c === t) return true;
+
+  // Normalized (ignoring non-alphanumeric or spaces)
+  const tNorm = t.replace(/[^a-z0-9]/g, "");
+  const cNorm = c.replace(/[^a-z0-9]/g, "");
+  if (tNorm && cNorm && (cNorm === tNorm || cNorm.includes(tNorm) || tNorm.includes(cNorm))) {
+    return true;
+  }
+
+  // Youth Outreach / YO aliases
+  if ((t === "yo" || t.includes("youth")) && (c === "yo" || c.includes("youth"))) {
+    return true;
+  }
+
+  return false;
+};
+
 // --- C2S Analytics Component ---
 const C2SAnalytics = ({
   mentees,
@@ -2687,38 +2741,56 @@ const C2SAnalytics = ({
   // Filter devotions by selected cluster
   const filteredDevotions = useMemo(() => {
     if (selectedCluster === "all") return devotions;
-    const target = selectedCluster.toLowerCase().trim();
+    const target = selectedCluster;
     return devotions.filter((d) => {
-      const cluster = (d.clusterName || "").toLowerCase().trim();
+      const cluster = d.clusterName || "";
+      const mentor = workers?.find((w) => w.id === d.mentorId);
+      const mentorMin = mentor?.majorMinistryId
+        ? (mentor.majorMinistry?.name || "")
+        : ((mentor as any)?.ministry || "");
+      const group = groups?.find((g) => g.id === d.groupId);
+      const gName = group?.name || "";
+
       return (
-        cluster.includes(target) ||
-        cluster === target ||
-        cluster.replace(/\s+/g, "").includes(target.replace(/\s+/g, ""))
+        isMinistryMatch(target, cluster) ||
+        isMinistryMatch(target, mentorMin) ||
+        isMinistryMatch(target, gName)
       );
     });
-  }, [devotions, selectedCluster]);
+  }, [devotions, selectedCluster, workers, groups]);
 
   // Filter groups by selected cluster
   const filteredGroups = useMemo(() => {
     if (selectedCluster === "all") return groups;
-    const target = selectedCluster.toLowerCase().trim();
+    const target = selectedCluster;
     return groups.filter((g) => {
-      const name = (g.name || "").toLowerCase().trim();
-      return name.includes(target) || name === target;
+      const name = g.name || "";
+      const mentor = workers?.find((w) => w.id === g.mentorId);
+      const mentorMin = mentor?.majorMinistryId
+        ? (mentor.majorMinistry?.name || "")
+        : ((mentor as any)?.ministry || "");
+      return isMinistryMatch(target, name) || isMinistryMatch(target, mentorMin);
     });
-  }, [groups, selectedCluster]);
+  }, [groups, selectedCluster, workers]);
 
   // Filter mentees by selected cluster
   const filteredMentees = useMemo(() => {
     if (selectedCluster === "all") return mentees;
-    const target = selectedCluster.toLowerCase().trim();
+    const target = selectedCluster;
     const groupIds = new Set(filteredGroups.map((g) => g.id));
     return mentees.filter((m) => {
       if (m.groupId && groupIds.has(m.groupId)) return true;
-      const cluster = (m.clusterName || m.groupName || "").toLowerCase().trim();
-      return cluster.includes(target) || cluster === target;
+      const mentor = workers?.find((w) => w.id === m.mentorId);
+      const mentorMin = mentor?.majorMinistryId
+        ? (mentor.majorMinistry?.name || "")
+        : ((mentor as any)?.ministry || "");
+      const cluster = m.clusterName || m.groupName || m.ministry || "";
+      return (
+        isMinistryMatch(target, cluster) ||
+        isMinistryMatch(target, mentorMin)
+      );
     });
-  }, [mentees, filteredGroups, selectedCluster]);
+  }, [mentees, filteredGroups, selectedCluster, workers]);
 
   // Status breakdown data for Donut Chart
   const statusData = useMemo(() => {
@@ -3535,18 +3607,24 @@ function C2SPageContent() {
 
     // Sub-ministry Cluster filter for Ministry Head / Admin
     if (selectedGroupClusterFilter !== "all") {
-      const filterLower = selectedGroupClusterFilter.toLowerCase().trim();
+      const target = selectedGroupClusterFilter;
       result = result.filter((g) => {
-        const gName = (g.name || "").toLowerCase();
+        const gName = g.name || "";
         const mentor = workers?.find((w) => w.id === g.mentorId);
         const mMin = allMinistries?.find((m: any) => m.id === mentor?.majorMinistryId);
-        const minName = (mMin?.name || "").toLowerCase();
-        const minDept = (mMin?.department || (mentor as any)?.department || "").toLowerCase();
+        const minName = mMin?.name || (mentor as any)?.ministry || "";
+
+        const groupMentees = mentees?.filter((m) => m.groupId === g.id || (g.mentorId && m.mentorId === g.mentorId)) || [];
+        const menteeMatches = groupMentees.some((m) => {
+          const mDirectMin = (m as any).ministry;
+          const menteeMin = getMenteeMinistry(m);
+          return isMinistryMatch(target, mDirectMin) || isMinistryMatch(target, menteeMin);
+        });
+
         return (
-          gName.includes(filterLower) ||
-          minName.includes(filterLower) ||
-          minDept.includes(filterLower) ||
-          filterLower.includes(minName)
+          isMinistryMatch(target, gName) ||
+          isMinistryMatch(target, minName) ||
+          menteeMatches
         );
       });
     }
@@ -3582,15 +3660,29 @@ function C2SPageContent() {
     workers,
   ]);
 
-  const [localDevotions, setLocalDevotions] = useState<C2SDevotionRecord[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("c2s_devotions_storage");
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [];
-  });
+  const [localDevotions, setLocalDevotions] = useState<C2SDevotionRecord[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("c2s_devotions_storage");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(
+            (d: any) =>
+              d &&
+              !d.topic?.toLowerCase().includes("washing") &&
+              !d.topic?.toLowerCase().includes("disciples feet") &&
+              !d.mentorName?.toLowerCase().includes("hannah bautista")
+          );
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem("c2s_devotions_storage", JSON.stringify(cleaned));
+          }
+          setLocalDevotions(cleaned);
+        }
+      }
+    } catch (e) {}
+  }, []);
 
   // Merged devotions list: Combines database server records with persistent client records
   const allDevotions: C2SDevotionRecord[] = useMemo(() => {
@@ -3758,6 +3850,107 @@ function C2SPageContent() {
     return uniqueList;
   }, [headDepartment, departmentClusters]);
 
+  // Helper to determine the Ministry of a mentee
+  const getMenteeMinistry = (m: any) => {
+    if (!m) return "Unassigned";
+
+    // 1. Direct ministry property on mentee
+    if (m.ministry && typeof m.ministry === "string" && m.ministry.trim()) {
+      return m.ministry.trim();
+    }
+    if (m.ministryId) {
+      const min = allMinistries?.find((min: any) => min.id === m.ministryId);
+      if (min?.name) return min.name === "YO" ? "Youth Outreach" : min.name;
+    }
+
+    // 2. Check assigned mentor's ministry
+    const group = groups?.find((g) => g.id === m.groupId);
+    const mentor = workers?.find(
+      (w) => w.id === m.mentorId || (group?.mentorId && w.id === group.mentorId)
+    );
+    if (mentor?.majorMinistryId) {
+      const min = allMinistries?.find((min: any) => min.id === mentor.majorMinistryId);
+      if (min?.name) {
+        return min.name === "YO" ? "Youth Outreach" : min.name;
+      }
+    }
+    if ((mentor as any)?.ministry && typeof (mentor as any).ministry === "string") {
+      return (mentor as any).ministry;
+    }
+
+    // 3. If mentee has a group, check group name for ministry name
+    if (group?.name) {
+      const gLower = group.name.toLowerCase();
+      for (const opt of activeClusterOptions) {
+        if (
+          gLower.includes(opt.value.toLowerCase()) ||
+          gLower.includes(opt.label.toLowerCase()) ||
+          opt.label.toLowerCase().includes(gLower)
+        ) {
+          return opt.label;
+        }
+      }
+      if (group.name.includes(" - ")) {
+        const parts = group.name.split(" - ");
+        return parts[1]?.trim() || parts[0]?.trim();
+      }
+      return group.name;
+    }
+
+    return "Cluster 1";
+  };
+
+  // Helper to determine the Department of a mentee
+  const getMenteeDepartment = (m: any) => {
+    if (!m) return "Outreach";
+
+    // 1. Check assigned mentor's major ministry / department
+    const group = groups?.find((g) => g.id === m.groupId);
+    const mentor = workers?.find(
+      (w) => w.id === m.mentorId || (group?.mentorId && w.id === group.mentorId)
+    );
+    if (mentor) {
+      if (mentor.majorMinistryId) {
+        const min = allMinistries?.find((min: any) => min.id === mentor.majorMinistryId);
+        const rawDept = typeof min?.department === "string" ? min.department : min?.department?.name;
+        if (rawDept) {
+          const dUpper = rawDept.toUpperCase().trim();
+          if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
+          if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
+          if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
+          if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
+          if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
+          return rawDept;
+        }
+      }
+      const mDept = (mentor as any).department;
+      if (mDept) {
+        const dUpper = String(mDept).toUpperCase().trim();
+        if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
+        if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
+        if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
+        if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
+        if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
+        return String(mDept);
+      }
+    }
+
+    // 2. Check mentee ministry name against departmentClusters
+    const minName = getMenteeMinistry(m).toLowerCase().trim();
+    for (const [deptKey, clusterList] of Object.entries(departmentClusters)) {
+      if (clusterList.some((c) => c.value.toLowerCase() === minName || c.label.toLowerCase() === minName)) {
+        const dUpper = deptKey.toUpperCase();
+        if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
+        if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
+        if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
+        if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
+        if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
+      }
+    }
+
+    return "Outreach";
+  };
+
   // Filtered devotion records
   const filteredDevotions = useMemo(() => {
     return allDevotions.filter((item) => {
@@ -3783,68 +3976,148 @@ function C2SPageContent() {
         }
       } else if (isMinistryHeadUser && !isAdminUser) {
         // Ministry Head account sees all devotions within their department (e.g. Outreach)
-        const myDeptClusterValues = activeClusterOptions.map((c) => c.value.toLowerCase());
-        const cluster = (item.clusterName || "").toLowerCase().trim();
-        const mentorWorker = Array.isArray(workers) ? workers.find((w) => w.id === item.mentorId) : undefined;
+        const myDeptClusterValues = activeClusterOptions.map((c) => c.value);
+        const cluster = item.clusterName || "";
+        const mentorWorker = Array.isArray(workers)
+          ? workers.find(
+              (w) =>
+                w.id === item.mentorId ||
+                (item.mentorName &&
+                  `${w.firstName || ""} ${w.lastName || ""}`.trim().toLowerCase() ===
+                    item.mentorName.trim().toLowerCase())
+            )
+          : undefined;
+        const mentorMinObj = mentorWorker?.majorMinistryId
+          ? allMinistries?.find((m: any) => m.id === mentorWorker.majorMinistryId)
+          : undefined;
+        const mentorMin = mentorMinObj?.name || (mentorWorker as any)?.ministry || "";
+        const group = groups?.find((g) => g.id === item.groupId || (mentorWorker && g.mentorId === mentorWorker.id));
+        const gName = group?.name || "";
+
+        // Check if any attendee mentee has a matching ministry
+        const checkAttendeeMatches = (targetStr: string) => {
+          if (!item.attendeeNames || !Array.isArray(item.attendeeNames)) return false;
+          return item.attendeeNames.some((attName: string) => {
+            const matchedMentee = mentees?.find(
+              (m) =>
+                `${m.firstName || ""} ${m.lastName || ""}`.trim().toLowerCase() ===
+                attName.trim().toLowerCase()
+            );
+            if (matchedMentee) {
+              const mMin = getMenteeMinistry(matchedMentee);
+              const mDirect = (matchedMentee as any).ministry;
+              return isMinistryMatch(targetStr, mMin) || isMinistryMatch(targetStr, mDirect);
+            }
+            return false;
+          });
+        };
+
         const isMentorInMyDept = Boolean(
           mentorWorker &&
           (mentorWorker.majorMinistryId === workerProfile?.majorMinistryId ||
            (mentorWorker.majorMinistryId && myMinistryIds?.includes(mentorWorker.majorMinistryId)) ||
-           mentorWorker.id === workerProfile?.id)
+           mentorWorker.id === workerProfile?.id ||
+           myDeptClusterValues.some((c) => isMinistryMatch(c, mentorMin)))
         );
-        const isClusterInMyDept = myDeptClusterValues.some((c) => cluster.includes(c) || c.includes(cluster));
+        const isClusterInMyDept = myDeptClusterValues.some((c) => isMinistryMatch(c, cluster));
+        const isGroupInMyDept = myDeptClusterValues.some((c) => isMinistryMatch(c, gName));
 
-        // If specific cluster is selected
+        // If specific cluster / ministry is selected
         if (selectedClusterFilter !== "all") {
-          const target = selectedClusterFilter.toLowerCase().trim();
+          const target = selectedClusterFilter;
           const isMatch =
-            cluster.includes(target) ||
-            cluster === target ||
-            cluster.replace(/\s+/g, "").includes(target.replace(/\s+/g, ""));
+            isMinistryMatch(target, cluster) ||
+            isMinistryMatch(target, mentorMin) ||
+            isMinistryMatch(target, gName) ||
+            checkAttendeeMatches(target);
+
           if (!isMatch) return false;
         } else {
-          // When 'all', must belong to their department's clusters or their department's mentors
-          if (myDeptClusterValues.length > 0 && !isClusterInMyDept && !isMentorInMyDept && item.mentorId !== workerProfile?.id) {
-            const group = groups?.find((g) => g.id === item.groupId);
-            const gName = (group?.name || "").toLowerCase();
-            const groupMatches = myDeptClusterValues.some((c) => gName.includes(c) || c.includes(gName));
-            if (!groupMatches) return false;
+          // When 'all', must belong to their department's clusters, mentors, or groups
+          if (
+            myDeptClusterValues.length > 0 &&
+            !isClusterInMyDept &&
+            !isMentorInMyDept &&
+            !isGroupInMyDept &&
+            !checkAttendeeMatches(headDepartment) &&
+            item.mentorId !== workerProfile?.id
+          ) {
+            return false;
           }
         }
       } else if (isAdminUser) {
+        const cluster = item.clusterName || "";
+        const mentorWorker = Array.isArray(workers)
+          ? workers.find(
+              (w) =>
+                w.id === item.mentorId ||
+                (item.mentorName &&
+                  `${w.firstName || ""} ${w.lastName || ""}`.trim().toLowerCase() ===
+                    item.mentorName.trim().toLowerCase())
+            )
+          : undefined;
+        const mentorMinObj = mentorWorker?.majorMinistryId
+          ? allMinistries?.find((m: any) => m.id === mentorWorker.majorMinistryId)
+          : undefined;
+        const mentorMin = mentorMinObj?.name || (mentorWorker as any)?.ministry || "";
+        const mentorDept = (
+          typeof mentorMinObj?.department === "string"
+            ? mentorMinObj.department
+            : mentorMinObj?.department?.name || (mentorWorker as any)?.department || ""
+        ).toUpperCase().trim();
+        const group = groups?.find((g) => g.id === item.groupId || (mentorWorker && g.mentorId === mentorWorker.id));
+        const gName = group?.name || "";
+
+        const checkAttendeeMatches = (targetStr: string) => {
+          if (!item.attendeeNames || !Array.isArray(item.attendeeNames)) return false;
+          return item.attendeeNames.some((attName: string) => {
+            const matchedMentee = mentees?.find(
+              (m) =>
+                `${m.firstName || ""} ${m.lastName || ""}`.trim().toLowerCase() ===
+                attName.trim().toLowerCase()
+            );
+            if (matchedMentee) {
+              const mMin = getMenteeMinistry(matchedMentee);
+              const mDirect = (matchedMentee as any).ministry;
+              return isMinistryMatch(targetStr, mMin) || isMinistryMatch(targetStr, mDirect);
+            }
+            return false;
+          });
+        };
+
         // Super Admin / Admin: Department / Ministry filter
         if (selectedDeptFilter !== "all") {
-          const target = selectedDeptFilter.toLowerCase().trim();
-          const cluster = (item.clusterName || "").toLowerCase().trim();
-          const isMatch =
-            cluster.includes(target) ||
-            cluster === target ||
-            cluster.replace(/\s+/g, "").includes(target.replace(/\s+/g, ""));
+          const target = selectedDeptFilter;
+          const targetUpper = selectedDeptFilter.toUpperCase().trim();
+          const deptClusters = (
+            departmentClusters[selectedDeptFilter] ||
+            departmentClusters[targetUpper] ||
+            []
+          ).map((c) => c.value);
 
-          if (!isMatch) {
-            let deptMatch = false;
-            const deptClusters = (
-              departmentClusters[selectedDeptFilter] ||
-              departmentClusters[selectedDeptFilter.toUpperCase()] ||
-              []
-            ).map((c) => c.value.toLowerCase());
-            if (deptClusters.some((c) => cluster.includes(c))) {
-              deptMatch = true;
-            }
-            if (!deptMatch) {
-              return false;
-            }
+          const matchesMinistryDirect =
+            isMinistryMatch(target, cluster) ||
+            isMinistryMatch(target, mentorMin) ||
+            isMinistryMatch(target, gName) ||
+            checkAttendeeMatches(target);
+
+          const matchesDeptGroup =
+            deptClusters.some((c) => isMinistryMatch(c, cluster) || isMinistryMatch(c, mentorMin) || isMinistryMatch(c, gName)) ||
+            (mentorDept && (mentorDept === targetUpper || mentorDept.includes(targetUpper) || targetUpper.includes(mentorDept)));
+
+          if (!matchesMinistryDirect && !matchesDeptGroup) {
+            return false;
           }
         }
 
-        // Cluster / Ministry filter
-        if (selectedClusterFilter !== "all") {
-          const target = selectedClusterFilter.toLowerCase().trim();
-          const cluster = (item.clusterName || "").toLowerCase().trim();
+        // Specific Cluster / Ministry filter
+        if (selectedClusterFilter !== "all" && selectedClusterFilter !== selectedDeptFilter) {
+          const target = selectedClusterFilter;
           const isMatch =
-            cluster.includes(target) ||
-            cluster === target ||
-            cluster.replace(/\s+/g, "").includes(target.replace(/\s+/g, ""));
+            isMinistryMatch(target, cluster) ||
+            isMinistryMatch(target, mentorMin) ||
+            isMinistryMatch(target, gName) ||
+            checkAttendeeMatches(target);
 
           if (!isMatch) {
             return false;
@@ -3904,6 +4177,8 @@ function C2SPageContent() {
     activeClusterOptions,
     workers,
     myMinistryIds,
+    allMinistries,
+    mentees,
   ]);
 
   // Handlers
@@ -4034,90 +4309,7 @@ function C2SPageContent() {
   const [menteeStatusFilter, setMenteeStatusFilter] = useState("all");
   const [selectedMinistryFilter, setSelectedMinistryFilter] = useState("all");
 
-  // Helper to determine the Ministry of a mentee
-  const getMenteeMinistry = (m: any) => {
-    // 1. If mentee has a group, check group name for ministry name
-    const group = groups?.find((g) => g.id === m.groupId);
-    if (group?.name) {
-      const gLower = group.name.toLowerCase();
-      for (const opt of activeClusterOptions) {
-        if (
-          gLower.includes(opt.value.toLowerCase()) ||
-          gLower.includes(opt.label.toLowerCase()) ||
-          opt.label.toLowerCase().includes(gLower)
-        ) {
-          return opt.label;
-        }
-      }
-      if (group.name.includes(" - ")) {
-        const parts = group.name.split(" - ");
-        return parts[1]?.trim() || parts[0]?.trim();
-      }
-      return group.name;
-    }
 
-    // 2. Check assigned mentor's ministry
-    const mentor = workers?.find(
-      (w) => w.id === m.mentorId || (group?.mentorId && w.id === group.mentorId)
-    );
-    if (mentor?.majorMinistryId) {
-      const min = allMinistries?.find((min: any) => min.id === mentor.majorMinistryId);
-      if (min?.name) {
-        return min.name === "YO" ? "Youth Outreach" : min.name;
-      }
-    }
-
-    return "Cluster 1";
-  };
-
-  // Helper to determine the Department of a mentee
-  const getMenteeDepartment = (m: any) => {
-    // 1. Check assigned mentor's major ministry / department
-    const group = groups?.find((g) => g.id === m.groupId);
-    const mentor = workers?.find(
-      (w) => w.id === m.mentorId || (group?.mentorId && w.id === group.mentorId)
-    );
-    if (mentor) {
-      if (mentor.majorMinistryId) {
-        const min = allMinistries?.find((min: any) => min.id === mentor.majorMinistryId);
-        const rawDept = typeof min?.department === "string" ? min.department : min?.department?.name;
-        if (rawDept) {
-          const dUpper = rawDept.toUpperCase().trim();
-          if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
-          if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
-          if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
-          if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
-          if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
-          return rawDept;
-        }
-      }
-      const mDept = (mentor as any).department;
-      if (mDept) {
-        const dUpper = String(mDept).toUpperCase().trim();
-        if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
-        if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
-        if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
-        if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
-        if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
-        return String(mDept);
-      }
-    }
-
-    // 2. Check mentee ministry name against departmentClusters
-    const minName = getMenteeMinistry(m).toLowerCase().trim();
-    for (const [deptKey, clusterList] of Object.entries(departmentClusters)) {
-      if (clusterList.some((c) => c.value.toLowerCase() === minName || c.label.toLowerCase() === minName)) {
-        const dUpper = deptKey.toUpperCase();
-        if (dUpper === "O" || dUpper.includes("OUTREACH")) return "Outreach";
-        if (dUpper === "R" || dUpper.includes("RELATIONSHIP")) return "Relationship";
-        if (dUpper === "D" || dUpper.includes("DISCIPLESHIP")) return "Discipleship";
-        if (dUpper === "A" || dUpper.includes("ADMIN")) return "Administration";
-        if (dUpper === "W" || dUpper.includes("WORSHIP")) return "Worship";
-      }
-    }
-
-    return "Outreach";
-  };
 
   const adminDepartments = useMemo(() => [
     { value: "WORSHIP", label: "Worship Department" },
@@ -4260,13 +4452,26 @@ function C2SPageContent() {
     let list = headDepartmentMentees;
 
     if (selectedMinistryFilter !== "all") {
-      const target = selectedMinistryFilter.toLowerCase().trim();
+      const target = selectedMinistryFilter;
       list = list.filter((m) => {
-        const minName = getMenteeMinistry(m).toLowerCase().trim();
-        if (target === "yo" || target.includes("youth outreach")) {
-          return minName === "yo" || minName.includes("youth outreach") || minName.includes("youth");
-        }
-        return minName === target || minName.includes(target) || target.includes(minName);
+        const minName = getMenteeMinistry(m);
+        const mDirectMin = (m as any).ministry;
+        const mentor = workers?.find(
+          (w) => w.id === m.mentorId || (m.groupId && groups?.find((g) => g.id === m.groupId)?.mentorId === w.id)
+        );
+        const mentorMinObj = mentor?.majorMinistryId
+          ? allMinistries?.find((min: any) => min.id === mentor.majorMinistryId)
+          : undefined;
+        const mentorMin = mentorMinObj?.name || (mentor as any)?.ministry || "";
+        const group = groups?.find((g) => g.id === m.groupId);
+        const gName = group?.name || "";
+
+        return (
+          isMinistryMatch(target, minName) ||
+          isMinistryMatch(target, mDirectMin) ||
+          isMinistryMatch(target, mentorMin) ||
+          isMinistryMatch(target, gName)
+        );
       });
     }
 
@@ -4641,16 +4846,18 @@ function C2SPageContent() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-lg border border-border bg-popover">
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingDevotion(record);
-                                    setIsDevotionSheetOpen(true);
-                                  }}
-                                  className="cursor-pointer text-xs font-medium"
-                                >
-                                  <Edit className="mr-2 h-4 w-4" /> Edit Record
-                                </DropdownMenuItem>
+                                {isAuthor && (
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingDevotion(record);
+                                      setIsDevotionSheetOpen(true);
+                                    }}
+                                    className="cursor-pointer text-xs font-medium"
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" /> Edit Record
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive cursor-pointer text-xs font-medium"
                                   onSelect={() =>
@@ -5419,7 +5626,7 @@ function C2SPageContent() {
               key={editingDevotion?.id || (isDevotionSheetOpen ? "open-new" : "closed")}
               devotion={editingDevotion}
               groups={groups || []}
-              mentees={mentees || []}
+              mentees={myMentees || []}
               workers={workers || []}
               currentWorker={workerProfile}
               isMinistryHead={isMinistryHead}

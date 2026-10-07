@@ -154,7 +154,7 @@ export default function QRScannerPage() {
 
     const logScanEvent = useCallback(async (logData: any) => {
         try {
-            await createScanLogSql({ ...logData, scannerId: 'public_scanner', scannerName: 'Public Kiosk Scanner' });
+            await createScanLogSql({ ...logData, scannerId: 'public_scanner', scannerName: 'Public Scanner' });
         } catch (e) {
             console.error("Failed to write to scan log", e);
         }
@@ -441,13 +441,13 @@ export default function QRScannerPage() {
                 <Card className="w-full max-w-sm">
                     <CardHeader>
                         <CardTitle className="font-headline text-center text-2xl">Scanner Login</CardTitle>
-                        <CardDescription className="text-center">Enter the kiosk password to activate the scanner.</CardDescription>
+                        <CardDescription className="text-center">Enter the scanner password to activate the scanner.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             if (passwordInput === 'CogMain123') setIsAuthenticated(true);
-                            else toast({ variant: 'destructive', title: 'Invalid Password', description: 'Incorrect kiosk password.' });
+                            else toast({ variant: 'destructive', title: 'Invalid Password', description: 'Incorrect scanner password.' });
                         }} className="flex flex-col gap-4">
                             <input type="password"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"

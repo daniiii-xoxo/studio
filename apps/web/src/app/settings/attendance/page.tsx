@@ -98,7 +98,7 @@ export default function AttendanceSettingsPage() {
                             Attendance & Shift Schedule
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Configure work shift hours, grace period thresholds, and kiosk cooldown rules.
+                            Configure work shift hours, grace period thresholds, and scanner cooldown rules.
                         </p>
                     </div>
                     <Link
@@ -119,7 +119,7 @@ export default function AttendanceSettingsPage() {
                                 </div>
                                 <div>
                                     <h2 className="text-sm font-bold font-headline text-foreground">Shift & Clock Rules</h2>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">Adjust shift parameters applied to all QR scanner kiosks.</p>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">Adjust shift parameters applied to all QR scanners.</p>
                                 </div>
                             </div>
                             <Button
@@ -230,13 +230,13 @@ export default function AttendanceSettingsPage() {
                             </div>
                             <div>
                                 <h2 className="text-sm font-bold font-headline text-foreground">Live Rule Summary</h2>
-                                <p className="text-[11px] text-muted-foreground mt-0.5">Automated kiosk scan evaluation logic</p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">Automated scan evaluation logic</p>
                             </div>
                         </div>
 
                         <div className="p-4 sm:p-5 space-y-3.5 flex-1 flex flex-col justify-between">
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                How the automatic QR scanner kiosk will evaluate scans with the current configuration:
+                                How the automatic QR scanner will evaluate scans with the current configuration:
                             </p>
 
                             <div className="space-y-3 text-xs flex-1">

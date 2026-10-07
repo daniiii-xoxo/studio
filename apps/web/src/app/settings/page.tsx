@@ -215,7 +215,7 @@ export default function SettingsPage() {
               icon={Clock}
               iconBg="bg-sidebar/10 text-sidebar"
               title="Attendance & Shifts"
-              description="Configure shift hours, grace periods and kiosk rules."
+              description="Configure shift hours, grace periods and scanner rules."
               badge="Auto Shift Rules"
             />
             {canManageRoles && (

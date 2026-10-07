@@ -396,8 +396,9 @@ function AttendanceContent() {
 
   const fmtId = (id: string | null | undefined) => {
     if (!id) return "—";
-    const n = parseInt(id, 10);
-    return isNaN(n) ? id : `COG-${String(n).padStart(4, "0")}`;
+    const clean = String(id).replace(/^COG-?/i, "").trim();
+    const n = parseInt(clean, 10);
+    return isNaN(n) ? id : String(n).padStart(6, "0");
   };
 
   const getRoleName = (w: any) => {
@@ -532,7 +533,7 @@ function AttendanceContent() {
           <div className="flex items-center gap-2 shrink-0 sm:self-end">
             <Link href="/attendance/scanner">
               <button className="h-10 px-4 flex items-center gap-2 rounded-2xl border border-border/80 bg-white dark:bg-card hover:bg-muted/40 text-foreground text-xs font-bold shadow-xs transition-colors cursor-pointer">
-                <ScanLine className="h-4 w-4 text-primary" /> Scanner Kiosk
+                <ScanLine className="h-4 w-4 text-primary" /> Scanner
               </button>
             </Link>
             {(activeTab === "manual" || activeTab === "records") && (

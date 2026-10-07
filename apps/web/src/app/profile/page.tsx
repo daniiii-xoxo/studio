@@ -124,7 +124,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="pt-6 pb-6 px-6 space-y-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Work Info</p>
-              <InfoRow icon={Hash} label="Worker ID" value={workerProfile?.workerId} />
+              <InfoRow icon={Hash} label="Worker ID" value={workerProfile?.workerId ? String(workerProfile.workerId).replace(/^COG-?/i, "").padStart(6, "0") : "—"} />
               <InfoRow icon={Briefcase} label="Worker Type" value={workerProfile?.employmentType} />
               <InfoRow icon={Clock} label="Start Date" value={startDate} />
             </CardContent>

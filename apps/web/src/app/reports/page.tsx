@@ -117,8 +117,9 @@ const ITEMS_PER_PAGE = 8;
 
 const fmtId = (id: string | null | undefined) => {
   if (!id) return "—";
-  const num = parseInt(id, 10);
-  return isNaN(num) ? id : `COG-${String(num).padStart(4, "0")}`;
+  const clean = String(id).replace(/^COG-?/i, "").trim();
+  const num = parseInt(clean, 10);
+  return isNaN(num) ? id : String(num).padStart(6, "0");
 };
 
 // ── Department Scoping Helpers ────────────────────────────────────────────────
